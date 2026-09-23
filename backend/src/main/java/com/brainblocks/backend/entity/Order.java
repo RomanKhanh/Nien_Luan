@@ -27,7 +27,7 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(nullable = false, unique = true, updatable = false, length = 30)
     private String orderCode;
 
     @ManyToOne(fetch = FetchType.LAZY)

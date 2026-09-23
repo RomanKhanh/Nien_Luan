@@ -33,6 +33,6 @@ public class OrderItem {
     private int quantity;
 
     // giá tại thời điểm đặt hàng, không lấy lại từ Product vì giá có thể thay đổi
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(nullable = false, updatable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 }
