@@ -58,6 +58,14 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
+    // chỉ có sau khi khách chọn thanh toán online, đơn COD không sinh bản ghi Payment
+    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
+    private Payment payment;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "order")
+    private List<Complaint> complaints = new ArrayList<>();
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

@@ -11,7 +11,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "child_products")
+@Table(
+        name = "child_products",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_child_products_profile_product",
+                columnNames = {"child_profile_id", "product_id"}
+        )
+)
 @Getter
 @Setter
 @Builder
@@ -23,7 +29,8 @@ public class ChildProduct {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 20)
+    // PURCHASED = mua qua đơn hàng, MANUAL = phụ huynh tự thêm
+    @Column(nullable = false, updatable = false, length = 20)
     private String source;
 
     @CreationTimestamp

@@ -25,6 +25,7 @@ public class SkillProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private int totalProducts;
 
     @UpdateTimestamp
@@ -34,8 +35,8 @@ public class SkillProfile {
     @JoinColumn(name = "child_profile_id", nullable = false, unique = true)
     private ChildProfile childProfile;
 
-    @OneToMany(mappedBy = "skillProfile", cascade = CascadeType.ALL, orphanRemoval = true)
+    // lớp kết hợp SkillProfile - Skill, cascade từ phía hồ sơ kỹ năng
     @Builder.Default
+    @OneToMany(mappedBy = "skillProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SkillScore> skillScores = new ArrayList<>();
-
 }

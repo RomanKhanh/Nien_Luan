@@ -1,8 +1,11 @@
 package com.brainblocks.backend.entity;
 
-import com.brainblocks.backend.enums.SkillCode;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,28 +20,25 @@ import java.util.List;
 public class Skill {
 
     @Id
-    @Enumerated(EnumType.STRING)
-    private SkillCode code;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(nullable = false)
+    // 4 nhóm ban đầu: LOGIC, CREATIVE, PROBLEM_SOLVING, STEM - lưu thành dữ liệu để mở rộng
+    @Column(nullable = false, unique = true, length = 30)
+    private String code;
+
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // Thứ tự hiển thị trên biểu đồ kỹ năng
-    @Column(nullable = false)
-    private Integer displayOrder;
-
-    // Cho phép ẩn kỹ năng thay vì xóa cứng (vì đã gắn với sản phẩm)
-    @Column(nullable = false)
-    private boolean active;
-
-    @OneToMany(mappedBy = "skill", cascade = CascadeType.ALL, orphanRemoval = true)
+    // hai lớp kết hợp dưới đây được cascade từ phía Product và SkillProfile
     @Builder.Default
+    @OneToMany(mappedBy = "skill")
     private List<ProductSkillImpact> productSkillImpacts = new ArrayList<>();
 
-    @OneToMany(mappedBy = "skill", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @OneToMany(mappedBy = "skill")
     private List<SkillScore> skillScores = new ArrayList<>();
 }
