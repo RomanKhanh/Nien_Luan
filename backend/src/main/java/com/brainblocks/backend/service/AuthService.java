@@ -45,7 +45,7 @@ public class AuthService {
                 .fullName(request.fullName())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
-                .role(Role.USER) // đăng ký công khai luôn là USER, không nhận role từ client
+                .role(Role.CUSTOMER) // đăng ký công khai luôn là CUSTOMER, không nhận role từ client
                 .build();
 
         User saved = userRepository.save(user);
