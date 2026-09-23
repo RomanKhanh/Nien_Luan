@@ -1,6 +1,6 @@
 package com.brainblocks.backend.enums;
 
-public enum Role {
-    ADMIN,
+public enum Sender {
     CUSTOMER,
+    BOT
 }
