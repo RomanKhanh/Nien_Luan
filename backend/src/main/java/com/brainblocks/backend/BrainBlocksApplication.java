@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BrainBlocksApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(BrainBlocksApplication.class, args);
+        SpringApplication.run(BrainBlocksApplication.class, args);
 	}
 
 }

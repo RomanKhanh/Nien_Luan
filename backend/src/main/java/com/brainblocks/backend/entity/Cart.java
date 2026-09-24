@@ -13,30 +13,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "skill_profiles")
+@Table(name = "carts")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SkillProfile {
-
+public class Cart {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int totalProducts;
+    // mỗi khách hàng chỉ có đúng một giỏ hàng
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false, unique = true)
+    private Customer customer;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CartItem> items = new ArrayList<>();
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "child_profile_id", nullable = false, unique = true)
-    private ChildProfile childProfile;
-
-    // lớp kết hợp SkillProfile - Skill, cascade từ phía hồ sơ kỹ năng
-    @Builder.Default
-    @OneToMany(mappedBy = "skillProfile", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SkillScore> skillScores = new ArrayList<>();
 }

@@ -1,6 +1,6 @@
 package com.brainblocks.backend.enums;
 
-public enum Sender {
-    CUSTOMER,
+public enum SenderType {
+    USER,
     BOT
 }

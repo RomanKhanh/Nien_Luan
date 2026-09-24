@@ -11,35 +11,36 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-        name = "child_products",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_child_products_profile_product",
-                columnNames = {"child_profile_id", "product_id"}
-        )
-)
+@Table(name = "reviews")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChildProduct {
+public class Review {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // PURCHASED = mua qua đơn hàng, MANUAL = phụ huynh tự thêm
-    @Column(nullable = false, updatable = false, length = 20)
-    private String source;
+    @Column(nullable = false)
+    private int rating;
+
+    @Column(columnDefinition = "TEXT")
+    private String comment;
 
     @CreationTimestamp
     @Column(updatable = false)
-    private LocalDateTime addedAt;
+    private LocalDateTime createdAt;
+
+    // false = bị admin ẩn khi kiểm duyệt
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean visible = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "child_profile_id", nullable = false)
-    private ChildProfile childProfile;
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)

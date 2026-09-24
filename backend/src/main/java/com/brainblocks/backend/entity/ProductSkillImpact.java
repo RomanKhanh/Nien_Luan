@@ -9,10 +9,10 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "skill_scores",
+        name = "product_skill_impacts",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_skill_scores_profile_skill",
-                columnNames = {"skill_profile_id", "skill_id"}
+                name = "uk_product_skill_impacts_product_skill",
+                columnNames = {"product_id", "skill_id"}
         )
 )
 @Getter
@@ -20,21 +20,18 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SkillScore {
+public class ProductSkillImpact {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private double score;
-
-    @Column(nullable = false)
-    private double percentage;
+    private int impactIndex;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "skill_profile_id", nullable = false)
-    private SkillProfile skillProfile;
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_id", nullable = false)

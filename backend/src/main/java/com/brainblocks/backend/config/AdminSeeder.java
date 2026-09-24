@@ -1,6 +1,6 @@
 package com.brainblocks.backend.config;
 
-import com.brainblocks.backend.entity.User;
+import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.enums.Role;
 import com.brainblocks.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class AdminSeeder implements CommandLineRunner {
         if (userRepository.existsByEmail(adminEmail)) {
             return;
         }
-        userRepository.save(User.builder()
+        userRepository.save(Admin.builder()
                 .fullName("Administrator")
                 .email(adminEmail)
                 .password(passwordEncoder.encode(adminPassword))

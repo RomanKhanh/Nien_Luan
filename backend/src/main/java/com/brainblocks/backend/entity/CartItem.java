@@ -9,10 +9,10 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "skill_scores",
+        name = "cart_items",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_skill_scores_profile_skill",
-                columnNames = {"skill_profile_id", "skill_id"}
+                name = "uk_cart_items_cart_product",
+                columnNames = {"cart_id", "product_id"}
         )
 )
 @Getter
@@ -20,23 +20,19 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SkillScore {
-
+public class CartItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private double score;
-
-    @Column(nullable = false)
-    private double percentage;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "skill_profile_id", nullable = false)
-    private SkillProfile skillProfile;
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "skill_id", nullable = false)
-    private Skill skill;
+    @Column(nullable = false)
+    private int quantity;
 }
