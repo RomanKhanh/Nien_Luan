@@ -3,6 +3,7 @@ package com.brainblocks.backend.config;
 import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.enums.Role;
 import com.brainblocks.backend.repository.UserRepository;
+import com.brainblocks.backend.util.EmailUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,15 +31,17 @@ public class AdminSeeder implements CommandLineRunner {
             log.warn("ADMIN_PASSWORD is empty, skip seeding admin account");
             return;
         }
-        if (userRepository.existsByEmail(adminEmail)) {
+        // chuẩn hóa như lúc đăng nhập, nếu không ADMIN_EMAIL có chữ hoa sẽ không đăng nhập được
+        String email = EmailUtils.normalize(adminEmail);
+        if (userRepository.existsByEmail(email)) {
             return;
         }
         userRepository.save(Admin.builder()
                 .fullName("Administrator")
-                .email(adminEmail)
+                .email(email)
                 .password(passwordEncoder.encode(adminPassword))
                 .role(Role.ADMIN)
                 .build());
-        log.info("Seeded admin account: {}", adminEmail);
+        log.info("Seeded admin account: {}", email);
     }
 }

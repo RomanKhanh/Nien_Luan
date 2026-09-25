@@ -10,8 +10,11 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "child_profiles")
@@ -58,4 +61,20 @@ public class ChildProfile {
     @Builder.Default
     @OneToMany(mappedBy = "childProfile")
     private List<ChatSession> chatSessions = new ArrayList<>();
+
+    // các nhóm kỹ năng phụ huynh muốn tập trung cho bé; dùng Set để JOIN FETCH cùng collection khác không bị MultipleBagFetchException
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(
+            name = "child_profile_skills",
+            joinColumns = @JoinColumn(name = "child_profile_id"),
+            inverseJoinColumns = @JoinColumn(name = "skill_id")
+    )
+    private Set<Skill> interestedSkills = new HashSet<>();
+
+    // tuổi tròn theo năm tính đến hôm nay; bé dưới 1 tuổi trả 0.
+    // không có field age nên Hibernate (field access) không map method này thành cột
+    public int getAge() {
+        return Period.between(birthDate, LocalDate.now()).getYears();
+    }
 }

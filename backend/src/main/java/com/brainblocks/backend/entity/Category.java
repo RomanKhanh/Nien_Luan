@@ -11,7 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "categories")
+// đặt tên constraint để ddl-auto=update thêm được vào bảng đã tồn tại (unique = true trên @Column thì không)
+@Table(
+        name = "categories",
+        uniqueConstraints = @UniqueConstraint(name = "uk_categories_name", columnNames = "name")
+)
 @Getter
 @Setter
 @Builder

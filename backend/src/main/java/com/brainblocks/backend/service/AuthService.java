@@ -12,6 +12,7 @@ import com.brainblocks.backend.exception.DuplicateEmailException;
 import com.brainblocks.backend.repository.UserRepository;
 import com.brainblocks.backend.security.CustomUserDetails;
 import com.brainblocks.backend.security.JwtService;
+import com.brainblocks.backend.util.EmailUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,7 +34,7 @@ public class AuthService {
     @Transactional
     public LoginResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.password())
+                new UsernamePasswordAuthenticationToken(EmailUtils.normalize(request.email()), request.password())
         );
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
@@ -49,13 +50,14 @@ public class AuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String email = EmailUtils.normalize(request.email());
+        if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException("Email already in use");
         }
 
         Customer customer = Customer.builder()
                 .fullName(request.fullName())
-                .email(request.email())
+                .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.CUSTOMER) // đăng ký công khai luôn là CUSTOMER, không nhận role từ client
                 .build();

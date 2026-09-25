@@ -1,5 +1,6 @@
 package com.brainblocks.backend.entity;
 
+import com.brainblocks.backend.enums.ProductSource;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,8 +31,9 @@ public class ChildProduct {
     private Long id;
 
     // PURCHASED = mua qua đơn hàng, MANUAL = phụ huynh tự thêm
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false, length = 20)
-    private String source;
+    private ProductSource source;
 
     @CreationTimestamp
     @Column(updatable = false)

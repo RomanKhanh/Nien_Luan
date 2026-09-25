@@ -10,6 +10,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "chat_messages")
@@ -29,6 +31,21 @@ public class ChatMessage {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    // chủ đề tư vấn, dùng cho thống kê câu hỏi / chủ đề phổ biến
+    @Column(length = 50)
+    private String topic;
+
+    // sản phẩm chatbot gợi ý trong tin nhắn này.
+    // chỉ tin nhắn sender = BOT mới có; productId do AI trả về phải tồn tại và active (kiểm tra ở service)
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(
+            name = "chat_message_products",
+            joinColumns = @JoinColumn(name = "chat_message_id"),
+            inverseJoinColumns = @JoinColumn(name = "product_id")
+    )
+    private Set<Product> suggestedProducts = new HashSet<>();
 
     @CreationTimestamp
     @Column(updatable = false)

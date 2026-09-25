@@ -11,7 +11,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews")
+// mỗi khách chỉ đánh giá một sản phẩm một lần
+@Table(
+        name = "reviews",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_reviews_customer_product",
+                columnNames = {"customer_id", "product_id"}
+        )
+)
 @Getter
 @Setter
 @Builder

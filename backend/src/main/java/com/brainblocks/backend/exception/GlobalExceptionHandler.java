@@ -2,6 +2,7 @@ package com.brainblocks.backend.exception;
 
 import com.brainblocks.backend.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -87,6 +88,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ApiResponse<Void>> handleDuplicateEmail(DuplicateEmailException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // Lưới an toàn khi DB chặn ràng buộc (vd 2 request đăng ký cùng email chạy song song).
+    // Service vẫn phải kiểm tra trùng trước để trả thông báo rõ ràng; không trả chi tiết SQL ra client.
+    // Lưu ý: lỗi khóa ngoại / NOT NULL cũng rơi vào đây, thường là bug nên log để lần ra.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataConflict(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Data conflicts with existing records"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
