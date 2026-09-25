@@ -1,5 +1,7 @@
 package com.brainblocks.backend.entity;
 
+import com.brainblocks.backend.enums.ComplaintStatus;
+import com.brainblocks.backend.enums.ComplaintType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,14 +37,26 @@ public class Complaint {
     @JoinColumn(name = "handled_by")
     private Admin handledBy;
 
+    // sản phẩm cụ thể bị khiếu nại; null khi khiếu nại cả đơn.
+    // ràng buộc {orderItem.order = order} phải kiểm tra ở service
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_item_id")
+    private OrderItem orderItem;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String type;
+    private ComplaintType type;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private String status;
+    private ComplaintStatus status;
+
+    // phản hồi của admin, null khi chưa xử lý
+    @Column(columnDefinition = "TEXT")
+    private String response;
 
     @CreationTimestamp
     @Column(updatable = false)

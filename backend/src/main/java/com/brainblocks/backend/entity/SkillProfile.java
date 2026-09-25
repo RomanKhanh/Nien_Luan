@@ -10,7 +10,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Entity
 @Table(name = "skill_profiles")
@@ -39,4 +41,23 @@ public class SkillProfile {
     @Builder.Default
     @OneToMany(mappedBy = "skillProfile", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SkillScore> skillScores = new ArrayList<>();
+
+    // Nhóm kỹ năng ít được phát triển nhất (điểm thấp nhất; bằng điểm thì lấy skill id nhỏ hơn).
+    // Rỗng khi bé chưa có sản phẩm nào: mọi nhóm đều 0 nên chưa có cơ sở để so sánh.
+    public Optional<SkillScore> getWeakestSkill() {
+        if (totalProducts == 0) {
+            return Optional.empty();
+        }
+        return skillScores.stream()
+                .min(Comparator.comparingDouble(SkillScore::getScore)
+                        .thenComparing(score -> score.getSkill().getId()));
+    }
+
+    // Nhóm kỹ năng đang được chú trọng nhất; rỗng khi chưa nhóm nào có điểm.
+    public Optional<SkillScore> getStrongestSkill() {
+        return skillScores.stream()
+                .filter(score -> score.getScore() > 0)
+                .max(Comparator.comparingDouble(SkillScore::getScore)
+                        .thenComparing(score -> score.getSkill().getId(), Comparator.reverseOrder()));
+    }
 }

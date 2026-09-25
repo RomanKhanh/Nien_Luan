@@ -25,8 +25,10 @@ public class ProductImage {
     @Column(nullable = false)
     private int displayOrder;
 
-    @Column(nullable = false)
-    private boolean isThumbnail;
+    // không đặt tên isThumbnail: Lombok sẽ sinh setter/builder/JSON lệch tên nhau.
+    // giữ tên cột cũ để ddl-auto=update không tạo thêm cột mới
+    @Column(name = "is_thumbnail", nullable = false)
+    private boolean thumbnail;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)

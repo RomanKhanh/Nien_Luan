@@ -38,6 +38,12 @@ public class ChatbotConfig {
     @Column(columnDefinition = "TEXT")
     private String systemPrompt;
 
+    // chỉ một cấu hình active tại một thời điểm (service bật cái này thì tắt cái khác).
+    // có default để thêm cột vào bảng đã có dữ liệu không bị lỗi NOT NULL
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean active = false;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 

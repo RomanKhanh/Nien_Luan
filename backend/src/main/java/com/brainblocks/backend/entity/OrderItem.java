@@ -29,6 +29,12 @@ public class OrderItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
+    // bé được mua cho; null nếu không chọn. Khi đơn DELIVERED, dựa vào đây để tạo ChildProduct PURCHASED.
+    // ràng buộc {childProfile.customer = order.customer} phải kiểm tra ở service
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "child_profile_id")
+    private ChildProfile childProfile;
+
     @Column(nullable = false)
     private int quantity;
 
