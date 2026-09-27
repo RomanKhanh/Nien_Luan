@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.request;
+package com.brainblocks.backend.dto.request.auth;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

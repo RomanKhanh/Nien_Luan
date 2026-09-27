@@ -1,8 +1,8 @@
 package com.brainblocks.backend.service;
 
-import com.brainblocks.backend.dto.request.LoginRequest;
-import com.brainblocks.backend.dto.request.RegisterRequest;
-import com.brainblocks.backend.dto.response.LoginResponse;
+import com.brainblocks.backend.dto.request.auth.LoginRequest;
+import com.brainblocks.backend.dto.request.auth.RegisterRequest;
+import com.brainblocks.backend.dto.response.auth.LoginResponse;
 import com.brainblocks.backend.dto.response.UserResponse;
 import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.entity.Cart;
