@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* Token lấy từ design system trong mockup BrainBlocks (màn 01) */
+@theme {
+  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+
+  --color-primary: #5b3df5;
+  --color-primary-hover: #4227d6;
+  --color-primary-soft: #f1eeff;
+  --color-secondary: #0d1b3e;
+  --color-accent: #ffd166;
+  --color-success: #16a34a;
+  --color-success-soft: #e8f7ee;
+  --color-warning: #f59e0b;
+  --color-warning-soft: #fef3e0;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fdecec;
+
+  --color-surface: #ffffff;
+  --color-bg: #fbfaf8;
+  --color-muted: #f1efea;
+  --color-line: #e1ded7;
+  --color-line-strong: #d9d5cd;
+  --color-ink: #171512;
+  --color-ink-2: #3c3a36;
+  --color-ink-muted: #6b6862;
+  --color-ink-faint: #a9a59d;
+
+  /* 4 nhóm kỹ năng: màu chính + nền nhạt */
+  --color-skill-logic: #3d7bff;
+  --color-skill-logic-soft: #ebf1ff;
+  --color-skill-creative: #e8467c;
+  --color-skill-creative-soft: #fdebf2;
+  --color-skill-solve: #e08700;
+  --color-skill-solve-soft: #fef3e0;
+  --color-skill-stem: #0f9e7a;
+  --color-skill-stem-soft: #e6f6f1;
+  --color-skill-other: #6b6862;
+  --color-skill-other-soft: #f1efea;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-xl: 12px;
+  --radius-lg: 16px;
+
+  --shadow-card: 0 1px 2px rgb(23 21 18 / 0.04), 0 1px 1px rgb(23 21 18 / 0.03);
+  --shadow-card-hover: 0 8px 24px rgb(23 21 18 / 0.08);
+  --shadow-pop: 0 16px 48px rgb(23 21 18 / 0.18);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-bg text-ink font-sans text-[15px] leading-[1.6];
+  }
+  a {
+    @apply text-primary hover:text-primary-hover;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  input[type="number"]::-webkit-inner-spin-button {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6;
+  }
+  .card {
+    @apply rounded-lg border border-line bg-surface shadow-card;
+  }
+  .label {
+    @apply mb-1.5 block text-[13px] font-semibold text-ink-2;
+  }
+  .input {
+    @apply w-full rounded-md border-[1.5px] border-line-strong bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none transition placeholder:text-ink-faint focus:border-primary disabled:bg-muted disabled:text-ink-muted;
+  }
+  .input-error {
+    @apply border-danger focus:border-danger;
+  }
+  .h1 {
+    @apply text-[24px] font-bold tracking-[-0.02em] sm:text-[28px];
+  }
+  .h2 {
+    @apply text-[18px] font-bold tracking-[-0.02em] sm:text-[20px];
+  }
+}

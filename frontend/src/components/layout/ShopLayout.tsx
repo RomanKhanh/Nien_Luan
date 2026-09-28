@@ -1,0 +1,283 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { meApi } from '@/api/endpoints'
+import { useAuth } from '@/auth/AuthContext'
+import { buttonClass } from '@/components/ui/Button'
+import { useCartCount } from '@/features/cart/useCart'
+import { initials } from '@/lib/format'
+import { Logo } from './Logo'
+
+const NAV = [
+  { to: '/', label: 'Trang chủ', end: true },
+  { to: '/products', label: 'Sản phẩm', end: false },
+  { to: '/children', label: 'Hồ sơ bé', end: false },
+]
+
+export function ShopLayout() {
+  const location = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // đổi trang thì đóng menu mobile (so với trang lúc mở menu) và cuộn lên đầu
+  const [menuPath, setMenuPath] = useState(location.pathname)
+  if (menuPath !== location.pathname) {
+    setMenuPath(location.pathname)
+    setMenuOpen(false)
+  }
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [location.pathname])
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)} />
+      <main className="flex-1">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
+function Header({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: () => void }) {
+  const { session, isCustomer, isAdmin } = useAuth()
+  const cartCount = useCartCount()
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
+      <div className="container-page flex h-16 items-center gap-4">
+        <button
+          type="button"
+          className="grid h-9 w-9 place-items-center rounded-md text-[18px] lg:hidden"
+          onClick={onToggleMenu}
+          aria-label="Mở menu"
+          aria-expanded={menuOpen}
+        >
+          ☰
+        </button>
+        <Logo />
+        <nav className="ml-4 hidden gap-6 text-[14px] font-medium lg:flex" aria-label="Điều hướng chính">
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => (isActive ? 'text-primary' : 'text-ink-2 hover:text-ink')}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        <SearchBox className="ml-auto hidden max-w-xs flex-1 md:block" />
+        <div className="ml-auto flex items-center gap-2 md:ml-0">
+          {isAdmin && (
+            <Link to="/admin" className={buttonClass('soft', 'sm')}>
+              Trang quản trị
+            </Link>
+          )}
+          {(isCustomer || !session) && (
+            <Link
+              to="/cart"
+              className="relative flex items-center gap-2 rounded-md px-2.5 py-2 text-[14px] font-semibold text-ink hover:bg-muted hover:text-ink"
+              aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}
+            >
+              <CartIcon />
+              <span className="hidden sm:inline">Giỏ hàng</span>
+              {cartCount > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-white">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          )}
+          {session ? (
+            <UserMenu />
+          ) : (
+            <Link to="/login" className={buttonClass('primary', 'sm')}>
+              Đăng nhập
+            </Link>
+          )}
+        </div>
+      </div>
+      {menuOpen && (
+        <div className="border-t border-line bg-surface lg:hidden">
+          <div className="container-page flex flex-col gap-1 py-3">
+            <SearchBox className="mb-2 md:hidden" />
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-2.5 text-[15px] font-medium ${isActive ? 'bg-primary-soft text-primary' : 'text-ink-2'}`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
+    </header>
+  )
+}
+
+function SearchBox({ className = '' }: { className?: string }) {
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const keyword = params.get('keyword') ?? ''
+  const [value, setValue] = useState(keyword)
+  // từ khoá trên URL đổi (bấm link khác, xoá bộ lọc) thì ô tìm kiếm theo
+  const [synced, setSynced] = useState(keyword)
+  if (synced !== keyword) {
+    setSynced(keyword)
+    setValue(keyword)
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const next = value.trim()
+    navigate(next ? `/products?keyword=${encodeURIComponent(next)}` : '/products')
+  }
+
+  return (
+    <form role="search" onSubmit={submit} className={className}>
+      <label className="relative block">
+        <span className="sr-only">Tìm sản phẩm</span>
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden>
+          ⌕
+        </span>
+        <input
+          type="search"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Tìm đồ chơi, kỹ năng…"
+          className="w-full rounded-full border border-line bg-bg py-2 pl-9 pr-4 text-[14px] outline-none focus:border-primary"
+        />
+      </label>
+    </form>
+  )
+}
+
+function UserMenu() {
+  const { isAdmin, logout } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: meApi.get, staleTime: 5 * 60_000 })
+
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  const items = isAdmin
+    ? [
+        { to: '/admin', label: 'Trang quản trị' },
+        { to: '/account', label: 'Tài khoản' },
+      ]
+    : [
+        { to: '/account', label: 'Thông tin tài khoản' },
+        { to: '/children', label: 'Hồ sơ bé' },
+        { to: '/orders', label: 'Đơn hàng của tôi' },
+        { to: '/feedback', label: 'Phản hồi & khiếu nại' },
+      ]
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 hover:bg-muted"
+      >
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-[12px] font-bold text-white">
+          {me ? initials(me.fullName) : '…'}
+        </span>
+        <span className="hidden max-w-[120px] truncate text-[14px] font-semibold xl:inline">{me?.fullName}</span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-56 rounded-md border border-line bg-surface p-1.5 shadow-pop"
+        >
+          {items.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block rounded-sm px-3 py-2 text-[14px] text-ink-2 hover:bg-muted hover:text-ink"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full rounded-sm px-3 py-2 text-left text-[14px] text-danger hover:bg-danger-soft"
+            onClick={() => {
+              logout()
+              navigate('/')
+            }}
+          >
+            Đăng xuất
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="mt-16 bg-secondary text-[#BFC7DA]">
+      <div className="container-page grid gap-8 py-10 text-[14px] sm:grid-cols-3">
+        <div>
+          <p className="text-[17px] font-extrabold text-white">BrainBlocks</p>
+          <p className="mt-2">Đồ chơi giáo dục STEM, chọn theo lộ trình kỹ năng của bé.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <p className="font-semibold text-white">Khám phá</p>
+          <Link to="/products" className="text-[#BFC7DA] hover:text-white">
+            Tất cả sản phẩm
+          </Link>
+          <Link to="/children" className="text-[#BFC7DA] hover:text-white">
+            Hồ sơ & lộ trình kỹ năng
+          </Link>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <p className="font-semibold text-white">Hỗ trợ</p>
+          <Link to="/orders" className="text-[#BFC7DA] hover:text-white">
+            Theo dõi đơn hàng
+          </Link>
+          <Link to="/feedback" className="text-[#BFC7DA] hover:text-white">
+            Phản hồi & khiếu nại
+          </Link>
+        </div>
+      </div>
+      <p className="container-page border-t border-white/10 py-4 text-[12.5px]">
+        Chỉ số kỹ năng chỉ mang tính tham khảo khi chọn đồ chơi, không đánh giá năng lực hay sự phát triển của trẻ.
+      </p>
+    </footer>
+  )
+}
+
+function CartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path
+        d="M3 4h2l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 8H6.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="9.5" cy="19.5" r="1.3" />
+      <circle cx="17" cy="19.5" r="1.3" />
+    </svg>
+  )
+}
