@@ -1,14 +1,32 @@
 package com.brainblocks.backend.repository;
 
 import com.brainblocks.backend.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
+    // trang chi tiết: kèm danh mục trong 1 câu (ảnh và chỉ số kỹ năng lấy riêng để không nhân dòng)
+    @Query("select p from Product p join fetch p.category where p.id = :id")
+    Optional<Product> findWithCategoryById(@Param("id") Long id);
+
+    // danh sách có lọc (ProductSpecifications): kèm danh mục để product card không phát sinh N+1
+    @Override
+    @EntityGraph(attributePaths = "category")
+    Page<Product> findAll(Specification<Product> spec, Pageable pageable);
+
+    long countByActiveTrue();
+    long countByActiveTrueAndStockQuantityLessThanEqual(int threshold);
+
 
     // Ứng viên gợi ý cho một bé: đang bán, còn hàng, hợp tuổi, bé chưa có.
     // Lấy kèm chỉ số tác động kỹ năng trong 1 câu để chấm điểm không phát sinh N+1.
