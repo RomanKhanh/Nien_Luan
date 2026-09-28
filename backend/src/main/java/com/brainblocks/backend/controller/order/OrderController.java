@@ -21,7 +21,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<OrderResponse>> creatOrder(@Valid @RequestBody CreateOrderRequest request) {
+    public ResponseEntity<ApiResponse<OrderResponse>> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Order created", orderService.createOrder(request)));
     }
@@ -38,6 +38,6 @@ public class OrderController {
 
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<OrderResponse>> cancel(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.cancelOrder(id)));
+        return ResponseEntity.ok(ApiResponse.success("Order cancelled", orderService.cancelOrder(id)));
     }
 }

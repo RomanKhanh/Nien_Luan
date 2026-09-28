@@ -19,12 +19,25 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AdminOrderService {
 
     private static final int MAX_PAGE_SIZE = 100;
+
+    // Luồng trạng thái theo đề: Chờ xác nhận -> Đã xác nhận -> Đang giao -> Đã giao; hủy được khi chưa giao đi
+    // (giống điều kiện khách tự hủy ở OrderService.cancelOrder). DELIVERED và CANCELLED là trạng thái cuối.
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+            OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
+            OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.SHIPPING, OrderStatus.CANCELLED),
+            OrderStatus.SHIPPING, EnumSet.of(OrderStatus.DELIVERED),
+            OrderStatus.DELIVERED, EnumSet.noneOf(OrderStatus.class),
+            OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class)
+    );
 
     private final OrderRepository orderRepository;
     private final ChildProductRepository childProductRepository;
@@ -44,22 +57,28 @@ public class AdminOrderService {
 
     @Transactional(readOnly = true)
     public OrderResponse getOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         return orderService.toOrderResponse(order);
     }
 
     @Transactional
     public OrderResponse updateStatus(Long orderId, UpdateOrderStatusRequest request) {
-        Order order = orderRepository.findById(orderId)
+        // khóa đơn để không chạy chồng với khách đang tự hủy cùng đơn này
+        Order order = orderRepository.findForUpdateById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         OrderStatus currentStatus = order.getStatus();
-        if (currentStatus == OrderStatus.DELIVERED || currentStatus == OrderStatus.CANCELLED) {
-            throw new IllegalArgumentException("Cannot change status of a " + currentStatus + " order");
+        OrderStatus newStatus = request.status();
+        if (!ALLOWED_TRANSITIONS.get(currentStatus).contains(newStatus)) {
+            throw new IllegalArgumentException("Cannot change order status from " + currentStatus + " to " + newStatus);
         }
-        order.setStatus(request.status());
 
-        if (request.status().equals(OrderStatus.DELIVERED)) {
+        if (newStatus == OrderStatus.CANCELLED) {
+            orderService.restoreStock(order);
+        }
+        order.setStatus(newStatus);
+
+        if (newStatus == OrderStatus.DELIVERED) {
             createChildProductsForDeliveredOrder(order);
         }
 

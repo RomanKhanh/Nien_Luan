@@ -2,6 +2,7 @@ package com.brainblocks.backend.repository;
 
 import com.brainblocks.backend.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -39,4 +40,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
         String getUrl();
     }
+
+    // Trừ kho nguyên tử: chỉ trừ khi còn đủ hàng, DB khóa dòng trong lúc update nên
+    // 2 đơn đặt song song không thể cùng trừ quá số tồn. Trả 0 = không đủ hàng.
+    // Không đụng tới entity Product đang nằm trong persistence context (giá trị stockQuantity trong đó có thể cũ).
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update Product p
+            set p.stockQuantity = p.stockQuantity - :quantity
+            where p.id = :productId and p.stockQuantity >= :quantity
+            """)
+    int decreaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
+
+    // Hoàn kho khi hủy đơn, cộng thẳng trong DB để không mất cập nhật khi chạy song song
+    @Modifying(flushAutomatically = true)
+    @Query("update Product p set p.stockQuantity = p.stockQuantity + :quantity where p.id = :productId")
+    int increaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
 }
