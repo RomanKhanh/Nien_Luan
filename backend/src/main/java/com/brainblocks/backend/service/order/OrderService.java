@@ -6,6 +6,7 @@ import com.brainblocks.backend.dto.response.order.OrderItemResponse;
 import com.brainblocks.backend.dto.response.order.OrderResponse;
 import com.brainblocks.backend.entity.*;
 import com.brainblocks.backend.enums.OrderStatus;
+import com.brainblocks.backend.enums.PaymentMethod;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.CustomerRepository;
@@ -39,7 +40,14 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
+        // chưa tích hợp cổng VNPay/MoMo (chưa tạo Payment, chưa có callback): tạm thời chỉ nhận COD
+        if (request.paymentMethod() != PaymentMethod.COD) {
+            throw new IllegalArgumentException("Only COD payment is supported at the moment");
+        }
+
         Long customerId = currentUserProvider.getCurrentUser().getId();
+        // khóa giỏ trước khi đọc các dòng giỏ, để 2 lần đặt hàng song song không cùng dùng một giỏ
+        cartRepository.findForUpdateByCustomerId(customerId);
         Cart cart = cartRepository.findWithItemsByCustomerId(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found!"));
 
@@ -158,14 +166,18 @@ public class OrderService {
 
     OrderResponse toOrderResponse(Order order) {
         List<OrderItemResponse> items = order.getItems().stream()
-                .map(i -> new OrderItemResponse(
-                        i.getId(),
-                        i.getProduct().getId(),
-                        i.getProduct().getName(),
-                        i.getQuantity(),
-                        i.getUnitPrice(),
-                        i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity()))
-                        ))
+                .map(i -> {
+                    ChildProfile child = i.getChildProfile();
+                    return new OrderItemResponse(
+                            i.getId(),
+                            i.getProduct().getId(),
+                            i.getProduct().getName(),
+                            i.getQuantity(),
+                            i.getUnitPrice(),
+                            i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())),
+                            child == null ? null : child.getId(),
+                            child == null ? null : child.getName());
+                })
                 .toList();
         return new OrderResponse(order.getId(), order.getOrderCode(), order.getReceiverName(),
                 order.getReceiverPhone(), order.getShippingAddress(), order.getTotalAmount(),

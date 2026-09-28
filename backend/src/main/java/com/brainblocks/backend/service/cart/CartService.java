@@ -11,6 +11,7 @@ import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CartItemRepository;
 import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.ProductRepository;
+import com.brainblocks.backend.repository.ProductRepository.ProductThumbnail;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,15 +48,19 @@ public class CartService {
                 .filter(i->i.getProduct().getId().equals(request.productId()))
                 .findFirst();
 
-        int newQuantity = existing.map(item -> item.getQuantity() + request.quantity())
-                .orElse(request.quantity());
+        // cộng bằng long để không tràn int, rồi mới so với giới hạn mỗi món và tồn kho
+        long newQuantity = existing.map(item -> (long) item.getQuantity() + request.quantity())
+                .orElse((long) request.quantity());
 
+        if (newQuantity > CartItem.MAX_QUANTITY) {
+            throw new IllegalArgumentException("Quantity per product cannot exceed " + CartItem.MAX_QUANTITY);
+        }
         if (newQuantity > product.getStockQuantity()) {
             throw new IllegalArgumentException("Not enough stock for: " + product.getName());
         }
 
         if (existing.isPresent()) {
-            existing.get().setQuantity(newQuantity);
+            existing.get().setQuantity((int) newQuantity);
         } else {
             CartItem item = CartItem.builder()
                     .cart(cart)
@@ -108,17 +115,26 @@ public class CartService {
     }
 
     private CartResponse toResponse(Cart cart) {
-        List<CartItemResponse> items = cart.getItems().stream().map(this::toItemResponse).toList();
+        // ảnh đại diện của cả giỏ lấy trong 1 câu
+        List<Long> productIds = cart.getItems().stream().map(item -> item.getProduct().getId()).toList();
+        Map<Long, String> thumbnailByProductId = productIds.isEmpty() ? Map.of() : productRepository
+                .findThumbnails(productIds).stream()
+                .collect(Collectors.toMap(ProductThumbnail::getProductId, ProductThumbnail::getUrl, (a, b) -> a));
+
+        List<CartItemResponse> items = cart.getItems().stream()
+                .map(item -> toItemResponse(item, thumbnailByProductId.get(item.getProduct().getId())))
+                .toList();
         BigDecimal total = items.stream().map(CartItemResponse::subtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new CartResponse(cart.getId(), items, total);
     }
 
-    private CartItemResponse toItemResponse(CartItem item) {
+    private CartItemResponse toItemResponse(CartItem item, String thumbnailUrl) {
         Product p = item.getProduct();
         BigDecimal subTotal = p.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-        return  new CartItemResponse(
-            item.getId(), p.getId(), p.getName(), p.getPrice(), item.getQuantity(),subTotal
+        return new CartItemResponse(
+                item.getId(), p.getId(), p.getName(), thumbnailUrl, p.getPrice(), item.getQuantity(), subTotal,
+                p.getStockQuantity(), p.isActive()
         );
     }
 }

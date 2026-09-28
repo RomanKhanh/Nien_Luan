@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -85,6 +86,8 @@ public class AdminOrderService {
         return orderService.toOrderResponse(order);
     }
     private void createChildProductsForDeliveredOrder(Order order) {
+        // gom các bé có thêm sản phẩm để mỗi bé chỉ tính lại hồ sơ kỹ năng 1 lần, dù đơn có nhiều dòng cho cùng bé
+        Map<Long, ChildProfile> changedChildren = new LinkedHashMap<>();
         for (OrderItem item : order.getItems()) {
             ChildProfile child = item.getChildProfile();
             if (child == null) {
@@ -100,8 +103,9 @@ public class AdminOrderService {
                     .product(item.getProduct())
                     .source(ProductSource.PURCHASED)
                     .build());
-            skillProfileService.recalculateFor(child);
+            changedChildren.put(child.getId(), child);
         }
+        changedChildren.values().forEach(skillProfileService::recalculateFor);
     }
     private OrderSummaryResponse toSummaryResponse(Order order) {
         Customer customer = order.getCustomer();

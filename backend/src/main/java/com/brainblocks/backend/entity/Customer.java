@@ -1,5 +1,6 @@
 package com.brainblocks.backend.entity;
 
+import com.brainblocks.backend.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,10 +24,11 @@ public class Customer extends User {
     @Column(length = 255)
     private String defaultAddress;
 
-    // thành phần: giỏ hàng và hồ sơ trẻ không tồn tại tách rời khách hàng
-    @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Cart cart;
+    // Giỏ hàng (quan hệ 1-1 thành phần) chỉ map ở phía Cart.customer, không map ngược ở đây:
+    // phía mappedBy của @OneToOne không lazy được, mỗi lần load Customer (kể cả lúc lọc JWT) sẽ tốn thêm 1 query.
+    // Giỏ được tạo cùng tài khoản ở AuthService.register và lấy qua CartRepository.
 
+    // thành phần: hồ sơ trẻ không tồn tại tách rời khách hàng
     @Builder.Default
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChildProfile> childProfiles = new ArrayList<>();
@@ -47,4 +49,9 @@ public class Customer extends User {
     @Builder.Default
     @OneToMany(mappedBy = "customer")
     private List<ChatSession> chatSessions = new ArrayList<>();
+
+    @Override
+    public Role getRole() {
+        return Role.CUSTOMER;
+    }
 }

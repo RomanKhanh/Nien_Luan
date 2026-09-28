@@ -19,6 +19,7 @@ public class CustomUserDetails implements UserDetails {
 
     public Long getId() { return user.getId(); }
     public Role getRole() { return user.getRole(); }
+    public int getTokenVersion() { return user.getTokenVersion(); }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

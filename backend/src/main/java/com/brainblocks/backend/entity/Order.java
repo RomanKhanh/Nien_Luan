@@ -58,9 +58,8 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
-    // chỉ có sau khi khách chọn thanh toán online, đơn COD không sinh bản ghi Payment
-    @OneToOne(mappedBy = "order", fetch = FetchType.LAZY)
-    private Payment payment;
+    // Payment (0..1, chỉ có khi thanh toán online) chỉ map ở phía Payment.order, không map ngược ở đây:
+    // phía mappedBy của @OneToOne không lazy được, mỗi đơn load lên sẽ tốn thêm 1 query tìm payment.
 
     @Builder.Default
     @OneToMany(mappedBy = "order")
