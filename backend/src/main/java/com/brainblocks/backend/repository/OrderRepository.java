@@ -19,6 +19,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             select distinct o from Order o
             left join fetch o.items i
             left join fetch i.product
+            left join fetch i.childProfile
             where o.id = :id
             """)
     Optional<Order> findWithItemsById(@Param("id") Long id);
@@ -27,6 +28,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             select distinct o from Order o
             left join fetch o.items i
             left join fetch i.product
+            left join fetch i.childProfile
             where o.customer.id = :customerId
             order by o.createdAt desc
             """)

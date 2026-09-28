@@ -34,6 +34,6 @@ public class UserController {
     @PutMapping("/password")
     public ResponseEntity<ApiResponse<Void>> changeMyPassword(@Valid @RequestBody ChangePasswordRequest request) {
         userService.changeMyPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Password changed", null));
+        return ResponseEntity.ok(ApiResponse.success("Password changed, please log in again", null));
     }
 }

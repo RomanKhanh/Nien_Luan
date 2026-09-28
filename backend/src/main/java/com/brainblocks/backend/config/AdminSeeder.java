@@ -1,7 +1,6 @@
 package com.brainblocks.backend.config;
 
 import com.brainblocks.backend.entity.Admin;
-import com.brainblocks.backend.enums.Role;
 import com.brainblocks.backend.repository.UserRepository;
 import com.brainblocks.backend.util.EmailUtils;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +39,6 @@ public class AdminSeeder implements CommandLineRunner {
                 .fullName("Administrator")
                 .email(email)
                 .password(passwordEncoder.encode(adminPassword))
-                .role(Role.ADMIN)
                 .build());
         log.info("Seeded admin account: {}", email);
     }

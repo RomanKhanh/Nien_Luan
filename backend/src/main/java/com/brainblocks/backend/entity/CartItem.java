@@ -21,6 +21,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CartItem {
+    // số lượng tối đa của một sản phẩm trong giỏ; chặn luôn việc cộng dồn bị tràn int thành số âm
+    public static final int MAX_QUANTITY = 99;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

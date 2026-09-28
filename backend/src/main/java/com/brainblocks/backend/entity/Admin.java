@@ -1,5 +1,6 @@
 package com.brainblocks.backend.entity;
 
+import com.brainblocks.backend.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,4 +36,9 @@ public class Admin extends User {
     @Builder.Default
     @OneToMany(mappedBy = "admin")
     private List<KnowledgeDocument> knowledgeDocuments = new ArrayList<>();
+
+    @Override
+    public Role getRole() {
+        return Role.ADMIN;
+    }
 }

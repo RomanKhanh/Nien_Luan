@@ -7,8 +7,8 @@ import com.brainblocks.backend.dto.response.UserResponse;
 import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.entity.Cart;
 import com.brainblocks.backend.entity.Customer;
-import com.brainblocks.backend.enums.Role;
 import com.brainblocks.backend.exception.DuplicateEmailException;
+import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.UserRepository;
 import com.brainblocks.backend.security.CustomUserDetails;
 import com.brainblocks.backend.security.JwtService;
@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
+    private final CartRepository cartRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -59,14 +60,12 @@ public class AuthService {
                 .fullName(request.fullName())
                 .email(email)
                 .password(passwordEncoder.encode(request.password()))
-                .role(Role.CUSTOMER) // đăng ký công khai luôn là CUSTOMER, không nhận role từ client
-                .build();
-
-        // mỗi khách hàng có đúng một giỏ hàng, tạo cùng lúc với tài khoản
-        Cart cart = Cart.builder().customer(customer).build();
-        customer.setCart(cart);
+                .build(); // role CUSTOMER suy ra từ lớp Customer, không nhận role từ client
 
         Customer saved = userRepository.save(customer);
+
+        // mỗi khách hàng có đúng một giỏ hàng, tạo cùng lúc với tài khoản (cùng transaction)
+        cartRepository.save(Cart.builder().customer(saved).build());
         return new UserResponse(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole().name());
     }
 }

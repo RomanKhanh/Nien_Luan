@@ -13,6 +13,8 @@ import java.util.Date;
 
 @Service
 public class JwtService {
+    private static final String TOKEN_VERSION_CLAIM = "ver";
+
     @Value("${jwt.secret}")
     private String secretKey;
 
@@ -29,6 +31,7 @@ public class JwtService {
                 .subject(userDetails.getUsername())
                 .claim("userId", userDetails.getId())
                 .claim("role", userDetails.getRole().name())
+                .claim(TOKEN_VERSION_CLAIM, userDetails.getTokenVersion())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(getSigningKey())
@@ -41,7 +44,17 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String email = extractEmail(token);
-        return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        return email.equals(userDetails.getUsername()) && !isTokenExpired(token) && isCurrentVersion(token, userDetails);
+    }
+
+    // token phát ra trước lần đổi mật khẩu gần nhất mang tokenVersion cũ nên bị từ chối
+    // (token cũ không có claim này được coi là version 0)
+    private boolean isCurrentVersion(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof CustomUserDetails user)) {
+            return true;
+        }
+        Integer version = extractAllClaims(token).get(TOKEN_VERSION_CLAIM, Integer.class);
+        return (version == null ? 0 : version) == user.getTokenVersion();
     }
 
     private boolean isTokenExpired(String token) {

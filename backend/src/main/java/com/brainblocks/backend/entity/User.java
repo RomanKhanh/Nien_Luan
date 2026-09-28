@@ -38,6 +38,8 @@ public abstract class User {
     @Column(nullable = false)
     private String password;
 
+    // Cột role giữ theo sơ đồ lớp, nhưng giá trị luôn suy ra từ lớp con (xem getRole/syncRoleColumn):
+    // không thể có Customer mang role ADMIN do code tạo sai.
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role;
@@ -47,7 +49,23 @@ public abstract class User {
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean enabled = true;
 
+    // Tăng mỗi lần đổi mật khẩu. JWT mang giá trị lúc phát hành; khác giá trị hiện tại thì token bị từ chối,
+    // nên mọi token phát ra trước khi đổi mật khẩu hết hiệu lực ngay.
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int tokenVersion = 0;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    // Vai trò do lớp con quyết định (Admin -> ADMIN, Customer -> CUSTOMER); phân quyền JWT dùng giá trị này
+    public abstract Role getRole();
+
+    // luôn ghi cột role khớp với lớp con, kể cả khi code set nhầm qua builder/setter
+    @PrePersist
+    @PreUpdate
+    private void syncRoleColumn() {
+        this.role = getRole();
+    }
 }

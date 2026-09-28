@@ -49,6 +49,8 @@ public class UserService {
             throw new IllegalArgumentException("New password must be different from current password");
         }
         user.setPassword(passwordEncoder.encode(request.newPassword()));
+        // vô hiệu hóa mọi JWT đã phát trước đó (xem JwtService.isCurrentVersion); client phải đăng nhập lại
+        user.setTokenVersion(user.getTokenVersion() + 1);
     }
 
     // dùng chung cho cả AdminUserService để 2 phía trả cùng một định dạng
