@@ -8,6 +8,7 @@ import com.brainblocks.backend.entity.Cart;
 import com.brainblocks.backend.entity.CartItem;
 import com.brainblocks.backend.entity.Product;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
+import com.brainblocks.backend.repository.CartItemRepository;
 import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
@@ -23,6 +24,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CartService {
     private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -36,6 +38,7 @@ public class CartService {
         Cart cart = getOwnedCart();
 
         Product product = productRepository.findById(request.productId())
+                .filter(Product::isActive) // sản phẩm đã ẩn coi như không tồn tại với phía khách hàng
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         Optional<CartItem> existing = cart.getItems().stream()
@@ -52,12 +55,14 @@ public class CartService {
         if (existing.isPresent()) {
             existing.get().setQuantity(newQuantity);
         } else {
-            cart.getItems().add(CartItem.builder()
+            CartItem item = CartItem.builder()
                     .cart(cart)
                     .product(product)
                     .quantity(request.quantity())
-                    .build()
-            );
+                    .build();
+            // save ngay (IDENTITY nên INSERT luôn) để response có id; nếu chỉ add vào list thì
+            // cascade mới lưu lúc commit, sau khi response đã dựng xong với id = null
+            cart.getItems().add(cartItemRepository.save(item));
         }
         return toResponse(cart);
     }
@@ -67,6 +72,9 @@ public class CartService {
         Cart cart = getOwnedCart();
         CartItem item = findOwnedItem(cart, itemId);
 
+        if (!item.getProduct().isActive()) {
+            throw new IllegalArgumentException("Product is no longer available: " + item.getProduct().getName());
+        }
         if (request.quantity() > item.getProduct().getStockQuantity()) {
             throw new IllegalArgumentException("Not enough stock for: " + item.getProduct().getName());
         }

@@ -5,7 +5,6 @@ import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,8 +17,9 @@ public class OrderAccessGuard {
         Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        if (!order.getCustomer().getId().equals(currentUserProvider.getCurrentUser().getId())) {
-            throw new AccessDeniedException("Order does not belong to current user");
+        // đơn của người khác trả 404 giống đơn không tồn tại, để không lộ id nào là đơn có thật
+        if (!order.getCustomer().getId().equals(currentUserProvider.getCurrentUserId())) {
+            throw new ResourceNotFoundException("Order not found");
         }
         return order;
     }

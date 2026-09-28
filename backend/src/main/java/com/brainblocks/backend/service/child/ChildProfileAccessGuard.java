@@ -5,7 +5,6 @@ import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.ChildProfileRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -24,10 +23,11 @@ public class ChildProfileAccessGuard {
         ChildProfile child = childProfileRepository.findById(childProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Child profile not found"));
 
-        // customer là proxy LAZY, getId() không phát sinh thêm query
+        // customer là proxy LAZY, getId() không phát sinh thêm query.
+        // hồ sơ của người khác trả 404 giống hồ sơ không tồn tại, để không lộ id nào là hồ sơ có thật
         Long ownerId = child.getCustomer().getId();
         if (!ownerId.equals(currentUserProvider.getCurrentUserId())) {
-            throw new AccessDeniedException("Child profile does not belong to current user");
+            throw new ResourceNotFoundException("Child profile not found");
         }
         return child;
     }
