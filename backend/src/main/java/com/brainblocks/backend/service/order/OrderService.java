@@ -40,10 +40,6 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
-        // chưa tích hợp cổng VNPay/MoMo (chưa tạo Payment, chưa có callback): tạm thời chỉ nhận COD
-        if (request.paymentMethod() != PaymentMethod.COD) {
-            throw new IllegalArgumentException("Only COD payment is supported at the moment");
-        }
 
         Long customerId = currentUserProvider.getCurrentUser().getId();
         // khóa giỏ trước khi đọc các dòng giỏ, để 2 lần đặt hàng song song không cùng dùng một giỏ
