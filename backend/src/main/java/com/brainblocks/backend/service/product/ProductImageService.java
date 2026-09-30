@@ -25,7 +25,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class ProductImageService {
-    // đuôi file cho phép; chặn .jsp/.php/... để không ai lợi dụng upload chạy mã tùy ý
+    
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final Map<String, String> CONTENT_TYPE_BY_EXTENSION = Map.of(
             "jpg", "image/jpeg", "jpeg", "image/jpeg", "png", "image/png", "webp", "image/webp");
