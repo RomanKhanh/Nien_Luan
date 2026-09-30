@@ -35,7 +35,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ProductService {
-    // giống AdminUserService: chặn client truyền size quá lớn kéo sập DB
     private static final int MAX_PAGE_SIZE = 100;
 
     private final ProductRepository productRepository;
