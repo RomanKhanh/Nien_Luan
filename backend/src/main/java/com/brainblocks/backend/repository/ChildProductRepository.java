@@ -32,6 +32,8 @@ public interface ChildProductRepository extends JpaRepository<ChildProduct, Long
     // ràng buộc thêm childProfileId để không gỡ nhầm sản phẩm của hồ sơ trẻ khác
     Optional<ChildProduct> findByIdAndChildProfileId(Long id, Long childProfileId);
 
+    Optional<ChildProduct> findByChildProfileIdAndProductId(Long childProfileId, Long productId);
+
     boolean existsByChildProfileIdAndProductId(Long childProfileId, Long productId);
 
     long countByChildProfileId(Long childProfileId);

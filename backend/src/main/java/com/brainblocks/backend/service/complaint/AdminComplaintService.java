@@ -3,15 +3,15 @@ package com.brainblocks.backend.service.complaint;
 import com.brainblocks.backend.dto.request.complaint.UpdateComplaintStatusRequest;
 import com.brainblocks.backend.dto.response.PageResponse;
 import com.brainblocks.backend.dto.response.complaint.ComplaintResponse;
-import com.brainblocks.backend.entity.Admin;
-import com.brainblocks.backend.entity.Complaint;
-import com.brainblocks.backend.entity.ComplaintItem;
+import com.brainblocks.backend.entity.*;
 import com.brainblocks.backend.enums.ComplaintStatus;
+import com.brainblocks.backend.enums.ComplaintType;
+import com.brainblocks.backend.enums.OrderStatus;
+import com.brainblocks.backend.enums.ProductSource;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
-import com.brainblocks.backend.repository.AdminRepository;
-import com.brainblocks.backend.repository.ComplaintItemRepository;
-import com.brainblocks.backend.repository.ComplaintRepository;
+import com.brainblocks.backend.repository.*;
 import com.brainblocks.backend.security.CurrentUserProvider;
+import com.brainblocks.backend.service.skill.SkillProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,10 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +42,9 @@ public class AdminComplaintService {
     private final AdminRepository adminRepository;
     private final CurrentUserProvider currentUserProvider;
     private final ComplaintService complaintService;
+    private final OrderItemRepository orderItemRepository;
+    private final ChildProductRepository childProductRepository;
+    private final SkillProfileService skillProfileService;
 
     @Transactional(readOnly = true)
     public PageResponse<ComplaintResponse> getComplaints(ComplaintStatus status, int page, int size) {
@@ -95,11 +95,48 @@ public class AdminComplaintService {
         if (closing) {
             complaint.setHandledAt(LocalDateTime.now());
         }
+        // duyệt trả hàng: gỡ đồ chơi khỏi hồ sơ bé nếu bé đã trả hết số món mua cho nó
+        if (next == ComplaintStatus.RESOLVED && complaint.getType() == ComplaintType.RETURN) {
+            removeReturnedProductsFromChildren(complaint);
+        }
         return complaintService.toResponse(complaint);
+    }
+
+    private void removeReturnedProductsFromChildren(Complaint complaint) {
+        // gom các bé bị gỡ đồ để mỗi bé chỉ tính lại hồ sơ kỹ năng 1 lần
+        Map<Long, ChildProfile> changedChildren = new LinkedHashMap<>();
+        for (ComplaintItem complaintItem : complaint.getItems()) {
+            OrderItem orderItem = complaintItem.getOrderItem();
+            ChildProfile child = orderItem.getChildProfile();
+            if (child == null) {
+                continue; // dòng hàng không mua cho bé nào
+            }
+            Long productId = orderItem.getProduct().getId();
+
+            // cộng dồn mọi đơn: bé mua 3 món ở 2 đơn, trả 1 thì vẫn còn đồ chơi này
+            long bought = orderItemRepository.sumQuantityByChildAndProductAndOrderStatus(
+                    child.getId(), productId, OrderStatus.DELIVERED);
+            long returned = complaintItemRepository.sumQuantityByChildAndProductAndComplaint(
+                    child.getId(), productId, ComplaintType.RETURN, ComplaintStatus.RESOLVED);
+            if (returned < bought) {
+                continue;
+            }
+
+            childProductRepository.findByChildProfileIdAndProductId(child.getId(), productId)
+                    // MANUAL là phụ huynh tự thêm (bé có sẵn món này), trả hàng không đụng tới
+                    .filter(childProduct -> childProduct.getSource() == ProductSource.PURCHASED)
+                    .ifPresent(childProduct -> {
+                        // gỡ khỏi collection để orphanRemoval xóa, giống ChildProfileService.removeProduct
+                        child.getChildProducts().remove(childProduct);
+                        changedChildren.put(child.getId(), child);
+                    });
+        }
+        changedChildren.values().forEach(skillProfileService::recalculateFor);
     }
 
     private Complaint findComplaint(Long complaintId) {
         return complaintRepository.findById(complaintId)
                 .orElseThrow(() -> new ResourceNotFoundException("Complaint not found"));
     }
+
 }

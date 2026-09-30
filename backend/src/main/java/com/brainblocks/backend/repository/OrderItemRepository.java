@@ -40,6 +40,17 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             """)
     List<ProductSales> findTopSelling(@Param("excluded") OrderStatus excluded, Pageable pageable);
 
+    // tổng số món sản phẩm productId đã giao cho bé childProfileId (cộng dồn mọi đơn đã giao)
+    @Query("""
+            select coalesce(sum(oi.quantity), 0) from OrderItem oi
+            where oi.childProfile.id = :childProfileId
+              and oi.product.id = :productId
+              and oi.order.status = :status
+            """)
+    long sumQuantityByChildAndProductAndOrderStatus(@Param("childProfileId") Long childProfileId,
+                                                    @Param("productId") Long productId,
+                                                    @Param("status") OrderStatus status);
+
     interface ProductSales {
         Long getProductId();
         String getProductName();
