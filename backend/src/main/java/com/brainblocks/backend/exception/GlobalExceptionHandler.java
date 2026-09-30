@@ -122,6 +122,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("AI service is not available right now, please try again later"));
     }
 
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePaymentGateway(PaymentGatewayException ex) {
+        log.error("Payment gateway error", ex);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("Payment gateway is not available right now, please try again later"));
+    }
+
     // ===== 500: còn lại, log chi tiết ở server, client chỉ thấy câu chung chung =====
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {

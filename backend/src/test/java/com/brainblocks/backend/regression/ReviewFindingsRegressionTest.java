@@ -168,19 +168,25 @@ class ReviewFindingsRegressionTest {
         assertThat(rec.data().path(0).path("reasons").path(0).asString()).startsWith("Chưa có sản phẩm phù hợp");
     }
 
-    // 5. tạm thời chỉ nhận COD; VNPAY/MOMO bị từ chối và không trừ kho
+    // 5. phương thức chưa hỗ trợ (VNPAY) bị từ chối và không trừ kho;
+    //    MOMO tạo đơn như COD, việc thanh toán làm sau qua /api/payments
     @Test
-    void onlinePaymentMethodsAreRejectedForNow() throws Exception {
+    void unsupportedPaymentMethodIsRejectedAndMomoOrderIsCreated() throws Exception {
         String token = newCustomer();
         long productId = createProduct("vnpay", 10, null);
         call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
-        for (String method : List.of("VNPAY", "MOMO")) {
-            Map<String, Object> body = new HashMap<>(ORDER_BODY);
-            body.put("paymentMethod", method);
-            assertThat(call("POST", "/api/orders", token, body).status()).as(method).isEqualTo(400);
-        }
+
+        Map<String, Object> vnpay = new HashMap<>(ORDER_BODY);
+        vnpay.put("paymentMethod", "VNPAY");
+        assertThat(call("POST", "/api/orders", token, vnpay).status()).isEqualTo(400);
         assertThat(stockOf(productId)).isEqualTo(10);
-        assertThat(call("POST", "/api/orders", token, ORDER_BODY).status()).isEqualTo(201);
+
+        Map<String, Object> momo = new HashMap<>(ORDER_BODY);
+        momo.put("paymentMethod", "MOMO");
+        Res order = call("POST", "/api/orders", token, momo);
+        assertThat(order.status()).isEqualTo(201);
+        assertThat(order.data().path("paymentMethod").asString()).isEqualTo("MOMO");
+        assertThat(stockOf(productId)).isEqualTo(9);
     }
 
     // 6a + 7. dòng đơn trả về bé được mua cho; đơn 2 sản phẩm cùng 1 bé chỉ tính lại hồ sơ kỹ năng 1 lần
