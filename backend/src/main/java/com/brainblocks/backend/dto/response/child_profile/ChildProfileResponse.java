@@ -1,4 +1,6 @@
-package com.brainblocks.backend.dto.response;
+package com.brainblocks.backend.dto.response.child_profile;
+
+import com.brainblocks.backend.dto.response.skill.SkillResponse;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

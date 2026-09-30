@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.response;
+package com.brainblocks.backend.dto.response.skill;
 
 import java.time.LocalDateTime;
 import java.util.List;

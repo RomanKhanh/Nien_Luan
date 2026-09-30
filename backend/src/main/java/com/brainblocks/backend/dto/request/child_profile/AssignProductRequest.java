@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.request;
+package com.brainblocks.backend.dto.request.child_profile;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

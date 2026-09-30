@@ -11,6 +11,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "complaints")
@@ -37,11 +39,11 @@ public class Complaint {
     @JoinColumn(name = "handled_by")
     private Admin handledBy;
 
-    // sản phẩm cụ thể bị khiếu nại; null khi khiếu nại cả đơn.
-    // ràng buộc {orderItem.order = order} phải kiểm tra ở service
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_item_id")
-    private OrderItem orderItem;
+    // các dòng hàng cụ thể bị khiếu nại kèm số lượng lỗi; rỗng = khiếu nại chung cả đơn.
+    // thành phần: xóa complaint thì xóa luôn các dòng ComplaintItem
+    @Builder.Default
+    @OneToMany(mappedBy = "complaint", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ComplaintItem> items = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -54,7 +56,6 @@ public class Complaint {
     @Column(nullable = false, length = 30)
     private ComplaintStatus status;
 
-    // phản hồi của admin, null khi chưa xử lý
     @Column(columnDefinition = "TEXT")
     private String response;
 
@@ -62,6 +63,5 @@ public class Complaint {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
-    // null khi chưa xử lý xong
     private LocalDateTime handledAt;
 }

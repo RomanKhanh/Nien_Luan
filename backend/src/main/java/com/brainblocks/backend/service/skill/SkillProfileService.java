@@ -1,9 +1,9 @@
 package com.brainblocks.backend.service.skill;
 
-import com.brainblocks.backend.dto.response.SkillProfileResponse;
-import com.brainblocks.backend.dto.response.SkillScoreResponse;
-import com.brainblocks.backend.dto.response.SkillTimelinePointResponse;
-import com.brainblocks.backend.dto.response.SkillTimelineResponse;
+import com.brainblocks.backend.dto.response.skill.SkillProfileResponse;
+import com.brainblocks.backend.dto.response.skill.SkillScoreResponse;
+import com.brainblocks.backend.dto.response.skill.SkillTimelinePointResponse;
+import com.brainblocks.backend.dto.response.skill.SkillTimelineResponse;
 import com.brainblocks.backend.entity.ChildProduct;
 import com.brainblocks.backend.entity.ChildProfile;
 import com.brainblocks.backend.entity.ProductSkillImpact;

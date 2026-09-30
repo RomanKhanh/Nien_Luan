@@ -1,6 +1,6 @@
 package com.brainblocks.backend.service.skill;
 
-import com.brainblocks.backend.dto.response.ProductRecommendationResponse;
+import com.brainblocks.backend.dto.response.product.ProductRecommendationResponse;
 import com.brainblocks.backend.entity.ChildProfile;
 import com.brainblocks.backend.entity.Product;
 import com.brainblocks.backend.entity.ProductSkillImpact;
