@@ -19,6 +19,7 @@ const CheckoutPage = lazy(() => import('@/pages/cart/CheckoutPage'))
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'))
 const FeedbackPage = lazy(() => import('@/pages/account/FeedbackPage'))
+const ChatPage = lazy(() => import('@/pages/chat/ChatPage'))
 
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
 const AdminDashboardPage = lazy(() => import('@/pages/admin/DashboardPage'))
@@ -28,6 +29,8 @@ const AdminOrdersPage = lazy(() => import('@/pages/admin/OrdersPage'))
 const AdminUsersPage = lazy(() => import('@/pages/admin/UsersPage'))
 const AdminReviewsPage = lazy(() => import('@/pages/admin/ReviewsPage'))
 const AdminComplaintsPage = lazy(() => import('@/pages/admin/ComplaintsPage'))
+const AdminChatbotPage = lazy(() => import('@/pages/admin/ChatbotPage'))
+const AdminKnowledgePage = lazy(() => import('@/pages/admin/KnowledgePage'))
 
 export default function App() {
   return (
@@ -41,6 +44,7 @@ export default function App() {
           <Route path="products" element={<ProductListPage />} />
           <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="cart" element={<CartPage />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route
             path="account"
             element={
@@ -115,6 +119,8 @@ export default function App() {
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="complaints" element={<AdminComplaintsPage />} />
+          <Route path="chatbot" element={<AdminChatbotPage />} />
+          <Route path="knowledge" element={<AdminKnowledgePage />} />
         </Route>
       </Routes>
     </Suspense>

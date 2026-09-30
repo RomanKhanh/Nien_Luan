@@ -8,16 +8,19 @@ import { useCartCount } from '@/features/cart/useCart'
 import { initials } from '@/lib/format'
 import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { Logo } from './Logo'
+import { ChatWidget } from '@/features/chat/ChatWidget'
 import { ScrollToTop } from './ScrollToTop'
 
 const NAV = [
   { to: '/', label: 'Trang chủ', end: true },
   { to: '/products', label: 'Sản phẩm', end: false },
   { to: '/children', label: 'Hồ sơ bé', end: false },
+  { to: '/chat', label: 'Tư vấn AI', end: false },
 ]
 
 export function ShopLayout() {
   const location = useLocation()
+  const { isAdmin } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
   // đổi trang thì đóng menu mobile (so với trang lúc mở menu) và cuộn lên đầu
@@ -37,7 +40,9 @@ export function ShopLayout() {
         <Outlet />
       </main>
       <Footer />
-      <ScrollToTop />
+      {/* nút chat Bin chiếm góc dưới phải (trừ trang /chat và tài khoản admin) */}
+      <ScrollToTop raised={!isAdmin && !location.pathname.startsWith('/chat')} />
+      <ChatWidget />
     </div>
   )
 }

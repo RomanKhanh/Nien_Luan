@@ -1,4 +1,4 @@
-import type { ComplaintStatus, ComplaintType, Gender, OrderStatus, PaymentMethod } from '@/api/types'
+import type { ComplaintStatus, ComplaintType, DocumentStatus, Gender, OrderStatus, PaymentMethod } from '@/api/types'
 
 type Tone = 'gray' | 'blue' | 'amber' | 'violet' | 'green' | 'red'
 
@@ -56,4 +56,12 @@ export const GENDER: Record<Gender, string> = {
   MALE: 'Nam',
   FEMALE: 'Nữ',
   OTHER: 'Khác',
+}
+
+// trạng thái tài liệu trong cơ sở tri thức (enum DocumentStatus ở backend)
+export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; tone: Tone }> = {
+  UPLOADED: { label: 'Đã tải lên', tone: 'gray' },
+  PROCESSING: { label: 'Đang xử lý', tone: 'amber' },
+  INDEXED: { label: 'Đang dùng', tone: 'green' },
+  DISABLED: { label: 'Đã tắt', tone: 'red' },
 }

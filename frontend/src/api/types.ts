@@ -309,3 +309,117 @@ export interface AdminStats {
   chatQuestions: number
   chatTopics: { topic: string; total: number }[]
 }
+
+// ===== Chatbot AI & cơ sở tri thức (RAG) =====
+// Khớp các entity ChatSession / ChatMessage / ChatbotConfig / KnowledgeDocument / DocumentChunk ở backend.
+// Hợp đồng API đầy đủ: xem docs/chatbot-api.md
+
+export type ChatSender = 'USER' | 'BOT'
+
+// sản phẩm chatbot gợi ý trong một tin nhắn BOT (ChatMessage.suggestedProducts) kèm lý do gợi ý
+export interface ChatSuggestedProduct {
+  productId: number
+  name: string
+  price: number
+  minAge: number
+  maxAge: number
+  thumbnailUrl: string | null
+  skillImpacts: SkillImpact[]
+  reason: string | null
+}
+
+// đoạn tài liệu trong cơ sở tri thức được dùng làm căn cứ cho câu trả lời
+export interface ChatSource {
+  documentId: number
+  documentTitle: string
+  snippet: string
+}
+
+export interface ChatMessage {
+  id: number
+  sender: ChatSender
+  content: string
+  topic: string | null
+  createdAt: string
+  responseTimeMs: number
+  suggestedProducts: ChatSuggestedProduct[]
+  sources: ChatSource[]
+}
+
+export interface ChatSessionSummary {
+  id: number
+  title: string | null
+  startedAt: string
+  lastMessageAt: string | null
+  messageCount: number
+  childProfileId: number | null
+  childName: string | null
+}
+
+export interface ChatSessionDetail extends ChatSessionSummary {
+  messages: ChatMessage[]
+}
+
+// trả về sau khi gửi 1 câu hỏi: tin nhắn của người dùng đã lưu + câu trả lời của bot
+export interface ChatReply {
+  userMessage: ChatMessage
+  botMessage: ChatMessage
+}
+
+export interface AdminChatSessionSummary extends ChatSessionSummary {
+  customerId: number
+  customerName: string
+  customerEmail: string
+}
+
+export interface AdminChatSessionDetail extends AdminChatSessionSummary {
+  messages: ChatMessage[]
+}
+
+export interface ChatStats {
+  totalSessions: number
+  totalQuestions: number
+  questionsLast7Days: number
+  avgResponseTimeMs: number
+  topTopics: { topic: string; total: number }[]
+  topQuestions: { question: string; total: number }[]
+  topSuggestedProducts: { productId: number; productName: string; total: number }[]
+  dailyQuestions: { date: string; total: number }[]
+}
+
+export type DocumentStatus = 'UPLOADED' | 'PROCESSING' | 'INDEXED' | 'DISABLED'
+
+export interface KnowledgeDocument {
+  id: number
+  title: string
+  fileUrl: string
+  fileType: string
+  status: DocumentStatus
+  uploadedAt: string
+  uploadedByName: string
+  chunkCount: number
+}
+
+export interface DocumentChunk {
+  id: number
+  chunkIndex: number
+  content: string
+  embedded: boolean
+}
+
+export interface ChatbotConfig {
+  id: number
+  modelName: string
+  temperature: number
+  maxTokens: number
+  topK: number
+  systemPrompt: string | null
+  active: boolean
+  updatedAt: string
+  adminName: string
+}
+
+export type ChatbotConfigRequest = Pick<
+  ChatbotConfig,
+  'modelName' | 'temperature' | 'maxTokens' | 'topK' | 'systemPrompt'
+>

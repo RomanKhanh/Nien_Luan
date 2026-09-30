@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import type { ApiError } from '@/api/client'
 import { AuthProvider } from '@/auth/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ChatProvider } from '@/features/chat/ChatProvider'
 import App from './App'
 import './index.css'
 
@@ -28,7 +29,9 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <ToastProvider>
           <AuthProvider>
-            <App />
+            <ChatProvider>
+              <App />
+            </ChatProvider>
           </AuthProvider>
         </ToastProvider>
       </BrowserRouter>

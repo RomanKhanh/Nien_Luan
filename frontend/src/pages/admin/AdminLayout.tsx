@@ -15,6 +15,8 @@ const NAV = [
   { to: '/admin/complaints', label: 'Khiếu nại & yêu cầu', icon: '💬' },
   { to: '/admin/reviews', label: 'Đánh giá', icon: '⭐' },
   { to: '/admin/users', label: 'Người dùng', icon: '👥' },
+  { to: '/admin/chatbot', label: 'Chatbot AI', icon: '🤖' },
+  { to: '/admin/knowledge', label: 'Cơ sở tri thức', icon: '📚' },
 ]
 
 export default function AdminLayout() {

@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, PageLoader, Skeleton } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { useAddToCart } from '@/features/cart/useCart'
+import { useChatWidget } from '@/features/chat/chatContext'
 import { AddToyModal } from '@/features/children/AddToyModal'
 import { ChildFormModal } from '@/features/children/ChildFormModal'
 import { childKeys, invalidateChildData } from '@/features/children/keys'
@@ -334,12 +335,24 @@ function Recommendations({ child }: { child: ChildProfile }) {
     queryFn: () => childApi.recommendations(child.id, 4),
   })
   const addToCart = useAddToCart()
+  const chat = useChatWidget()
   return (
     <section className="card p-5 sm:p-6">
-      <h2 className="h2">✨ Đề xuất tiếp theo</h2>
-      <p className="text-[13.5px] text-ink-muted">
-        Dựa trên tuổi của bé, nhóm kỹ năng đang thiếu và nhóm phụ huynh quan tâm
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="h2">✨ Đề xuất tiếp theo</h2>
+          <p className="text-[13.5px] text-ink-muted">
+            Dựa trên tuổi của bé, nhóm kỹ năng đang thiếu và nhóm phụ huynh quan tâm
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="soft"
+          onClick={() => chat.ask({ text: `Bé ${child.name} nên mua gì tiếp theo?`, childProfileId: child.id })}
+        >
+          🤖 Hỏi Bin nên mua gì
+        </Button>
+      </div>
       {recs.isPending ? (
         <Skeleton className="mt-4 h-40" />
       ) : recs.isError ? (

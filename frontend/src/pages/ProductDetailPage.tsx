@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { catalogApi } from '@/api/endpoints'
 import type { ProductDetail } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
-import { SkillIcon, TornEdge } from '@/components/decor/Decor'
+import { Mascot, SkillIcon, TornEdge } from '@/components/decor/Decor'
 import { ProductArt } from '@/components/product/ProductArt'
 import { ProductCard } from '@/components/product/ProductCard'
 import { SkillBar, Stars } from '@/components/ui/Badges'
@@ -13,6 +13,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { QuantityStepper } from '@/components/ui/QuantityStepper'
 import { useAddToCart } from '@/features/cart/useCart'
+import { useChatWidget } from '@/features/chat/chatContext'
 import { AssignToChildModal } from '@/features/children/AssignToChildModal'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { ageRange, formatDecimal, formatPrice, formatRelative, initials } from '@/lib/format'
@@ -47,6 +48,7 @@ function ProductView({ product }: { product: ProductDetail }) {
   const [imageIndex, setImageIndex] = useState(0)
   const [assignOpen, setAssignOpen] = useState(false)
   const addToCart = useAddToCart()
+  const chat = useChatWidget()
   const outOfStock = product.stockQuantity <= 0
   const maxQuantity = Math.min(product.stockQuantity, 99)
   const image = product.images[imageIndex]
@@ -211,6 +213,27 @@ function ProductView({ product }: { product: ProductDetail }) {
                 >
                   Bé đã có món này? Gán vào hồ sơ bé
                 </Button>
+              )}
+              {(isCustomer || !session) && (
+                // hỏi chatbot về lợi ích giáo dục của chính sản phẩm này (mục 2.3)
+                <button
+                  type="button"
+                  onClick={() => chat.ask({ text: `Sản phẩm “${product.name}” giúp bé phát triển kỹ năng gì?` })}
+                  className="group mt-3 flex w-full items-center gap-3 rounded-[20px] border-2 border-dashed border-sky/60 bg-white/70 p-3 text-left transition hover:border-sky hover:bg-white"
+                >
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sky-soft" aria-hidden>
+                    <Mascot className="w-8 group-hover:animate-wiggle" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold text-ink">Hỏi Bin về sản phẩm này</span>
+                    <span className="block text-[12.5px] text-ink-muted">
+                      Lợi ích giáo dục, độ tuổi phù hợp, nên mua kèm gì…
+                    </span>
+                  </span>
+                  <span className="font-bold text-primary transition group-hover:translate-x-0.5" aria-hidden>
+                    →
+                  </span>
+                </button>
               )}
             </div>
           </div>
