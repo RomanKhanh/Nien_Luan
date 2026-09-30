@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,4 +52,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @EntityGraph(attributePaths = "customer")
     Page<Order> findByStatus(OrderStatus status, Pageable pageable);
 
+    // ===== thống kê =====
+    @Query("select o.status as status, count(o) as total from Order o group by o.status")
+    List<StatusCount> countByStatus();
+
+    @Query("select coalesce(sum(o.totalAmount), 0) from Order o where o.status = :status")
+    BigDecimal sumTotalByStatus(@Param("status") OrderStatus status);
+
+    // đơn từ một thời điểm trở đi (không tính đơn hủy), gom theo ngày ở service cho khỏi phụ thuộc hàm date của từng DB
+    @Query("""
+            select o.createdAt as createdAt, o.totalAmount as totalAmount from Order o
+            where o.createdAt >= :from and o.status <> :excluded
+            """)
+    List<OrderAmount> findAmountsSince(@Param("from") LocalDateTime from, @Param("excluded") OrderStatus excluded);
+
+    interface StatusCount {
+        OrderStatus getStatus();
+        Long getTotal();
+    }
+
+    interface OrderAmount {
+        LocalDateTime getCreatedAt();
+        BigDecimal getTotalAmount();
+    }
 }

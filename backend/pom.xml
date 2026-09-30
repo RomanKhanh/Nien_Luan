@@ -112,6 +112,10 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- giữ tên tham số trong bytecode: @RequestParam / @PathVariable không ghi tên sẽ lấy theo tên biến -->
+					<parameters>true</parameters>
+				</configuration>
 				<executions>
 					<execution>
 						<id>default-compile</id>
