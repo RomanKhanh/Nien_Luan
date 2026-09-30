@@ -20,6 +20,7 @@ const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'))
 const FeedbackPage = lazy(() => import('@/pages/account/FeedbackPage'))
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'))
+const MomoReturnPage = lazy(() => import('@/pages/payment/MomoReturnPage'))
 
 const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
 const AdminDashboardPage = lazy(() => import('@/pages/admin/DashboardPage'))
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="payment/momo-return" element={<MomoReturnPage />} />
           <Route
             path="account"
             element={

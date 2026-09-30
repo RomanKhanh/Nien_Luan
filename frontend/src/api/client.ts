@@ -71,7 +71,11 @@ const EXACT: Record<string, string> = {
   'Current password is incorrect': 'Mật khẩu hiện tại không đúng.',
   'New password must be different from current password': 'Mật khẩu mới phải khác mật khẩu hiện tại.',
   'Cart is empty!': 'Giỏ hàng đang trống.',
-  'Only COD payment is supported at the moment': 'Hiện chỉ hỗ trợ thanh toán khi nhận hàng (COD).',
+  'Payment gateway is not available right now, please try again later':
+    'Cổng thanh toán MoMo đang không khả dụng, vui lòng thử lại sau.',
+  'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
+  'Cannot pay for a cancelled order': 'Không thể thanh toán đơn đã huỷ.',
+  'This order is not set up for online payment (COD)': 'Đơn này thanh toán khi nhận hàng, không thanh toán online.',
   'Product not found': 'Không tìm thấy sản phẩm.',
   'Order not found': 'Không tìm thấy đơn hàng.',
   'Product is already assigned to this child': 'Bé đã có sản phẩm này trong hồ sơ.',

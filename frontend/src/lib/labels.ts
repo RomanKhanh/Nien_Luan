@@ -1,4 +1,12 @@
-import type { ComplaintStatus, ComplaintType, DocumentStatus, Gender, OrderStatus, PaymentMethod } from '@/api/types'
+import type {
+  ComplaintStatus,
+  ComplaintType,
+  DocumentStatus,
+  Gender,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from '@/api/types'
 
 type Tone = 'gray' | 'blue' | 'amber' | 'violet' | 'green' | 'red'
 
@@ -24,7 +32,6 @@ export const ORDER_NEXT: Record<OrderStatus, OrderStatus[]> = {
 
 export const PAYMENT_METHOD: Record<PaymentMethod, string> = {
   COD: 'Thanh toán khi nhận hàng (COD)',
-  VNPAY: 'VNPay',
   MOMO: 'Ví MoMo',
 }
 
@@ -64,4 +71,11 @@ export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; tone: Tone
   PROCESSING: { label: 'Đang xử lý', tone: 'amber' },
   INDEXED: { label: 'Đang dùng', tone: 'green' },
   DISABLED: { label: 'Đã tắt', tone: 'red' },
+}
+
+// trạng thái thanh toán online (enum PaymentStatus ở backend)
+export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
+  PENDING: { label: 'Chờ thanh toán', tone: 'amber' },
+  SUCCESS: { label: 'Đã thanh toán', tone: 'green' },
+  FAILED: { label: 'Thanh toán thất bại', tone: 'red' },
 }

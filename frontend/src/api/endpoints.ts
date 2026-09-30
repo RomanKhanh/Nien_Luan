@@ -1,4 +1,4 @@
-import { http, request } from './client'
+import { ApiError, http, request, toApiError } from './client'
 import type {
   AdminStats,
   Cart,
@@ -15,6 +15,7 @@ import type {
   OrderStatus,
   OrderSummary,
   Page,
+  PaymentInfo,
   ProductDetail,
   ProductQuery,
   ProductRequest,
@@ -70,6 +71,31 @@ export const orderApi = {
   list: () => request<Order[]>(http.get('/orders')),
   get: (id: number) => request<Order>(http.get(`/orders/${id}`)),
   cancel: (id: number) => request<Order>(http.patch(`/orders/${id}/cancel`)),
+}
+
+// thanh toán online (MoMo): backend tạo link, khách thanh toán trên trang MoMo rồi được chuyển về /payment/momo-return
+export const paymentApi = {
+  createUrl: (orderId: number) =>
+    request<{ paymentUrl: string }>(http.post(`/payments/${orderId}/create-url`)).then((r) => r.paymentUrl),
+  // đơn chưa từng bấm thanh toán thì chưa có bản ghi Payment (backend trả 404) -> null
+  status: async (orderId: number): Promise<PaymentInfo | null> => {
+    try {
+      return await request<PaymentInfo>(http.get(`/payments/${orderId}`))
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    }
+  },
+  // kiểm tra chữ ký các tham số MoMo gắn vào URL khi chuyển khách về. Endpoint này luôn trả HTTP 200,
+  // kết quả nằm ở cờ success. Chỉ để hiển thị: xác nhận thật do MoMo gọi IPN vào server.
+  verifyMomoReturn: async (params: Record<string, string>): Promise<boolean> => {
+    try {
+      const res = await http.get('/payments/momo-return', { params })
+      return Boolean(res.data?.success)
+    } catch (e) {
+      throw toApiError(e)
+    }
+  },
 }
 
 export const childApi = {

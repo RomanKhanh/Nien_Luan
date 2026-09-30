@@ -136,7 +136,18 @@ export interface Cart {
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED'
-export type PaymentMethod = 'COD' | 'VNPAY' | 'MOMO'
+// khớp enum PaymentMethod ở backend (VNPay chưa tích hợp nên không có)
+export type PaymentMethod = 'COD' | 'MOMO'
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED'
+
+// GET /api/payments/{orderId}
+export interface PaymentInfo {
+  orderId: number
+  status: PaymentStatus
+  amount: number
+  transactionId: string | null
+  paidAt: string | null
+}
 
 export interface OrderItem {
   id: number

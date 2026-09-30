@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { ComplaintModal } from '@/features/complaints/ComplaintModal'
 import { OrderTimeline } from '@/features/orders/OrderTimeline'
+import { PaymentPanel } from '@/features/payment/PaymentPanel'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { PAYMENT_METHOD } from '@/lib/labels'
@@ -140,6 +141,7 @@ export default function OrderDetailPage() {
             <p className="mt-1 text-ink-2">{o.shippingAddress}</p>
             <p className="mt-3 text-ink-muted">{PAYMENT_METHOD[o.paymentMethod]}</p>
           </section>
+          {o.paymentMethod === 'MOMO' && <PaymentPanel order={o} />}
           <section className="card space-y-2.5 p-5">
             {canCancel && (
               <Button variant="danger-outline" block onClick={() => setConfirmCancel(true)}>

@@ -13,6 +13,8 @@ import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { cartKey, useCart } from '@/features/cart/useCart'
 import { childKeys } from '@/features/children/keys'
+import { MomoMark } from '@/features/payment/PaymentPanel'
+import { usePayWithMomo } from '@/features/payment/usePayWithMomo'
 import { formatPrice } from '@/lib/format'
 
 // khớp CreateOrderRequest ở backend
@@ -26,16 +28,9 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
-// backend hiện chỉ nhận COD (chưa tích hợp cổng VNPay / MoMo)
-const PAYMENTS: { value: PaymentMethod; label: string; note: string; available: boolean }[] = [
-  {
-    value: 'COD',
-    label: 'Thanh toán khi nhận hàng (COD)',
-    note: 'Trả tiền mặt cho nhân viên giao hàng',
-    available: true,
-  },
-  { value: 'VNPAY', label: 'VNPay', note: 'Sắp ra mắt', available: false },
-  { value: 'MOMO', label: 'Ví MoMo', note: 'Sắp ra mắt', available: false },
+const PAYMENTS: { value: PaymentMethod; label: string; note: string }[] = [
+  { value: 'COD', label: 'Thanh toán khi nhận hàng (COD)', note: 'Trả tiền mặt cho nhân viên giao hàng' },
+  { value: 'MOMO', label: 'Ví MoMo', note: 'Chuyển sang trang MoMo để thanh toán ngay sau khi đặt hàng' },
 ]
 
 export default function CheckoutPage() {
@@ -47,6 +42,8 @@ export default function CheckoutPage() {
   const queryClient = useQueryClient()
   // productId -> childProfileId: món này mua cho bé nào (để tự vào hồ sơ kỹ năng khi đơn giao xong)
   const [assignments, setAssignments] = useState<Record<number, number>>({})
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD')
+  const payWithMomo = usePayWithMomo()
   const form = useForm<FormValues>({ resolver: zodResolver(schema) })
   const errors = form.formState.errors
 
@@ -64,7 +61,7 @@ export default function CheckoutPage() {
     mutationFn: (values: FormValues) =>
       orderApi.create({
         ...values,
-        paymentMethod: 'COD',
+        paymentMethod,
         childAssignments: Object.entries(assignments).map(([productId, childProfileId]) => ({
           productId: Number(productId),
           childProfileId,
@@ -74,7 +71,17 @@ export default function CheckoutPage() {
       queryClient.invalidateQueries({ queryKey: cartKey })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
-      navigate(`/orders/${order.id}`, { replace: true, state: { placed: true } })
+      if (order.paymentMethod !== 'MOMO') {
+        navigate(`/orders/${order.id}`, { replace: true, state: { placed: true } })
+        return
+      }
+      // đơn đã tạo xong; nếu không lấy được link MoMo thì vẫn vào trang đơn, ở đó có nút thanh toán lại
+      payWithMomo.mutate(order.id, {
+        onError: (e) => {
+          toast.error(e.message)
+          navigate(`/orders/${order.id}`, { replace: true, state: { placed: true } })
+        },
+      })
     },
     onError: (e) => toast.error(e.message),
   })
@@ -182,20 +189,29 @@ export default function CheckoutPage() {
                 {PAYMENTS.map((p) => (
                   <label
                     key={p.value}
-                    className={`flex items-center gap-3 rounded-md border-[1.5px] px-4 py-3 ${
-                      p.available
-                        ? 'cursor-pointer border-primary bg-primary-soft'
-                        : 'cursor-not-allowed border-line opacity-60'
+                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition ${
+                      paymentMethod === p.value
+                        ? 'border-primary bg-primary-soft'
+                        : 'border-line hover:border-line-strong'
                     }`}
                   >
                     <input
                       type="radio"
                       name="payment"
-                      checked={p.value === 'COD'}
-                      disabled={!p.available}
-                      readOnly
+                      checked={paymentMethod === p.value}
+                      onChange={() => setPaymentMethod(p.value)}
                       className="accent-primary"
                     />
+                    {p.value === 'MOMO' ? (
+                      <MomoMark className="h-9 w-9 text-[11px]" />
+                    ) : (
+                      <span
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sky-soft text-[18px]"
+                        aria-hidden
+                      >
+                        💵
+                      </span>
+                    )}
                     <span className="flex-1">
                       <span className="block text-[14px] font-semibold">{p.label}</span>
                       <span className="block text-[12.5px] text-ink-muted">{p.note}</span>
@@ -224,8 +240,14 @@ export default function CheckoutPage() {
                 {formatPrice(cart.data.totalAmount)}
               </span>
             </div>
-            <Button type="submit" size="lg" block className="mt-5" loading={placeOrder.isPending}>
-              Đặt hàng
+            <Button
+              type="submit"
+              size="lg"
+              block
+              className="mt-5"
+              loading={placeOrder.isPending || payWithMomo.isPending}
+            >
+              {paymentMethod === 'MOMO' ? 'Đặt hàng & thanh toán MoMo' : 'Đặt hàng'}
             </Button>
             <p className="mt-3 text-center text-[12.5px] text-ink-muted">
               Bạn có thể huỷ đơn khi đơn chưa được giao đi.
