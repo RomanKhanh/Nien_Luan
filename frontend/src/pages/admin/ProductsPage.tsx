@@ -162,7 +162,12 @@ export default function ProductsPage() {
         )}
       </div>
 
-      <ProductFormDrawer open={formOpen} onClose={() => setFormOpen(false)} productId={editingId} />
+      <ProductFormDrawer
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        productId={editingId}
+        onCreated={setEditingId}
+      />
       <StockModal product={stockTarget} onClose={() => setStockTarget(null)} />
       <ConfirmDialog
         open={Boolean(hideTarget)}

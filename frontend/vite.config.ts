@@ -14,6 +14,8 @@ export default defineConfig({
     // dev: gọi /api qua proxy tới Spring Boot, khỏi phải cấu hình CORS cho từng cổng
     proxy: {
       '/api': { target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080', changeOrigin: true },
+      // ảnh sản phẩm admin tải lên, backend phục vụ tại /uploads/**
+      '/uploads': { target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080', changeOrigin: true },
     },
   },
 })

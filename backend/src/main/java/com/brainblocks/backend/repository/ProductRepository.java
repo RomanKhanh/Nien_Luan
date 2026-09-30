@@ -53,6 +53,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             """)
     List<ProductThumbnail> findThumbnails(@Param("productIds") List<Long> productIds);
 
+    // sản phẩm kèm toàn bộ ảnh trong 1 câu, cho ProductImageService thao tác qua collection (orphanRemoval)
+    @Query("select p from Product p left join fetch p.productImages where p.id = :productId")
+    Optional<Product> findWithImagesById(@Param("productId") Long productId);
+
     interface ProductThumbnail {
         Long getProductId();
 

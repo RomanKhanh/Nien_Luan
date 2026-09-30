@@ -8,7 +8,6 @@ import com.brainblocks.backend.dto.response.product.ProductDetailResponse;
 import com.brainblocks.backend.dto.response.product.ProductSummaryResponse;
 import com.brainblocks.backend.entity.Category;
 import com.brainblocks.backend.entity.Product;
-import com.brainblocks.backend.entity.ProductImage;
 import com.brainblocks.backend.entity.ProductSkillImpact;
 import com.brainblocks.backend.entity.Skill;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
@@ -69,7 +68,7 @@ public class AdminProductService {
             // hồ sơ kỹ năng của các bé đang có sản phẩm này phải phản ánh chỉ số mới (đề 2.9)
             skillProfileService.recalculateForProduct(product.getId());
         }
-        // flush để ảnh / chỉ số vừa thêm có id trước khi dựng response
+        // flush để chỉ số vừa thêm có id trước khi dựng response
         productRepository.flush();
         return productService.toDetailResponse(product);
     }
@@ -110,21 +109,7 @@ public class AdminProductService {
         product.setMinAge(request.minAge());
         product.setMaxAge(request.maxAge());
         product.setCategory(category);
-        applyImages(product, request.imageUrls() == null ? List.of() : request.imageUrls());
         return applyImpacts(product, request.skillImpacts() == null ? List.of() : request.skillImpacts());
-    }
-
-    // ảnh không có ràng buộc unique nên thay cả danh sách; orphanRemoval xóa ảnh cũ
-    private void applyImages(Product product, List<String> urls) {
-        product.getProductImages().clear();
-        for (int i = 0; i < urls.size(); i++) {
-            product.getProductImages().add(ProductImage.builder()
-                    .product(product)
-                    .url(urls.get(i).trim())
-                    .displayOrder(i)
-                    .thumbnail(i == 0)
-                    .build());
-        }
     }
 
     /**

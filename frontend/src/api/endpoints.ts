@@ -17,6 +17,7 @@ import type {
   Page,
   PaymentInfo,
   ProductDetail,
+  ProductImage,
   ProductQuery,
   ProductRequest,
   ProductSummary,
@@ -136,6 +137,22 @@ export const adminApi = {
   updateStock: (id: number, stockQuantity: number) =>
     request<ProductDetail>(http.patch(`/admin/products/${id}/stock`, { stockQuantity })),
   hideProduct: (id: number) => request<void>(http.delete(`/admin/products/${id}`)),
+
+  // ảnh sản phẩm: mỗi thao tác lưu ngay, tách khỏi PUT sản phẩm
+  uploadProductImage: (productId: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    // ghi đè Content-Type mặc định (JSON) của http, nếu không axios sẽ chuyển FormData thành JSON
+    return request<ProductImage>(
+      http.post(`/admin/products/${productId}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    )
+  },
+  deleteProductImage: (productId: number, imageId: number) =>
+    request<void>(http.delete(`/admin/products/${productId}/images/${imageId}`)),
+  setProductThumbnail: (productId: number, imageId: number) =>
+    request<ProductImage>(http.patch(`/admin/products/${productId}/images/${imageId}/thumbnail`)),
+  reorderProductImages: (productId: number, imageIds: number[]) =>
+    request<ProductImage[]>(http.put(`/admin/products/${productId}/images/order`, { imageIds })),
 
   createCategory: (body: { name: string; description: string }) =>
     request<Category>(http.post('/admin/categories', body)),

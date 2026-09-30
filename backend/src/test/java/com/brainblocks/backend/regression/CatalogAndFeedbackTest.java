@@ -94,9 +94,8 @@ class CatalogAndFeedbackTest {
         assertThat(logicScore(token, childId, logic)).isEqualTo(8);
 
         Res updated = call("PUT", "/api/admin/products/" + productId, adminToken, productBody(categoryId, "recalc",
-                3, 12, Map.of(logic, 3), List.of("https://example.com/a.png")));
+                3, 12, Map.of(logic, 3)));
         assertThat(updated.status()).isEqualTo(200);
-        assertThat(updated.data().path("images").path(0).path("thumbnail").asBoolean()).isTrue();
         assertThat(logicScore(token, childId, logic)).isEqualTo(3);
 
         assertThat(call("DELETE", "/api/admin/products/" + productId, adminToken, null).status()).isEqualTo(200);
@@ -155,6 +154,53 @@ class CatalogAndFeedbackTest {
                 Map.of("status", "PROCESSING")).status()).isEqualTo(400);
         assertThat(call("GET", "/api/complaints", token, null).data().path(0).path("response").asString())
                 .isEqualTo("Đã gửi bù");
+    }
+
+    // ảnh tải lên: ảnh đầu là ảnh đại diện, file giả dạng ảnh bị từ chối, sửa sản phẩm không làm mất ảnh
+    @Test
+    void productImagesAreUploadedAndManagedSeparately() throws Exception {
+        long categoryId = createCategory();
+        long productId = createProduct(categoryId, "images", 3, 12, Map.of());
+        String imagesPath = "/api/admin/products/" + productId + "/images";
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
+
+        assertThat(upload(imagesPath, null, "a.png", "image/png", png).status()).isEqualTo(401);
+        assertThat(upload(imagesPath, adminToken, "a.png", "image/png", "<?php".getBytes()).status()).isEqualTo(400);
+        assertThat(upload(imagesPath, adminToken, "a.gif", "image/gif", png).status()).isEqualTo(400);
+
+        Res first = upload(imagesPath, adminToken, "a.png", "image/png", png);
+        assertThat(first.status()).as(first.body().toString()).isEqualTo(201);
+        assertThat(first.data().path("thumbnail").asBoolean()).isTrue();
+        long firstId = first.data().path("id").asLong();
+        Res second = upload(imagesPath, adminToken, "b.png", "image/png", png);
+        assertThat(second.data().path("thumbnail").asBoolean()).isFalse();
+        long secondId = second.data().path("id").asLong();
+
+        // file được phục vụ công khai, không cần đăng nhập
+        HttpResponse<byte[]> served = HTTP.send(
+                HttpRequest.newBuilder(URI.create(baseUrl + first.data().path("url").asString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertThat(served.statusCode()).isEqualTo(200);
+        assertThat(served.body()).isEqualTo(png);
+
+        assertThat(call("PUT", imagesPath + "/order", adminToken, Map.of("imageIds", List.of(secondId))).status())
+                .isEqualTo(400);
+        Res reordered = call("PUT", imagesPath + "/order", adminToken, Map.of("imageIds", List.of(secondId, firstId)));
+        assertThat(reordered.data().path(0).path("id").asLong()).isEqualTo(secondId);
+        assertThat(call("PATCH", imagesPath + "/" + secondId + "/thumbnail", adminToken, null).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/products/" + productId, null, null).data().path("images").path(0).path("thumbnail")
+                .asBoolean()).isTrue();
+
+        // PUT sản phẩm không đụng tới ảnh
+        Res updated = call("PUT", "/api/admin/products/" + productId, adminToken,
+                productBody(categoryId, "images", 3, 12, Map.of()));
+        assertThat(updated.data().path("images").size()).isEqualTo(2);
+
+        // xóa ảnh đại diện thì ảnh còn lại lên thay
+        assertThat(call("DELETE", imagesPath + "/" + secondId, adminToken, null).status()).isEqualTo(200);
+        Res remaining = call("GET", imagesPath, adminToken, null);
+        assertThat(remaining.data().size()).isEqualTo(1);
+        assertThat(remaining.data().path(0).path("thumbnail").asBoolean()).isTrue();
     }
 
     // danh mục còn sản phẩm / nhóm kỹ năng đang dùng thì không xóa được; mã nhóm kỹ năng không đổi được
@@ -218,13 +264,13 @@ class CatalogAndFeedbackTest {
     private long createProduct(long categoryId, String name, int minAge, int maxAge, Map<Long, Integer> impacts)
             throws Exception {
         Res res = call("POST", "/api/admin/products", adminToken,
-                productBody(categoryId, name, minAge, maxAge, impacts, List.of()));
+                productBody(categoryId, name, minAge, maxAge, impacts));
         assertThat(res.status()).as(res.body().toString()).isEqualTo(201);
         return res.data().path("id").asLong();
     }
 
     private Map<String, Object> productBody(long categoryId, String name, int minAge, int maxAge,
-                                            Map<Long, Integer> impacts, List<String> images) {
+                                            Map<Long, Integer> impacts) {
         List<Map<String, Object>> impactList = new ArrayList<>();
         impacts.forEach((skillId, value) -> impactList.add(Map.of("skillId", skillId, "impactIndex", value)));
         Map<String, Object> body = new HashMap<>();
@@ -234,7 +280,6 @@ class CatalogAndFeedbackTest {
         body.put("minAge", minAge);
         body.put("maxAge", maxAge);
         body.put("categoryId", categoryId);
-        body.put("imageUrls", images);
         body.put("skillImpacts", impactList);
         return body;
     }
@@ -260,6 +305,23 @@ class CatalogAndFeedbackTest {
                 .method(method, body == null
                         ? HttpRequest.BodyPublishers.noBody()
                         : HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body)));
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+        HttpResponse<String> r = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        JsonNode node = r.body() == null || r.body().isBlank() ? JSON.createObjectNode() : JSON.readTree(r.body());
+        return new Res(r.statusCode(), node);
+    }
+
+    // multipart/form-data một field "file"
+    private Res upload(String path, String token, String fileName, String contentType, byte[] content) throws Exception {
+        String boundary = "----test" + System.nanoTime();
+        byte[] head = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + fileName
+                + "\"\r\nContent-Type: " + contentType + "\r\n\r\n").getBytes();
+        byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes();
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArrays(List.of(head, content, tail)));
         if (token != null) {
             b.header("Authorization", "Bearer " + token);
         }

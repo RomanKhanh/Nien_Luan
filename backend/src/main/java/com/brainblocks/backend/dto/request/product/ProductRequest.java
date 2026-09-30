@@ -13,7 +13,8 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
 
-// PUT thay toàn bộ: danh sách ảnh và chỉ số kỹ năng gửi lên là trạng thái mới của sản phẩm
+// PUT thay toàn bộ: chỉ số kỹ năng gửi lên là trạng thái mới của sản phẩm.
+// Ảnh không nằm ở đây: tải lên / xóa / sắp xếp qua AdminProductImageController
 public record ProductRequest(
         @NotBlank @Size(max = 200) String name,
         @Size(max = 10000) String description,
@@ -22,8 +23,6 @@ public record ProductRequest(
         @Min(0) @Max(18) int minAge,
         @Min(0) @Max(18) int maxAge,
         @NotNull @Positive Long categoryId,
-        // ảnh đầu tiên là ảnh đại diện; bỏ trống = sản phẩm chưa có ảnh
-        @Size(max = 10) List<@NotBlank @Size(max = 500) String> imageUrls,
         List<@NotNull @Valid SkillImpactRequest> skillImpacts,
         // null khi tạo mới = đang bán; khi sửa = giữ nguyên
         Boolean active

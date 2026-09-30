@@ -3,10 +3,14 @@ package com.brainblocks.backend;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.util.TimeZone;
+
 @SpringBootApplication
 public class BrainBlocksApplication {
 
 	public static void main(String[] args) {
+        // LocalDateTime.now() và @CreationTimestamp theo giờ Việt Nam, không phụ thuộc timezone của máy chạy
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
         SpringApplication.run(BrainBlocksApplication.class, args);
 	}
 

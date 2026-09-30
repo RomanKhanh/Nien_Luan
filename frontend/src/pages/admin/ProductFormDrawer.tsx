@@ -12,6 +12,7 @@ import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { useCategories, useSkills } from '@/features/catalog/queries'
 import { skillTheme } from '@/lib/skills'
+import { ProductImagesField } from './ProductImagesField'
 
 // khớp ProductRequest ở backend
 const schema = z
@@ -26,7 +27,6 @@ const schema = z
     minAge: z.coerce.number<string>().int().min(0, '0–18').max(18, '0–18'),
     maxAge: z.coerce.number<string>().int().min(0, '0–18').max(18, '0–18'),
     categoryId: z.coerce.number<string>().min(1, 'Chọn danh mục'),
-    imageUrls: z.string(),
     active: z.boolean(),
   })
   .refine((v) => v.minAge <= v.maxAge, { message: 'Tuổi tối thiểu phải ≤ tuổi tối đa', path: ['maxAge'] })
@@ -37,10 +37,13 @@ export function ProductFormDrawer({
   open,
   onClose,
   productId,
+  onCreated,
 }: {
   open: boolean
   onClose: () => void
   productId: number | null
+  // sản phẩm vừa tạo xong: chuyển sang chế độ sửa để tải ảnh lên
+  onCreated: (id: number) => void
 }) {
   const editing = productId !== null
   const detail = useQuery({
@@ -61,10 +64,18 @@ export function ProductFormDrawer({
     )
   }
   // key: mở sản phẩm khác thì dựng lại form với giá trị ban đầu mới
-  return <ProductForm key={productId ?? 'new'} product={detail.data} onClose={onClose} />
+  return <ProductForm key={productId ?? 'new'} product={detail.data} onClose={onClose} onCreated={onCreated} />
 }
 
-function ProductForm({ product: p, onClose }: { product?: ProductDetail; onClose: () => void }) {
+function ProductForm({
+  product: p,
+  onClose,
+  onCreated,
+}: {
+  product?: ProductDetail
+  onClose: () => void
+  onCreated: (id: number) => void
+}) {
   const editing = Boolean(p)
   const productId = p?.id ?? null
   const categories = useCategories()
@@ -84,7 +95,6 @@ function ProductForm({ product: p, onClose }: { product?: ProductDetail; onClose
       minAge: p ? String(p.minAge) : '3',
       maxAge: p ? String(p.maxAge) : '12',
       categoryId: p ? String(p.categoryId) : '',
-      imageUrls: p?.images.map((i) => i.url).join('\n') ?? '',
       active: p?.active ?? true,
     },
   })
@@ -100,10 +110,6 @@ function ProductForm({ product: p, onClose }: { product?: ProductDetail; onClose
         minAge: v.minAge,
         maxAge: v.maxAge,
         categoryId: v.categoryId,
-        imageUrls: v.imageUrls
-          .split('\n')
-          .map((u) => u.trim())
-          .filter(Boolean),
         skillImpacts: Object.entries(impacts)
           .filter(([, value]) => value > 0)
           .map(([skillId, impactIndex]) => ({ skillId: Number(skillId), impactIndex })),
@@ -117,8 +123,14 @@ function ProductForm({ product: p, onClose }: { product?: ProductDetail; onClose
       queryClient.invalidateQueries({ queryKey: ['product', saved.id] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       queryClient.invalidateQueries({ queryKey: ['categories'] })
-      toast.success(editing ? 'Đã lưu sản phẩm' : 'Đã thêm sản phẩm')
-      onClose()
+      if (editing) {
+        toast.success('Đã lưu sản phẩm')
+        onClose()
+      } else {
+        // giữ ngăn kéo mở ở chế độ sửa: ảnh chỉ tải lên được khi sản phẩm đã có id
+        toast.success('Đã thêm sản phẩm, giờ bạn có thể tải ảnh lên')
+        onCreated(saved.id)
+      }
     },
     onError: (e) => toast.error(e.message),
   })
@@ -234,17 +246,14 @@ function ProductForm({ product: p, onClose }: { product?: ProductDetail; onClose
         <Field label="Mô tả" htmlFor="pdesc" error={errors.description?.message}>
           <Textarea id="pdesc" className="!min-h-[120px]" {...form.register('description')} />
         </Field>
-        <Field
-          label="Ảnh sản phẩm"
-          htmlFor="pimg"
-          hint="Mỗi dòng một đường dẫn ảnh (URL). Ảnh đầu tiên là ảnh đại diện."
-        >
-          <Textarea
-            id="pimg"
-            className="!min-h-[80px] font-mono text-[13px]"
-            placeholder="https://…"
-            {...form.register('imageUrls')}
-          />
+        <Field label="Ảnh sản phẩm">
+          {p ? (
+            <ProductImagesField productId={p.id} images={p.images} />
+          ) : (
+            <p className="rounded-md bg-muted px-4 py-3 text-[13.5px] text-ink-muted">
+              Lưu sản phẩm trước, sau đó tải ảnh lên ngay tại đây.
+            </p>
+          )}
         </Field>
         <label className="flex items-center gap-2.5 text-[14px] font-semibold">
           <input type="checkbox" className="h-4 w-4 accent-primary" {...form.register('active')} />

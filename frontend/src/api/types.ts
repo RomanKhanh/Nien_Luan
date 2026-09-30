@@ -308,7 +308,6 @@ export interface ProductRequest {
   minAge: number
   maxAge: number
   categoryId: number
-  imageUrls: string[]
   skillImpacts: { skillId: number; impactIndex: number }[]
   active: boolean
 }

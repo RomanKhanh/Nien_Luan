@@ -84,6 +84,13 @@ const EXACT: Record<string, string> = {
   'A response to the customer is required to close the complaint':
     'Cần nhập phản hồi cho khách trước khi đóng yêu cầu.',
   'Complaint not found': 'Không tìm thấy yêu cầu.',
+  'File is empty': 'Tệp ảnh trống.',
+  'File has no extension': 'Tệp không có đuôi mở rộng.',
+  'Only jpg, jpeg, png, webp files are allowed': 'Chỉ nhận ảnh JPG, PNG hoặc WebP.',
+  'File content does not match its extension': 'Nội dung tệp không phải ảnh đúng định dạng.',
+  'A product can have at most 10 images': 'Mỗi sản phẩm tối đa 10 ảnh.',
+  'Maximum upload size exceeded': 'Ảnh vượt quá dung lượng cho phép (5MB).',
+  'Image not found for this product': 'Không tìm thấy ảnh của sản phẩm này.',
   'Category name already exists': 'Tên danh mục đã tồn tại.',
   'Category still has products, move them to another category first':
     'Danh mục còn sản phẩm, hãy chuyển sản phẩm sang danh mục khác trước.',
