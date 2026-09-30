@@ -8,7 +8,7 @@ export function SkillBadge({ code, name, value }: { code: string; name?: string;
   const theme = skillTheme(code, name)
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[12px] font-semibold"
+      className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold"
       style={{ background: theme.soft, color: theme.color }}
     >
       {theme.short || name}
@@ -45,7 +45,7 @@ const TONES = {
 
 export function Pill({ tone, children }: { tone: keyof typeof TONES; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${TONES[tone]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-bold ${TONES[tone]}`}>
       {children}
     </span>
   )
@@ -73,8 +73,16 @@ export function SkillBar({ code, name, value, max = 10 }: { code: string; name: 
           {Number.isInteger(value) ? value : formatDecimal(value)}/{max}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full" style={{ background: theme.soft }}>
-        <div className="h-full rounded-full transition-[width]" style={{ width: `${pct}%`, background: theme.color }} />
+      <div className="h-3 overflow-hidden rounded-full p-[2px]" style={{ background: theme.soft }}>
+        {/* vạch sọc chéo trên thanh cho giống thanh tiến độ trò chơi */}
+        <div
+          className="h-full rounded-full transition-[width] duration-700"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: theme.color,
+            backgroundImage: 'repeating-linear-gradient(45deg, rgb(255 255 255 / 0.22) 0 6px, transparent 6px 12px)',
+          }}
+        />
       </div>
     </div>
   )

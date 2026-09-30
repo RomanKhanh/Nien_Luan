@@ -4,16 +4,17 @@ import { useQuery } from '@tanstack/react-query'
 import { meApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { Logo } from '@/components/layout/Logo'
+import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { initials } from '@/lib/format'
 
 const NAV = [
-  { to: '/admin', label: 'Tổng quan', end: true },
-  { to: '/admin/products', label: 'Sản phẩm & kho' },
-  { to: '/admin/catalog', label: 'Danh mục & kỹ năng' },
-  { to: '/admin/orders', label: 'Đơn hàng' },
-  { to: '/admin/complaints', label: 'Khiếu nại & yêu cầu' },
-  { to: '/admin/reviews', label: 'Đánh giá' },
-  { to: '/admin/users', label: 'Người dùng' },
+  { to: '/admin', label: 'Tổng quan', icon: '📊', end: true },
+  { to: '/admin/products', label: 'Sản phẩm & kho', icon: '🧸' },
+  { to: '/admin/catalog', label: 'Danh mục & kỹ năng', icon: '🗂️' },
+  { to: '/admin/orders', label: 'Đơn hàng', icon: '📦' },
+  { to: '/admin/complaints', label: 'Khiếu nại & yêu cầu', icon: '💬' },
+  { to: '/admin/reviews', label: 'Đánh giá', icon: '⭐' },
+  { to: '/admin/users', label: 'Người dùng', icon: '👥' },
 ]
 
 export default function AdminLayout() {
@@ -27,7 +28,7 @@ export default function AdminLayout() {
   }, [location.pathname])
 
   return (
-    <div className="min-h-screen bg-[#F4F2EE] lg:grid lg:grid-cols-[232px_1fr]">
+    <div className="min-h-screen bg-[#f3f8fb] lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between px-4 py-4 lg:px-5 lg:py-5">
           <Logo to="/admin" suffix="Admin" />
@@ -42,18 +43,21 @@ export default function AdminLayout() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `shrink-0 rounded-md px-3 py-2 text-[14px] font-medium ${
-                  isActive ? 'bg-ink text-white hover:text-white' : 'text-ink-2 hover:bg-muted hover:text-ink'
+                `flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 text-[14px] font-semibold transition ${
+                  isActive
+                    ? 'bg-primary text-white shadow-[0_3px_0_#3a22b8] hover:text-white'
+                    : 'text-ink-2 hover:bg-sky-soft hover:text-ink'
                 }`
               }
             >
+              <span aria-hidden>{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
         </nav>
         <div className="hidden border-t border-line p-4 lg:absolute lg:inset-x-0 lg:bottom-0 lg:block">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-secondary text-[12px] font-bold text-white">
+            <span className="grid h-10 w-10 place-items-center rounded-full border-[3px] border-sun bg-primary font-display text-[14px] font-extrabold text-white">
               {me.data ? initials(me.data.fullName) : '…'}
             </span>
             <div className="min-w-0 flex-1">
@@ -79,6 +83,7 @@ export default function AdminLayout() {
       </aside>
       <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">
         <Outlet />
+        <ScrollToTop />
       </main>
     </div>
   )

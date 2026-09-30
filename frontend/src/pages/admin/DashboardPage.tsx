@@ -37,6 +37,8 @@ function Dashboard({ s }: { s: AdminStats }) {
           value={s.totalCustomers.toLocaleString('vi-VN')}
           sub={`+${s.newCustomersLast30Days} trong 30 ngày`}
           to="/admin/users"
+          icon="👥"
+          color="#1fa6dd"
         />
         <Tile
           label="Sản phẩm đang bán"
@@ -44,14 +46,18 @@ function Dashboard({ s }: { s: AdminStats }) {
           sub={s.lowStockProducts > 0 ? `${s.lowStockProducts} sản phẩm sắp hết hàng` : 'Tồn kho ổn định'}
           warn={s.lowStockProducts > 0}
           to="/admin/products"
+          icon="🧸"
+          color="#e8467c"
         />
         <Tile
           label="Tổng đơn hàng"
           value={s.totalOrders.toLocaleString('vi-VN')}
           sub={`${s.ordersByStatus.PENDING} đơn chờ xác nhận`}
           to="/admin/orders"
+          icon="📦"
+          color="#e08700"
         />
-        <Tile label="Doanh thu (đơn đã giao)" value={formatPrice(s.deliveredRevenue)} />
+        <Tile label="Doanh thu (đơn đã giao)" value={formatPrice(s.deliveredRevenue)} icon="💰" color="#0f9e7a" />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
@@ -70,7 +76,7 @@ function Dashboard({ s }: { s: AdminStats }) {
                     <b className="tabular-nums">{count}</b>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-ink-2" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                   </div>
                 </li>
               )
@@ -87,7 +93,11 @@ function Dashboard({ s }: { s: AdminStats }) {
             <ol className="space-y-2.5 text-[14px]">
               {s.topProducts.map((p, i) => (
                 <li key={p.productId} className="flex items-center gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[12px] font-bold">
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-display text-[14px] font-extrabold ${
+                      i === 0 ? 'bg-sun text-ink' : i === 1 ? 'bg-sky-soft text-sky-deep' : 'bg-muted text-ink-2'
+                    }`}
+                  >
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1 truncate">{p.productName}</span>
@@ -210,28 +220,51 @@ function Tile({
   sub,
   warn,
   to,
+  icon,
+  color,
 }: {
   label: string
   value: string
   sub?: string
   warn?: boolean
   to?: string
+  icon: string
+  color: string
 }) {
   const body = (
     <>
-      <p className="text-[13px] font-semibold text-ink-muted">{label}</p>
-      <p className="mt-1.5 text-[26px] font-extrabold tracking-[-0.02em] text-ink">{value}</p>
+      <span
+        className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-15"
+        style={{ background: color }}
+        aria-hidden
+      />
+      <span
+        className="relative mb-3 grid h-11 w-11 place-items-center rounded-full text-[20px]"
+        style={{ background: `${color}22` }}
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <p className="relative text-[13px] font-semibold text-ink-muted">{label}</p>
+      <p className="relative mt-0.5 font-display text-[30px] font-extrabold leading-tight" style={{ color }}>
+        {value}
+      </p>
       {sub && (
-        <p className={`mt-0.5 text-[12.5px] ${warn ? 'font-semibold text-[#B45309]' : 'text-ink-muted'}`}>{sub}</p>
+        <p className={`relative mt-0.5 text-[12.5px] ${warn ? 'font-semibold text-[#B45309]' : 'text-ink-muted'}`}>
+          {sub}
+        </p>
       )}
     </>
   )
   return to ? (
-    <Link to={to} className="card block p-5 transition hover:shadow-card-hover">
+    <Link
+      to={to}
+      className="card relative block overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-card-hover"
+    >
       {body}
     </Link>
   ) : (
-    <div className="card p-5">{body}</div>
+    <div className="card relative overflow-hidden p-5">{body}</div>
   )
 }
 
@@ -239,7 +272,7 @@ function Panel({ title, note, children }: { title: string; note?: string; childr
   return (
     <section className="card p-5">
       <div className="mb-4 flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{title}</h2>
+        <h2 className="font-display text-[19px] font-extrabold">{title}</h2>
         {note && <span className="text-[12px] text-ink-muted">{note}</span>}
       </div>
       {children}

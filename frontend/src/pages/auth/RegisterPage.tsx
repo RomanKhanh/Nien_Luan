@@ -62,7 +62,7 @@ export default function RegisterPage() {
 
   return (
     <AuthShell>
-      <h1 className="text-[28px] font-bold tracking-[-0.02em]">Tạo tài khoản</h1>
+      <h1 className="h1">Tạo tài khoản</h1>
       <p className="mt-1.5 text-[14px] text-ink-muted">
         Đã có tài khoản?{' '}
         <Link to="/login" state={location.state}>

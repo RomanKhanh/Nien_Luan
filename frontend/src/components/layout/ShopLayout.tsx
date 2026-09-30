@@ -6,7 +6,9 @@ import { useAuth } from '@/auth/AuthContext'
 import { buttonClass } from '@/components/ui/Button'
 import { useCartCount } from '@/features/cart/useCart'
 import { initials } from '@/lib/format'
+import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { Logo } from './Logo'
+import { ScrollToTop } from './ScrollToTop'
 
 const NAV = [
   { to: '/', label: 'Trang chủ', end: true },
@@ -35,6 +37,7 @@ export function ShopLayout() {
         <Outlet />
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   )
 }
@@ -45,6 +48,12 @@ function Header({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: (
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
+      {/* dải thông báo nhiều màu phía trên header */}
+      <div className="bg-gradient-to-r from-sky via-primary to-[#e8467c] text-white">
+        <p className="container-page truncate py-1.5 text-center text-[12.5px] font-semibold">
+          🎁 Học mà chơi, rời xa màn hình — chọn đồ chơi STEM theo lộ trình kỹ năng của bé
+        </p>
+      </div>
       <div className="container-page flex h-16 items-center gap-4">
         <button
           type="button"
@@ -56,13 +65,15 @@ function Header({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: (
           ☰
         </button>
         <Logo />
-        <nav className="ml-4 hidden gap-6 text-[14px] font-medium lg:flex" aria-label="Điều hướng chính">
+        <nav className="ml-4 hidden gap-1 text-[14px] font-semibold lg:flex" aria-label="Điều hướng chính">
           {NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) => (isActive ? 'text-primary' : 'text-ink-2 hover:text-ink')}
+              className={({ isActive }) =>
+                `rounded-full px-3.5 py-1.5 transition ${isActive ? 'bg-primary-soft text-primary' : 'text-ink-2 hover:bg-muted hover:text-ink'}`
+              }
             >
               {item.label}
             </NavLink>
@@ -152,7 +163,7 @@ function SearchBox({ className = '' }: { className?: string }) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Tìm đồ chơi, kỹ năng…"
-          className="w-full rounded-full border border-line bg-bg py-2 pl-9 pr-4 text-[14px] outline-none focus:border-primary"
+          className="w-full rounded-full border-2 border-sky/30 bg-sky-soft/60 py-2 pl-9 pr-4 text-[14px] outline-none transition focus:border-sky focus:bg-surface"
         />
       </label>
     </form>
@@ -196,7 +207,7 @@ function UserMenu() {
         aria-expanded={open}
         className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 hover:bg-muted"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-[12px] font-bold text-white">
+        <span className="grid h-9 w-9 place-items-center rounded-full border-[3px] border-sun bg-primary font-display text-[13px] font-extrabold text-white">
           {me ? initials(me.fullName) : '…'}
         </span>
         <span className="hidden max-w-[120px] truncate text-[14px] font-semibold xl:inline">{me?.fullName}</span>
@@ -236,34 +247,43 @@ function UserMenu() {
 
 function Footer() {
   return (
-    <footer className="mt-16 bg-secondary text-[#BFC7DA]">
-      <div className="container-page grid gap-8 py-10 text-[14px] sm:grid-cols-3">
-        <div>
-          <p className="text-[17px] font-extrabold text-white">BrainBlocks</p>
-          <p className="mt-2">Đồ chơi giáo dục STEM, chọn theo lộ trình kỹ năng của bé.</p>
+    <footer className="mt-20">
+      <TornEdge color="var(--color-secondary)" seed={11} className="-mb-px" />
+      <div className="relative overflow-hidden bg-secondary text-[#BFC7DA]">
+        <div className="opacity-30">
+          <Bubbles />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <p className="font-semibold text-white">Khám phá</p>
-          <Link to="/products" className="text-[#BFC7DA] hover:text-white">
-            Tất cả sản phẩm
-          </Link>
-          <Link to="/children" className="text-[#BFC7DA] hover:text-white">
-            Hồ sơ & lộ trình kỹ năng
-          </Link>
+        <div className="container-page relative grid gap-8 py-10 text-[14px] sm:grid-cols-3">
+          <div className="flex items-start gap-3">
+            <Mascot className="w-16 shrink-0 animate-float" />
+            <div>
+              <p className="font-display text-[22px] font-extrabold leading-tight text-white">BrainBlocks</p>
+              <p className="mt-1">Đồ chơi giáo dục STEM, chọn theo lộ trình kỹ năng của bé.</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="font-semibold text-white">Khám phá</p>
+            <Link to="/products" className="text-[#BFC7DA] hover:text-white">
+              Tất cả sản phẩm
+            </Link>
+            <Link to="/children" className="text-[#BFC7DA] hover:text-white">
+              Hồ sơ & lộ trình kỹ năng
+            </Link>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="font-semibold text-white">Hỗ trợ</p>
+            <Link to="/orders" className="text-[#BFC7DA] hover:text-white">
+              Theo dõi đơn hàng
+            </Link>
+            <Link to="/feedback" className="text-[#BFC7DA] hover:text-white">
+              Phản hồi & khiếu nại
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <p className="font-semibold text-white">Hỗ trợ</p>
-          <Link to="/orders" className="text-[#BFC7DA] hover:text-white">
-            Theo dõi đơn hàng
-          </Link>
-          <Link to="/feedback" className="text-[#BFC7DA] hover:text-white">
-            Phản hồi & khiếu nại
-          </Link>
-        </div>
+        <p className="container-page relative border-t border-white/10 py-4 text-[12.5px]">
+          Chỉ số kỹ năng chỉ mang tính tham khảo khi chọn đồ chơi, không đánh giá năng lực hay sự phát triển của trẻ.
+        </p>
       </div>
-      <p className="container-page border-t border-white/10 py-4 text-[12.5px]">
-        Chỉ số kỹ năng chỉ mang tính tham khảo khi chọn đồ chơi, không đánh giá năng lực hay sự phát triển của trẻ.
-      </p>
     </footer>
   )
 }

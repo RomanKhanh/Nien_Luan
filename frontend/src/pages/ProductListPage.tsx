@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { catalogApi } from '@/api/endpoints'
 import type { ProductQuery, ProductSort } from '@/api/types'
+import { SkillIcon } from '@/components/decor/Decor'
+import { PageHero } from '@/components/layout/PageHero'
 import { ProductCard, ProductCardSkeleton } from '@/components/product/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Field'
@@ -75,113 +77,151 @@ export default function ProductListPage() {
   const filters = <FilterPanel query={query} update={update} />
 
   return (
-    <div className="container-page py-6">
-      <nav className="text-[13px] text-ink-muted" aria-label="Breadcrumb">
-        <Link to="/" className="text-ink-muted hover:text-ink">
-          Trang chủ
-        </Link>{' '}
-        / <span className="text-ink-2">Sản phẩm</span>
-      </nav>
-      <h1 className="h1 mt-2">{query.keyword ? `Kết quả cho “${query.keyword}”` : 'Tất cả sản phẩm'}</h1>
-
-      <div className="mt-6 grid gap-8 lg:grid-cols-[260px_1fr]">
-        <aside className="hidden lg:block">
-          <div className="card sticky top-20 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="font-bold">Bộ lọc</p>
-              {activeCount > 0 && (
-                <button type="button" className="text-[13px] font-semibold text-primary" onClick={() => setParams({})}>
-                  Xoá tất cả
-                </button>
-              )}
+    <>
+      <PageHero
+        crumbs={[{ label: 'Sản phẩm' }]}
+        kicker="Đồ chơi STEM"
+        title={query.keyword ? `Kết quả cho “${query.keyword}”` : 'Tất cả sản phẩm'}
+        subtitle="Lọc theo độ tuổi, nhóm kỹ năng và mức giá để tìm món phù hợp với bé."
+      >
+        <QuickSkillChips
+          selected={query.skills ?? []}
+          onToggle={(next) => update({ skills: next.join(',') || undefined })}
+        />
+      </PageHero>
+      <div className="container-page py-8">
+        <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
+          <aside className="hidden lg:block">
+            <div className="card sticky top-28 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="font-display text-[20px] font-extrabold">Bộ lọc</p>
+                {activeCount > 0 && (
+                  <button
+                    type="button"
+                    className="text-[13px] font-semibold text-primary"
+                    onClick={() => setParams({})}
+                  >
+                    Xoá tất cả
+                  </button>
+                )}
+              </div>
+              {filters}
             </div>
-            {filters}
-          </div>
-        </aside>
+          </aside>
 
-        <div>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[14px] text-ink-muted">
-              <b className="text-ink">{products.data?.totalElements ?? '…'}</b> sản phẩm phù hợp bộ lọc
-            </p>
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setFilterOpen(true)}>
-                Bộ lọc{activeCount > 0 && ` · ${activeCount}`}
-              </Button>
-              <label className="flex items-center gap-2 text-[13px] text-ink-muted">
-                <span className="hidden sm:inline">Sắp xếp</span>
-                <Select
-                  value={query.sort}
-                  onChange={(e) => update({ sort: e.target.value === 'relevance' ? undefined : e.target.value })}
-                  className="!w-auto !py-2 text-[13px]"
-                >
-                  {SORTS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            </div>
-          </div>
-
-          {products.isError ? (
-            <ErrorState message={products.error.message} onRetry={() => products.refetch()} />
-          ) : products.isPending ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <ProductCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : products.data.content.length === 0 ? (
-            <EmptyState
-              title="Chưa có sản phẩm nào"
-              description="Thử bỏ bớt bộ lọc hoặc đổi từ khoá tìm kiếm."
-              action={
-                <Button variant="secondary" onClick={() => setParams({})}>
-                  Xoá bộ lọc
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[14px] text-ink-muted">
+                <b className="text-ink">{products.data?.totalElements ?? '…'}</b> sản phẩm phù hợp bộ lọc
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setFilterOpen(true)}>
+                  Bộ lọc{activeCount > 0 && ` · ${activeCount}`}
                 </Button>
-              }
-            />
-          ) : (
-            <>
-              <div
-                className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${products.isPlaceholderData ? 'opacity-60' : ''}`}
-              >
-                {products.data.content.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                <label className="flex items-center gap-2 text-[13px] text-ink-muted">
+                  <span className="hidden sm:inline">Sắp xếp</span>
+                  <Select
+                    value={query.sort}
+                    onChange={(e) => update({ sort: e.target.value === 'relevance' ? undefined : e.target.value })}
+                    className="!w-auto !py-2 text-[13px]"
+                  >
+                    {SORTS.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              </div>
+            </div>
+
+            {products.isError ? (
+              <ErrorState message={products.error.message} onRetry={() => products.refetch()} />
+            ) : products.isPending ? (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <ProductCardSkeleton key={i} />
                 ))}
               </div>
-              <div className="mt-8">
-                <Pagination
-                  page={products.data.page}
-                  totalPages={products.data.totalPages}
-                  onChange={(page) => {
-                    update({ page: page === 0 ? undefined : String(page) }, false)
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                  }}
-                />
-              </div>
-            </>
-          )}
+            ) : products.data.content.length === 0 ? (
+              <EmptyState
+                title="Chưa có sản phẩm nào"
+                description="Thử bỏ bớt bộ lọc hoặc đổi từ khoá tìm kiếm."
+                action={
+                  <Button variant="secondary" onClick={() => setParams({})}>
+                    Xoá bộ lọc
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <div
+                  className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${products.isPlaceholderData ? 'opacity-60' : ''}`}
+                >
+                  {products.data.content.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+                <div className="mt-8">
+                  <Pagination
+                    page={products.data.page}
+                    totalPages={products.data.totalPages}
+                    onChange={(page) => {
+                      update({ page: page === 0 ? undefined : String(page) }, false)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
-      <Modal
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        title="Bộ lọc"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setParams({})}>
-              Xoá tất cả
-            </Button>
-            <Button onClick={() => setFilterOpen(false)}>Xem {products.data?.totalElements ?? ''} sản phẩm</Button>
-          </>
-        }
-      >
-        {filters}
-      </Modal>
+        <Modal
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          title="Bộ lọc"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setParams({})}>
+                Xoá tất cả
+              </Button>
+              <Button onClick={() => setFilterOpen(false)}>Xem {products.data?.totalElements ?? ''} sản phẩm</Button>
+            </>
+          }
+        >
+          {filters}
+        </Modal>
+      </div>
+    </>
+  )
+}
+
+// hàng nút nhanh 4 nhóm kỹ năng ngay dưới tiêu đề (bấm lại để bỏ chọn)
+function QuickSkillChips({ selected, onToggle }: { selected: string[]; onToggle: (next: string[]) => void }) {
+  const skills = useSkills()
+  return (
+    <div className="mt-6 flex flex-wrap gap-2.5">
+      {(skills.data ?? []).map((s) => {
+        const t = skillTheme(s.code, s.name)
+        const on = selected.includes(s.code)
+        return (
+          <button
+            key={s.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onToggle(on ? selected.filter((c) => c !== s.code) : [...selected, s.code])}
+            className="flex items-center gap-2 rounded-full border-2 bg-white py-1.5 pl-1.5 pr-4 text-[13.5px] font-bold shadow-card transition hover:-translate-y-0.5"
+            style={{ borderColor: on ? t.color : 'transparent', color: t.color, background: on ? t.soft : '#fff' }}
+          >
+            <span className="grid h-7 w-7 place-items-center rounded-full text-white" style={{ background: t.color }}>
+              <SkillIcon code={s.code} className="h-4 w-4" />
+            </span>
+            {s.name}
+            {on && <span aria-hidden>✓</span>}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -297,8 +337,11 @@ function FilterPanel({
 function FilterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <fieldset>
-      <legend className="mb-2.5 text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted">{title}</legend>
-      <div className="space-y-2">{children}</div>
+      <legend className="mb-2 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.06em] text-ink-muted">
+        <span className="h-2 w-2 rounded-full bg-sun" aria-hidden />
+        {title}
+      </legend>
+      <div className="space-y-0.5">{children}</div>
     </fieldset>
   )
 }
@@ -318,7 +361,9 @@ function CheckRow({
   name?: string
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2.5 text-ink-2">
+    <label
+      className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-sky-soft ${checked ? 'bg-primary-soft font-semibold text-primary-hover' : 'text-ink-2'}`}
+    >
       <input
         type={type}
         name={name}

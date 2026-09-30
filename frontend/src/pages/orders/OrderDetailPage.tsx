@@ -57,8 +57,11 @@ export default function OrderDetailPage() {
   return (
     <AccountShell>
       {justPlaced && (
-        <div className="mb-6 rounded-lg border border-[#BFE6CD] bg-success-soft p-5">
-          <p className="text-[18px] font-bold text-success">Đặt hàng thành công!</p>
+        <div className="relative mb-6 overflow-hidden rounded-[22px] border-2 border-[#BFE6CD] bg-success-soft p-5">
+          <span className="absolute -right-2 -top-3 animate-float text-[56px]" aria-hidden>
+            🎉
+          </span>
+          <p className="font-display text-[24px] font-extrabold text-success">Đặt hàng thành công!</p>
           <p className="mt-1 text-[14px] text-ink-2">
             Mã đơn <b>{o.orderCode}</b>. BrainBlocks sẽ xác nhận đơn sớm và giao hàng tới địa chỉ của bạn.
           </p>
@@ -85,13 +88,13 @@ export default function OrderDetailPage() {
       </div>
       <p className="mt-1 text-[13.5px] text-ink-muted">Đặt lúc {formatDateTime(o.createdAt)}</p>
 
-      <div className="card mt-5 p-5">
+      <div className="card mt-5 bg-sky-soft/50 p-5">
         <OrderTimeline status={o.status} />
       </div>
 
       <div className="mt-5 grid gap-5 md:grid-cols-[1.4fr_1fr]">
         <section className="card p-5">
-          <h2 className="mb-3 font-bold">Sản phẩm</h2>
+          <h2 className="mb-3 font-display text-[19px] font-extrabold">Sản phẩm</h2>
           <ul className="divide-y divide-line">
             {o.items.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -120,15 +123,17 @@ export default function OrderDetailPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-3 flex justify-between border-t border-line pt-3 text-[16px] font-bold">
+          <div className="mt-3 flex items-baseline justify-between border-t-2 border-dashed border-line pt-3 text-[16px] font-bold">
             <span>Tổng cộng</span>
-            <span>{formatPrice(o.totalAmount)}</span>
+            <span className="font-display text-[24px] font-extrabold leading-none text-coral">
+              {formatPrice(o.totalAmount)}
+            </span>
           </div>
         </section>
 
         <div className="space-y-5">
           <section className="card p-5 text-[14px]">
-            <h2 className="mb-3 font-bold">Giao hàng & thanh toán</h2>
+            <h2 className="mb-3 font-display text-[19px] font-extrabold">Giao hàng & thanh toán</h2>
             <p className="font-semibold">
               {o.receiverName} · {o.receiverPhone}
             </p>

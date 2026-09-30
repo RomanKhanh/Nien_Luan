@@ -48,7 +48,7 @@ export default function LoginPage() {
         >
           ⛔
         </div>
-        <h1 className="mt-5 text-[26px] font-bold tracking-[-0.02em]">Tài khoản của bạn đang tạm bị khoá</h1>
+        <h1 className="h1 mt-5">Tài khoản của bạn đang tạm bị khoá</h1>
         <p className="mt-3 text-ink-2">
           Tài khoản <b>{form.getValues('email')}</b> đã bị quản trị viên khoá. Nếu cho rằng đây là nhầm lẫn, vui lòng
           liên hệ bộ phận hỗ trợ của BrainBlocks.
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell>
-      <h1 className="text-[28px] font-bold tracking-[-0.02em]">Chào mừng trở lại</h1>
+      <h1 className="h1">Chào mừng trở lại</h1>
       <p className="mt-1.5 text-[14px] text-ink-muted">
         Chưa có tài khoản?{' '}
         <Link to="/register" state={location.state}>

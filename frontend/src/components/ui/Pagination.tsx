@@ -10,12 +10,12 @@ export function Pagination({
 }) {
   if (totalPages <= 1) return null
   const pages = visiblePages(page, totalPages)
-  const btn = 'grid h-9 min-w-9 place-items-center rounded-md px-2 text-[14px] font-semibold transition'
+  const btn = 'grid h-10 min-w-10 place-items-center rounded-full px-2 text-[14px] font-bold transition'
   return (
     <nav className="flex items-center justify-center gap-1.5" aria-label="Phân trang">
       <button
         type="button"
-        className={`${btn} border border-line bg-surface disabled:opacity-40`}
+        className={`${btn} border-2 border-line bg-surface hover:border-primary disabled:opacity-40`}
         disabled={page === 0}
         onClick={() => onChange(page - 1)}
         aria-label="Trang trước"
@@ -33,7 +33,7 @@ export function Pagination({
             key={p}
             onClick={() => onChange(p)}
             aria-current={p === page ? 'page' : undefined}
-            className={`${btn} ${p === page ? 'bg-ink text-white' : 'border border-line bg-surface hover:border-ink'}`}
+            className={`${btn} ${p === page ? 'bg-primary text-white shadow-[0_3px_0_#3a22b8]' : 'border-2 border-line bg-surface hover:border-primary hover:text-primary'}`}
           >
             {p + 1}
           </button>
@@ -41,7 +41,7 @@ export function Pagination({
       )}
       <button
         type="button"
-        className={`${btn} border border-line bg-surface disabled:opacity-40`}
+        className={`${btn} border-2 border-line bg-surface hover:border-primary disabled:opacity-40`}
         disabled={page >= totalPages - 1}
         onClick={() => onChange(page + 1)}
         aria-label="Trang sau"

@@ -1,8 +1,23 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Token lấy từ design system trong mockup BrainBlocks (màn 01) */
 @theme {
-  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+  --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
+  /* chữ tiêu đề tròn, mập kiểu đồ chơi (tham khảo stemplus.vn); Baloo 2 có đủ dấu tiếng Việt */
+  --font-display: 'Baloo 2', 'Be Vietnam Pro', system-ui, sans-serif;
+
+  /* nền trời xanh cho các dải trang trí */
+  --color-sky: #1fa6dd;
+  --color-sky-deep: #1788b8;
+  --color-sky-soft: #e4f5fc;
+  --color-sun: #ffc233;
+  --color-leaf: #7cc243;
+  --color-coral: #f2674a;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-wiggle: wiggle 0.5s ease-in-out;
+  --animate-spin-slow: spin 24s linear infinite;
 
   --color-primary: #5b3df5;
   --color-primary-hover: #4227d6;
@@ -62,7 +77,7 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
-  input[type="number"]::-webkit-inner-spin-button {
+  input[type='number']::-webkit-inner-spin-button {
     opacity: 1;
   }
 }
@@ -72,21 +87,91 @@
     @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6;
   }
   .card {
-    @apply rounded-lg border border-line bg-surface shadow-card;
+    @apply rounded-[20px] border-[1.5px] border-line bg-surface shadow-card;
   }
   .label {
     @apply mb-1.5 block text-[13px] font-semibold text-ink-2;
   }
   .input {
-    @apply w-full rounded-md border-[1.5px] border-line-strong bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none transition placeholder:text-ink-faint focus:border-primary disabled:bg-muted disabled:text-ink-muted;
+    @apply w-full rounded-xl border-2 border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink outline-none transition placeholder:text-ink-faint hover:border-line-strong focus:border-sky focus:shadow-[0_0_0_4px_var(--color-sky-soft)] disabled:bg-muted disabled:text-ink-muted;
   }
   .input-error {
-    @apply border-danger focus:border-danger;
+    @apply border-danger hover:border-danger focus:border-danger focus:shadow-[0_0_0_4px_var(--color-danger-soft)];
   }
   .h1 {
-    @apply text-[24px] font-bold tracking-[-0.02em] sm:text-[28px];
+    @apply font-display text-[28px] font-extrabold leading-[1.15] tracking-[-0.01em] sm:text-[34px];
   }
   .h2 {
-    @apply text-[18px] font-bold tracking-[-0.02em] sm:text-[20px];
+    @apply font-display text-[20px] font-extrabold leading-tight tracking-[-0.01em] sm:text-[23px];
   }
+
+  /* tiêu đề section kiểu "sticker": chữ tròn to, có gạch màu bên dưới */
+  .section-title {
+    @apply font-display text-[28px] font-extrabold leading-[1.1] tracking-[-0.01em] text-ink sm:text-[34px];
+  }
+  .section-kicker {
+    @apply inline-flex items-center gap-2 rounded-full bg-sun/25 px-3 py-1 text-[13px] font-bold uppercase tracking-[0.06em] text-[#9a6a00];
+  }
+  /* chữ tiêu đề hero: viền trắng dày + bóng đổ, giống chữ banner của stemplus */
+  .sticker-text {
+    -webkit-text-stroke: clamp(5px, 0.6vw, 9px) #fff;
+    paint-order: stroke fill;
+    text-shadow: 0 6px 0 rgb(13 27 62 / 0.18);
+  }
+  .dots-bg {
+    background-image: radial-gradient(rgb(255 255 255 / 0.18) 2px, transparent 2.5px);
+    background-size: 22px 22px;
+  }
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 0.6s ease,
+      transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(6deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* bóng chữ nhẹ cho tiêu đề trên nền trời xanh (bản nhỏ của .sticker-text) */
+.sticker-text-sm {
+  text-shadow: 0 3px 0 rgb(13 27 62 / 0.22);
 }

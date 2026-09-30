@@ -30,8 +30,10 @@ export default function OrdersPage() {
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold ${
-                tab === t ? 'bg-ink text-white' : 'bg-surface text-ink-2 ring-1 ring-line hover:ring-ink'
+              className={`shrink-0 rounded-full px-4 py-1.5 text-[13px] font-bold transition ${
+                tab === t
+                  ? 'bg-primary text-white shadow-[0_3px_0_#3a22b8]'
+                  : 'bg-surface text-ink-2 ring-2 ring-line hover:text-primary hover:ring-primary'
               }`}
             >
               {t === 'ALL' ? 'Tất cả' : ORDER_STATUS[t].label}
@@ -57,7 +59,7 @@ export default function OrdersPage() {
             <li key={o.id}>
               <Link
                 to={`/orders/${o.id}`}
-                className="card block p-4 text-ink transition hover:shadow-card-hover hover:text-ink sm:p-5"
+                className="card block border-l-[6px] border-l-sky p-4 text-ink transition hover:-translate-y-0.5 hover:shadow-card-hover hover:text-ink sm:p-5"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-bold">
@@ -70,7 +72,8 @@ export default function OrdersPage() {
                   {o.items.map((i) => `${i.productName} × ${i.quantity}`).join(', ')}
                 </p>
                 <p className="mt-2 text-[14px]">
-                  Tổng tiền: <b>{formatPrice(o.totalAmount)}</b>
+                  Tổng tiền:{' '}
+                  <b className="font-display text-[17px] font-extrabold text-coral">{formatPrice(o.totalAmount)}</b>
                 </p>
               </Link>
             </li>

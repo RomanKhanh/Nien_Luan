@@ -5,25 +5,28 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'accent' | 'danger' | 'danger
 type Size = 'sm' | 'md' | 'lg'
 
 const VARIANT: Record<Variant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-hover',
-  secondary: 'bg-surface text-ink border-[1.5px] border-line-strong hover:border-ink',
+  // nút "kẹo" có gờ dưới, nhấn xuống khi bấm (phong cách đồ chơi)
+  primary: 'bg-primary text-white shadow-[0_4px_0_#3a22b8] hover:bg-primary-hover',
+  secondary: 'bg-surface text-ink border-2 border-line-strong shadow-[0_3px_0_var(--color-line)] hover:border-ink',
   ghost: 'bg-transparent text-primary hover:bg-primary-soft',
-  accent: 'bg-accent text-ink hover:brightness-95',
-  danger: 'bg-danger text-white hover:brightness-95',
-  'danger-outline': 'bg-surface text-danger border-[1.5px] border-[#FBCFCF] hover:border-danger',
+  accent: 'bg-sun text-ink shadow-[0_4px_0_#c98f00] hover:brightness-105',
+  danger: 'bg-danger text-white shadow-[0_4px_0_#9f1c1c] hover:brightness-95',
+  'danger-outline': 'bg-surface text-danger border-2 border-[#FBCFCF] hover:border-danger',
   soft: 'bg-primary-soft text-primary-hover hover:brightness-[0.97]',
-  dark: 'bg-ink text-white hover:bg-ink-2',
+  dark: 'bg-ink text-white shadow-[0_4px_0_#000] hover:bg-ink-2',
 }
 
 const SIZE: Record<Size, string> = {
-  sm: 'text-[13px] px-3.5 py-2 rounded-md',
-  md: 'text-[14px] px-[18px] py-[11px] rounded-md',
-  lg: 'text-[15px] px-6 py-[15px] rounded-xl',
+  sm: 'text-[13px] px-4 py-2 rounded-full',
+  md: 'text-[14px] px-5 py-[11px] rounded-full',
+  lg: 'text-[15px] px-7 py-[15px] rounded-full',
 }
 
 const BASE =
-  'inline-flex items-center justify-center gap-2 font-semibold whitespace-nowrap transition select-none ' +
-  'disabled:cursor-not-allowed disabled:bg-[#E8E6E1] disabled:text-ink-faint disabled:border-transparent'
+  'inline-flex items-center justify-center gap-2 font-bold whitespace-nowrap transition select-none ' +
+  'hover:-translate-y-px active:translate-y-[3px] active:shadow-none ' +
+  'disabled:cursor-not-allowed disabled:bg-[#E8E6E1] disabled:text-ink-faint disabled:border-transparent ' +
+  'disabled:shadow-none disabled:translate-y-0'
 
 export function buttonClass(variant: Variant = 'primary', size: Size = 'md', extra = '') {
   return `${BASE} ${VARIANT[variant]} ${SIZE[size]} ${extra}`

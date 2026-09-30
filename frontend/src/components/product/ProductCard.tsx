@@ -11,14 +11,19 @@ export function ProductCard({ product, showAddButton = true }: { product: Produc
   const addToCart = useAddToCart()
   const outOfStock = product.stockQuantity <= 0
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-card-hover">
-      <Link to={`/products/${product.id}`} className="relative block" aria-label={product.name}>
-        <ProductArt url={product.thumbnailUrl} name={product.name} skillCode={dominantSkill(product.skillImpacts)} />
-        <span className="absolute left-3 top-3 rounded-sm bg-surface/95 px-2 py-0.5 text-[12px] font-semibold text-ink-2">
+    <article className="group flex flex-col overflow-hidden rounded-[20px] border-2 border-line bg-surface shadow-card transition duration-300 hover:-translate-y-1.5 hover:border-sky/50 hover:shadow-card-hover">
+      <Link to={`/products/${product.id}`} className="relative block overflow-hidden" aria-label={product.name}>
+        <ProductArt
+          url={product.thumbnailUrl}
+          name={product.name}
+          skillCode={dominantSkill(product.skillImpacts)}
+          className="transition duration-500 group-hover:scale-105"
+        />
+        <span className="absolute left-3 top-3 rounded-full bg-sun px-2.5 py-0.5 text-[12px] font-bold text-ink shadow-card">
           {ageRange(product.minAge, product.maxAge)}
         </span>
         {outOfStock && (
-          <span className="absolute right-3 top-3 rounded-sm bg-ink px-2 py-0.5 text-[12px] font-semibold text-white">
+          <span className="absolute right-3 top-3 rounded-full bg-ink px-2.5 py-0.5 text-[12px] font-semibold text-white">
             Hết hàng
           </span>
         )}
@@ -36,7 +41,9 @@ export function ProductCard({ product, showAddButton = true }: { product: Produc
           ))}
         </div>
         <div className="mt-auto flex items-end justify-between pt-3">
-          <span className="text-[17px] font-bold">{formatPrice(product.price)}</span>
+          <span className="font-display text-[20px] font-extrabold leading-none text-coral">
+            {formatPrice(product.price)}
+          </span>
           {product.reviewCount > 0 && (
             <span className="text-[13px] text-ink-muted">
               <span className="text-accent">★</span> {formatDecimal(product.averageRating)}
@@ -47,7 +54,7 @@ export function ProductCard({ product, showAddButton = true }: { product: Produc
           <Button
             size="sm"
             variant={outOfStock ? 'primary' : 'secondary'}
-            className="mt-3"
+            className="mt-3 rounded-full"
             block
             disabled={outOfStock}
             loading={addToCart.isPending && addToCart.variables?.productId === product.id}
@@ -63,7 +70,7 @@ export function ProductCard({ product, showAddButton = true }: { product: Produc
 
 export function ProductCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+    <div className="overflow-hidden rounded-[20px] border-2 border-line bg-surface">
       <div className="aspect-[4/3] animate-pulse bg-muted" />
       <div className="space-y-2.5 p-4">
         <div className="h-4 w-4/5 animate-pulse rounded bg-muted" />

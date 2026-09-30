@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', var
   const drawer = variant === 'drawer'
   return createPortal(
     <div className={`fixed inset-0 z-50 flex ${drawer ? 'justify-end' : 'items-end justify-center sm:items-center'} `}>
-      <div className="absolute inset-0 bg-ink/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-secondary/45 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         role="dialog"
@@ -47,18 +47,25 @@ export function Modal({ open, onClose, title, children, footer, size = 'md', var
         className={`relative flex max-h-full w-full flex-col bg-surface shadow-pop outline-none ${
           drawer
             ? `h-full ${WIDTH[size === 'sm' ? 'md' : size]}`
-            : `${WIDTH[size]} max-h-[92vh] rounded-t-lg sm:m-4 sm:rounded-lg`
+            : `${WIDTH[size]} max-h-[92vh] overflow-hidden rounded-t-[24px] sm:m-4 sm:rounded-[24px]`
         }`}
       >
+        {/* viền màu 4 nhóm kỹ năng trên đầu hộp thoại */}
+        <div className="flex h-1.5 shrink-0" aria-hidden>
+          <span className="flex-1 bg-skill-logic" />
+          <span className="flex-1 bg-skill-creative" />
+          <span className="flex-1 bg-skill-solve" />
+          <span className="flex-1 bg-skill-stem" />
+        </div>
         <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-          <h2 id={titleId} className="text-[17px] font-bold">
+          <h2 id={titleId} className="font-display text-[20px] font-extrabold leading-tight">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng"
-            className="grid h-8 w-8 place-items-center rounded-md text-ink-muted hover:bg-muted"
+            className="grid h-9 w-9 place-items-center rounded-full bg-muted text-ink-muted transition hover:rotate-90 hover:bg-danger-soft hover:text-danger"
           >
             ✕
           </button>
