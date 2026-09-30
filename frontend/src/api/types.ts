@@ -272,13 +272,19 @@ export interface Recommendation {
 export type ComplaintType = 'RETURN' | 'EXCHANGE' | 'CANCEL' | 'QUALITY' | 'OTHER'
 export type ComplaintStatus = 'PENDING' | 'PROCESSING' | 'RESOLVED' | 'REJECTED'
 
+// dòng hàng bị khiếu nại kèm số lượng lỗi
+export interface ComplaintItem {
+  orderItemId: number
+  productId: number
+  productName: string
+  quantity: number
+}
+
 export interface Complaint {
   id: number
   orderId: number
   orderCode: string
   orderStatus: OrderStatus
-  orderItemId: number | null
-  productName: string | null
   customerName: string
   customerEmail: string
   type: ComplaintType
@@ -286,6 +292,8 @@ export interface Complaint {
   status: ComplaintStatus
   response: string | null
   handledByName: string | null
+  // rỗng = khiếu nại chung cả đơn
+  items: ComplaintItem[]
   createdAt: string
   handledAt: string | null
 }

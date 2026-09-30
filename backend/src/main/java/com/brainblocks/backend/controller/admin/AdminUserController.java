@@ -1,9 +1,9 @@
 package com.brainblocks.backend.controller.admin;
 
-import com.brainblocks.backend.dto.request.UpdateUserStatusRequest;
+import com.brainblocks.backend.dto.request.user.UpdateUserStatusRequest;
 import com.brainblocks.backend.dto.response.ApiResponse;
 import com.brainblocks.backend.dto.response.PageResponse;
-import com.brainblocks.backend.dto.response.UserProfileResponse;
+import com.brainblocks.backend.dto.response.user.UserProfileResponse;
 import com.brainblocks.backend.service.user.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

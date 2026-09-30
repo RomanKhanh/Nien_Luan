@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.response;
+package com.brainblocks.backend.dto.response.child_product;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

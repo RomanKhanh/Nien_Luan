@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.response;
+package com.brainblocks.backend.dto.response.user;
 
 import java.time.LocalDateTime;
 

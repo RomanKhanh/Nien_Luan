@@ -3,7 +3,7 @@ package com.brainblocks.backend.service;
 import com.brainblocks.backend.dto.request.auth.LoginRequest;
 import com.brainblocks.backend.dto.request.auth.RegisterRequest;
 import com.brainblocks.backend.dto.response.auth.LoginResponse;
-import com.brainblocks.backend.dto.response.UserResponse;
+import com.brainblocks.backend.dto.response.user.UserResponse;
 import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.entity.Cart;
 import com.brainblocks.backend.entity.Customer;

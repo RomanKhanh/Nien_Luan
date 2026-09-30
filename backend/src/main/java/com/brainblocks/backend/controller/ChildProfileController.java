@@ -1,10 +1,10 @@
 package com.brainblocks.backend.controller;
 
-import com.brainblocks.backend.dto.request.AssignProductRequest;
-import com.brainblocks.backend.dto.request.ChildProfileRequest;
+import com.brainblocks.backend.dto.request.child_profile.AssignProductRequest;
+import com.brainblocks.backend.dto.request.child_profile.ChildProfileRequest;
 import com.brainblocks.backend.dto.response.ApiResponse;
-import com.brainblocks.backend.dto.response.ChildProductResponse;
-import com.brainblocks.backend.dto.response.ChildProfileResponse;
+import com.brainblocks.backend.dto.response.child_product.ChildProductResponse;
+import com.brainblocks.backend.dto.response.child_profile.ChildProfileResponse;
 import com.brainblocks.backend.service.child.ChildProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

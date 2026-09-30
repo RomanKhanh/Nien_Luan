@@ -118,8 +118,11 @@ export const childApi = {
 export const feedbackApi = {
   myReviews: () => request<Review[]>(http.get('/reviews/mine')),
   myComplaints: () => request<Complaint[]>(http.get('/complaints')),
-  createComplaint: (body: { orderId: number; orderItemId: number | null; type: ComplaintType; content: string }) =>
-    request<Complaint>(http.post('/complaints', body)),
+  // items rỗng = khiếu nại chung cả đơn
+  createComplaint: (
+    orderId: number,
+    body: { type: ComplaintType; content: string; items: { orderItemId: number; quantity: number }[] },
+  ) => request<Complaint>(http.post(`/orders/${orderId}/complaints`, body)),
 }
 
 export const adminApi = {

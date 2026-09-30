@@ -1,9 +1,9 @@
 package com.brainblocks.backend.controller;
 
 import com.brainblocks.backend.dto.response.ApiResponse;
-import com.brainblocks.backend.dto.response.ProductRecommendationResponse;
-import com.brainblocks.backend.dto.response.SkillProfileResponse;
-import com.brainblocks.backend.dto.response.SkillTimelineResponse;
+import com.brainblocks.backend.dto.response.product.ProductRecommendationResponse;
+import com.brainblocks.backend.dto.response.skill.SkillProfileResponse;
+import com.brainblocks.backend.dto.response.skill.SkillTimelineResponse;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import com.brainblocks.backend.service.skill.SkillRecommendationService;
 import lombok.RequiredArgsConstructor;

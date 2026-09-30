@@ -133,14 +133,15 @@ class CatalogAndFeedbackTest {
         long productId = createProduct(createCategory(), "complaint", 3, 12, Map.of());
         String token = newCustomer();
         long orderId = placeOrder(token, productId);
-        Map<String, Object> exchange = Map.of("orderId", orderId, "type", "EXCHANGE", "content", "Thiếu chi tiết");
+        String complaintsPath = "/api/orders/" + orderId + "/complaints";
+        Map<String, Object> exchange = Map.of("type", "EXCHANGE", "content", "Thiếu chi tiết");
 
-        assertThat(call("POST", "/api/complaints", token, exchange).status()).isEqualTo(400);
+        assertThat(call("POST", complaintsPath, token, exchange).status()).isEqualTo(400);
         // khách khác không gửi được khiếu nại cho đơn không phải của mình
-        assertThat(call("POST", "/api/complaints", newCustomer(), Map.of("orderId", orderId, "type", "OTHER",
+        assertThat(call("POST", complaintsPath, newCustomer(), Map.of("type", "OTHER",
                 "content", "x")).status()).isEqualTo(404);
         deliver(orderId);
-        long complaintId = call("POST", "/api/complaints", token, exchange).data().path("id").asLong();
+        long complaintId = call("POST", complaintsPath, token, exchange).data().path("id").asLong();
 
         assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
                 Map.of("status", "RESOLVED")).status()).isEqualTo(400);
@@ -148,6 +149,8 @@ class CatalogAndFeedbackTest {
                 Map.of("status", "RESOLVED", "response", "Đã gửi bù"));
         assertThat(resolved.status()).isEqualTo(200);
         assertThat(resolved.data().path("handledByName").asString()).isNotBlank();
+        assertThat(call("GET", "/api/admin/complaints/" + complaintId, adminToken, null).data().path("status").asString())
+                .isEqualTo("RESOLVED");
         assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
                 Map.of("status", "PROCESSING")).status()).isEqualTo(400);
         assertThat(call("GET", "/api/complaints", token, null).data().path(0).path("response").asString())

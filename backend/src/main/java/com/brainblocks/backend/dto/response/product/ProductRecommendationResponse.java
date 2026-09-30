@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.response;
+package com.brainblocks.backend.dto.response.product;
 
 import java.math.BigDecimal;
 import java.util.List;

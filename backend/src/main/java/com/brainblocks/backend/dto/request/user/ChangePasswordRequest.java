@@ -1,4 +1,4 @@
-package com.brainblocks.backend.dto.request;
+package com.brainblocks.backend.dto.request.user;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

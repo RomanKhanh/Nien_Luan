@@ -83,6 +83,7 @@ const EXACT: Record<string, string> = {
   'You have already reviewed this product': 'Bạn đã đánh giá sản phẩm này rồi.',
   'A response to the customer is required to close the complaint':
     'Cần nhập phản hồi cho khách trước khi đóng yêu cầu.',
+  'Complaint not found': 'Không tìm thấy yêu cầu.',
   'Category name already exists': 'Tên danh mục đã tồn tại.',
   'Category still has products, move them to another category first':
     'Danh mục còn sản phẩm, hãy chuyển sản phẩm sang danh mục khác trước.',
@@ -102,6 +103,13 @@ const PREFIX: [string, string][] = [
   ["Can't cancel this order because it is already ", 'Không thể huỷ đơn ở trạng thái '],
   ['Cannot change order status from ', 'Không thể chuyển trạng thái đơn từ '],
   ['Quantity per product cannot exceed ', 'Mỗi sản phẩm tối đa '],
+  ['Cannot change complaint status from ', 'Không thể chuyển trạng thái yêu cầu từ '],
+  ['Duplicate orderItemId: ', 'Sản phẩm bị chọn trùng trong yêu cầu, mã dòng hàng: '],
+  ['Order item does not belong to this order: ', 'Sản phẩm không thuộc đơn hàng này, mã dòng hàng: '],
+  [
+    'Quantity complained exceeds purchased quantity for order item ',
+    'Số lượng khiếu nại vượt quá số lượng đã mua, mã dòng hàng: ',
+  ],
 ]
 
 function translateError(message: string, status: number): string {

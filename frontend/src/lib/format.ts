@@ -55,3 +55,8 @@ export function initials(name: string): string {
   const letters = parts.length >= 2 ? parts[parts.length - 2][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2)
   return letters.toUpperCase()
 }
+
+// các dòng hàng bị khiếu nại, vd "Robot lắp ráp × 2, Bộ xếp hình × 1"; rỗng = khiếu nại cả đơn
+export function complaintItemsText(items: { productName: string; quantity: number }[]): string {
+  return items.map((i) => `${i.productName} × ${i.quantity}`).join(', ')
+}

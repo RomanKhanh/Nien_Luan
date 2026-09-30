@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { feedbackApi } from '@/api/endpoints'
 import { ComplaintStatusBadge, Stars } from '@/components/ui/Badges'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
-import { formatDateTime } from '@/lib/format'
+import { complaintItemsText, formatDateTime } from '@/lib/format'
 import { COMPLAINT_TYPE } from '@/lib/labels'
 import { AccountShell } from './AccountShell'
 
@@ -43,7 +43,7 @@ export default function FeedbackPage() {
                 </div>
                 <p className="mt-1 text-[12.5px] text-ink-muted">
                   {formatDateTime(c.createdAt)}
-                  {c.productName && ` · ${c.productName}`}
+                  {c.items.length > 0 && ` · ${complaintItemsText(c.items)}`}
                 </p>
                 <p className="mt-2 whitespace-pre-line text-[14px] text-ink-2">{c.content}</p>
                 {c.response && (

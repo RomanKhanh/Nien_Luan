@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
-import { formatDateTime } from '@/lib/format'
+import { complaintItemsText, formatDateTime } from '@/lib/format'
 import { COMPLAINT_STATUS, COMPLAINT_TYPE } from '@/lib/labels'
 
 const TABS: (ComplaintStatus | undefined)[] = [undefined, 'PENDING', 'PROCESSING', 'RESOLVED', 'REJECTED']
@@ -62,7 +62,9 @@ export default function ComplaintsPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">
                       {COMPLAINT_TYPE[c.type]} · {c.orderCode}
-                      {c.productName && <span className="font-normal text-ink-muted"> · {c.productName}</span>}
+                      {c.items.length > 0 && (
+                        <span className="font-normal text-ink-muted"> · {complaintItemsText(c.items)}</span>
+                      )}
                     </p>
                     <ComplaintStatusBadge status={c.status} />
                   </div>
@@ -116,7 +118,7 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
           </p>
           <p className="text-[12.5px] text-ink-muted">
             Gửi lúc {formatDateTime(complaint.createdAt)}
-            {complaint.productName && ` · Sản phẩm: ${complaint.productName}`}
+            {complaint.items.length > 0 && ` · Sản phẩm: ${complaintItemsText(complaint.items)}`}
           </p>
           <p className="mt-3 whitespace-pre-line rounded-md bg-muted px-4 py-3 text-ink-2">{complaint.content}</p>
         </div>

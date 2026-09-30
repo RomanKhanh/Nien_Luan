@@ -1,9 +1,9 @@
 package com.brainblocks.backend.controller;
 
-import com.brainblocks.backend.dto.request.ChangePasswordRequest;
-import com.brainblocks.backend.dto.request.UpdateProfileRequest;
+import com.brainblocks.backend.dto.request.user.ChangePasswordRequest;
+import com.brainblocks.backend.dto.request.user.UpdateProfileRequest;
 import com.brainblocks.backend.dto.response.ApiResponse;
-import com.brainblocks.backend.dto.response.UserProfileResponse;
+import com.brainblocks.backend.dto.response.user.UserProfileResponse;
 import com.brainblocks.backend.service.user.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

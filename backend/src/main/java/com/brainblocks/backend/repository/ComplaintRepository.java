@@ -10,19 +10,26 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
-    @EntityGraph(attributePaths = {"order", "orderItem", "orderItem.product", "handledBy"})
-    List<Complaint> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+    @Query("""
+            select distinct c from Complaint c
+            join fetch c.order o
+            join fetch c.customer
+            left join fetch c.handledBy
+            left join fetch c.items ci
+            left join fetch ci.orderItem oi
+            left join fetch oi.product
+            where c.customer.id = :customerId
+            order by c.createdAt desc
+            """)
+    List<Complaint> findAllByCustomerId(@Param("customerId") Long customerId);
 
-    // danh sách cho admin: lọc theo trạng thái, null = tất cả
-    @EntityGraph(attributePaths = {"order", "customer", "orderItem", "orderItem.product", "handledBy"})
-    @Query("select c from Complaint c where (:status is null or c.status = :status)")
-    Page<Complaint> findForAdmin(@Param("status") ComplaintStatus status, Pageable pageable);
+    @EntityGraph(attributePaths = {"order", "customer", "handledBy"})
+    Page<Complaint> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"order", "customer", "orderItem", "orderItem.product", "handledBy"})
-    Optional<Complaint> findWithDetailsById(Long id);
+    @EntityGraph(attributePaths = {"order", "customer", "handledBy"})
+    Page<Complaint> findByStatus(ComplaintStatus status, Pageable pageable);
 
     long countByStatus(ComplaintStatus status);
 }

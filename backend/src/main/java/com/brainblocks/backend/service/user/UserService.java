@@ -1,8 +1,8 @@
 package com.brainblocks.backend.service.user;
 
-import com.brainblocks.backend.dto.request.ChangePasswordRequest;
-import com.brainblocks.backend.dto.request.UpdateProfileRequest;
-import com.brainblocks.backend.dto.response.UserProfileResponse;
+import com.brainblocks.backend.dto.request.user.ChangePasswordRequest;
+import com.brainblocks.backend.dto.request.user.UpdateProfileRequest;
+import com.brainblocks.backend.dto.response.user.UserProfileResponse;
 import com.brainblocks.backend.entity.Customer;
 import com.brainblocks.backend.entity.User;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
