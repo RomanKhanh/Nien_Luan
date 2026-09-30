@@ -50,6 +50,20 @@ export function ChatWidget() {
     }
   }, [open, hidden])
 
+  // lời mời tự ẩn sau 8 giây để không che nội dung trang
+  useEffect(() => {
+    if (!hint || hidden) return
+    const timer = window.setTimeout(() => {
+      setHint(false)
+      try {
+        sessionStorage.setItem(HINT_KEY, '1')
+      } catch {
+        /* bỏ qua */
+      }
+    }, 8000)
+    return () => window.clearTimeout(timer)
+  }, [hint, hidden])
+
   if (hidden) return null
 
   const dismissHint = () => {
