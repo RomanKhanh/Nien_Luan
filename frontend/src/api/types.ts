@@ -81,6 +81,7 @@ export interface ProductImage {
 
 export interface ProductDetail extends Omit<ProductSummary, 'thumbnailUrl'> {
   description: string | null
+  videoUrl: string | null
   images: ProductImage[]
   ratingBreakdown: Record<string, number>
   soldCount: number
@@ -303,6 +304,7 @@ export interface Complaint {
 export interface ProductRequest {
   name: string
   description: string | null
+  videoUrl: string | null
   price: number
   stockQuantity: number
   minAge: number

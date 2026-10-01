@@ -32,6 +32,10 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // link YouTube hướng dẫn sử dụng sản phẩm, không bắt buộc
+    @Column(length = 500)
+    private String videoUrl;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 

@@ -9,6 +9,7 @@ public record ProductDetailResponse(
         Long id,
         String name,
         String description,
+        String videoUrl,
         BigDecimal price,
         int minAge,
         int maxAge,

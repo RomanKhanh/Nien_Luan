@@ -165,6 +165,27 @@ class CatalogAndFeedbackTest {
                 .isEqualTo("Đã gửi bù");
     }
 
+    // link video hướng dẫn: chỉ nhận link YouTube, để trống thì xóa video
+    @Test
+    void productVideoUrlIsValidatedAndClearable() throws Exception {
+        long categoryId = createCategory();
+        Map<String, Object> body = productBody(categoryId, "video", 3, 12, Map.of());
+
+        body.put("videoUrl", "https://vimeo.com/123456");
+        assertThat(call("POST", "/api/admin/products", adminToken, body).status()).isEqualTo(400);
+
+        body.put("videoUrl", " https://youtu.be/dQw4w9WgXcQ?t=10 ");
+        Res created = call("POST", "/api/admin/products", adminToken, body);
+        assertThat(created.status()).as(created.body().toString()).isEqualTo(201);
+        long productId = created.data().path("id").asLong();
+        assertThat(call("GET", "/api/products/" + productId, null, null).data().path("videoUrl").asString())
+                .isEqualTo("https://youtu.be/dQw4w9WgXcQ?t=10");
+
+        body.put("videoUrl", "");
+        assertThat(call("PUT", "/api/admin/products/" + productId, adminToken, body).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/products/" + productId, null, null).data().path("videoUrl").isNull()).isTrue();
+    }
+
     // ảnh tải lên: ảnh đầu là ảnh đại diện, file giả dạng ảnh bị từ chối, sửa sản phẩm không làm mất ảnh
     @Test
     void productImagesAreUploadedAndManagedSeparately() throws Exception {

@@ -18,6 +18,7 @@ import { AssignToChildModal } from '@/features/children/AssignToChildModal'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { ageRange, formatDecimal, formatPrice, formatRelative, initials } from '@/lib/format'
 import { dominantSkill, skillTheme } from '@/lib/skills'
+import { youtubeEmbedUrl, youtubeId } from '@/lib/youtube'
 
 export default function ProductDetailPage() {
   const id = Number(useParams().id)
@@ -53,6 +54,7 @@ function ProductView({ product }: { product: ProductDetail }) {
   const maxQuantity = Math.min(product.stockQuantity, 99)
   const image = product.images[imageIndex]
   const theme = skillTheme(dominantSkill(product.skillImpacts) ?? '')
+  const videoId = youtubeId(product.videoUrl)
 
   const buyNow = () => addToCart.mutate({ productId: product.id, quantity }, { onSuccess: () => navigate('/cart') })
 
@@ -246,6 +248,22 @@ function ProductView({ product }: { product: ProductDetail }) {
           <div>
             <h2 className="h2">Mô tả</h2>
             <p className="mt-3 whitespace-pre-line text-ink-2">{product.description ?? 'Chưa có mô tả.'}</p>
+            {videoId && (
+              <>
+                <h2 className="h2 mt-8">Video hướng dẫn sử dụng</h2>
+                <div className="mt-3 aspect-video overflow-hidden rounded-[20px] border-[3px] border-line bg-ink shadow-card">
+                  <iframe
+                    src={youtubeEmbedUrl(videoId)}
+                    title={`Video hướng dẫn sử dụng ${product.name}`}
+                    className="h-full w-full"
+                    loading="lazy"
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                  />
+                </div>
+              </>
+            )}
           </div>
           <dl className="card grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 self-start border-dashed border-sky/50 bg-sky-soft/40 p-5 text-[14px]">
             <dt className="text-ink-muted">Danh mục</dt>

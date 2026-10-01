@@ -12,6 +12,7 @@ import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { useCategories, useSkills } from '@/features/catalog/queries'
 import { skillTheme } from '@/lib/skills'
+import { youtubeId } from '@/lib/youtube'
 import { ProductImagesField } from './ProductImagesField'
 
 // khớp ProductRequest ở backend
@@ -19,6 +20,11 @@ const schema = z
   .object({
     name: z.string().trim().min(1, 'Vui lòng nhập tên sản phẩm').max(200, 'Tối đa 200 ký tự'),
     description: z.string().max(10000, 'Mô tả quá dài'),
+    videoUrl: z
+      .string()
+      .trim()
+      .max(500, 'Link quá dài')
+      .refine((v) => v === '' || youtubeId(v) !== null, 'Link YouTube không hợp lệ'),
     price: z.coerce
       .number<string>({ error: 'Giá không hợp lệ' })
       .min(0, 'Giá không được âm')
@@ -90,6 +96,7 @@ function ProductForm({
     defaultValues: {
       name: p?.name ?? '',
       description: p?.description ?? '',
+      videoUrl: p?.videoUrl ?? '',
       price: p ? String(p.price) : '',
       stockQuantity: p ? String(p.stockQuantity) : '0',
       minAge: p ? String(p.minAge) : '3',
@@ -105,6 +112,7 @@ function ProductForm({
       const body: ProductRequest = {
         name: v.name,
         description: v.description.trim() || null,
+        videoUrl: v.videoUrl || null,
         price: v.price,
         stockQuantity: v.stockQuantity,
         minAge: v.minAge,
@@ -245,6 +253,20 @@ function ProductForm({
 
         <Field label="Mô tả" htmlFor="pdesc" error={errors.description?.message}>
           <Textarea id="pdesc" className="!min-h-[120px]" {...form.register('description')} />
+        </Field>
+        <Field
+          label="Video hướng dẫn sử dụng (YouTube)"
+          htmlFor="pvideo"
+          error={errors.videoUrl?.message}
+          hint="Dán link YouTube, ví dụ https://www.youtube.com/watch?v=… hoặc https://youtu.be/…. Để trống nếu chưa có."
+        >
+          <Input
+            id="pvideo"
+            type="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+            invalid={Boolean(errors.videoUrl)}
+            {...form.register('videoUrl')}
+          />
         </Field>
         <Field label="Ảnh sản phẩm">
           {p ? (

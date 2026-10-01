@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -18,6 +19,11 @@ import java.util.List;
 public record ProductRequest(
         @NotBlank @Size(max = 200) String name,
         @Size(max = 10000) String description,
+        // link YouTube (watch, youtu.be, shorts, embed); rỗng = không có video
+        @Size(max = 500)
+        @Pattern(regexp = "^\\s*$|^\\s*(https?://)?(www\\.|m\\.)?(youtube\\.com/(watch\\?(.*&)?v=|shorts/|embed/|live/)|youtu\\.be/)[A-Za-z0-9_-]{11}([?&#/].*)?\\s*$",
+                message = "must be a YouTube video link")
+        String videoUrl,
         @NotNull @DecimalMin("0") @Digits(integer = 10, fraction = 2) BigDecimal price,
         @Min(0) @Max(1_000_000) int stockQuantity,
         @Min(0) @Max(18) int minAge,

@@ -104,6 +104,8 @@ public class AdminProductService {
         product.setName(request.name().trim());
         product.setDescription(request.description() == null || request.description().isBlank()
                 ? null : request.description().trim());
+        product.setVideoUrl(request.videoUrl() == null || request.videoUrl().isBlank()
+                ? null : request.videoUrl().trim());
         product.setPrice(request.price());
         product.setStockQuantity(request.stockQuantity());
         product.setMinAge(request.minAge());

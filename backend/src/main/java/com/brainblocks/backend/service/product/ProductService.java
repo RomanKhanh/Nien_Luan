@@ -129,6 +129,7 @@ public class ProductService {
                 product.getId(),
                 product.getName(),
                 product.getDescription(),
+                product.getVideoUrl(),
                 product.getPrice(),
                 product.getMinAge(),
                 product.getMaxAge(),
