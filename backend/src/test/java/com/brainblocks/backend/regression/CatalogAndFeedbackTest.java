@@ -126,7 +126,8 @@ class CatalogAndFeedbackTest {
         assertThat(call("GET", "/api/products/" + productId, null, null).data().path("reviewCount").asLong()).isZero();
     }
 
-    // đổi / trả chỉ khi đã giao; đóng khiếu nại phải có phản hồi; đã đóng thì không mở lại
+    // đổi / trả chỉ khi đã giao; chờ -> tiếp nhận/từ chối, đang xử lý -> đã giải quyết;
+    // đóng khiếu nại phải có phản hồi; đã đóng thì không mở lại
     @Test
     void complaintRulesAreEnforced() throws Exception {
         long productId = createProduct(createCategory(), "complaint", 3, 12, Map.of());
@@ -142,6 +143,14 @@ class CatalogAndFeedbackTest {
         deliver(orderId);
         long complaintId = call("POST", complaintsPath, token, exchange).data().path("id").asLong();
 
+        // chưa tiếp nhận thì không được đánh dấu đã giải quyết
+        assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "RESOLVED", "response", "Đã gửi bù")).status()).isEqualTo(400);
+        assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "PROCESSING")).status()).isEqualTo(200);
+        // đã tiếp nhận thì không từ chối được nữa
+        assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "REJECTED", "response", "Không hợp lệ")).status()).isEqualTo(400);
         assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
                 Map.of("status", "RESOLVED")).status()).isEqualTo(400);
         Res resolved = call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,

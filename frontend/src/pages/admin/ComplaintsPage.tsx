@@ -128,7 +128,11 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
             {complaint.handledAt && ` · đóng lúc ${formatDateTime(complaint.handledAt)}`}
           </p>
         )}
-        <Field label="Phản hồi gửi khách" htmlFor="response" hint="Bắt buộc khi chấp nhận hoặc từ chối.">
+        <Field label="Phản hồi gửi khách" htmlFor="response" hint={
+            complaint.status === 'PENDING'
+              ? 'Không bắt buộc khi tiếp nhận, bắt buộc khi từ chối.'
+              : 'Bắt buộc khi đánh dấu đã giải quyết.'
+          }>
           <Textarea
             id="response"
             value={response}
@@ -146,28 +150,32 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
           <p className="text-ink-muted">Yêu cầu đã đóng.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {complaint.status === 'PENDING' && (
+            {complaint.status === 'PENDING' ? (
+              <>
+                <Button
+                  loading={handle.isPending && handle.variables === 'PROCESSING'}
+                  disabled={handle.isPending}
+                  onClick={() => handle.mutate('PROCESSING')}
+                >
+                  Tiếp nhận
+                </Button>
+                <Button
+                  variant="danger-outline"
+                  loading={handle.isPending && handle.variables === 'REJECTED'}
+                  disabled={handle.isPending}
+                  onClick={() => handle.mutate('REJECTED')}
+                >
+                  Từ chối
+                </Button>
+              </>
+            ) : (
               <Button
-                variant="secondary"
-                loading={handle.isPending && handle.variables === 'PROCESSING'}
-                onClick={() => handle.mutate('PROCESSING')}
+                loading={handle.isPending && handle.variables === 'RESOLVED'}
+                onClick={() => handle.mutate('RESOLVED')}
               >
-                Tiếp nhận xử lý
+                Đã giải quyết
               </Button>
             )}
-            <Button
-              variant="danger-outline"
-              loading={handle.isPending && handle.variables === 'REJECTED'}
-              onClick={() => handle.mutate('REJECTED')}
-            >
-              Từ chối
-            </Button>
-            <Button
-              loading={handle.isPending && handle.variables === 'RESOLVED'}
-              onClick={() => handle.mutate('RESOLVED')}
-            >
-              Đã giải quyết
-            </Button>
           </div>
         )}
       </div>

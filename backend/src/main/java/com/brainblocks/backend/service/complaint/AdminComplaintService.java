@@ -29,10 +29,11 @@ import java.util.stream.Collectors;
 public class AdminComplaintService {
     private static final int MAX_PAGE_SIZE = 100;
 
+    // chờ tiếp nhận -> tiếp nhận hoặc từ chối; đã tiếp nhận thì chỉ còn đánh dấu đã giải quyết.
     // RESOLVED và REJECTED là trạng thái cuối
     private static final Map<ComplaintStatus, Set<ComplaintStatus>> ALLOWED_TRANSITIONS = Map.of(
-            ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.PROCESSING, ComplaintStatus.RESOLVED, ComplaintStatus.REJECTED),
-            ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.PROCESSING, ComplaintStatus.RESOLVED, ComplaintStatus.REJECTED),
+            ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.PROCESSING, ComplaintStatus.REJECTED),
+            ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.RESOLVED),
             ComplaintStatus.RESOLVED, EnumSet.noneOf(ComplaintStatus.class),
             ComplaintStatus.REJECTED, EnumSet.noneOf(ComplaintStatus.class)
     );
