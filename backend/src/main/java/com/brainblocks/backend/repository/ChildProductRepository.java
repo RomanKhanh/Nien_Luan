@@ -38,6 +38,9 @@ public interface ChildProductRepository extends JpaRepository<ChildProduct, Long
 
     long countByChildProfileId(Long childProfileId);
 
+    @Query("select cp.product.id from ChildProduct cp where cp.childProfile.id = :childProfileId")
+    List<Long> findProductIdsByChildProfileId(@Param("childProfileId") Long childProfileId);
+
     // gộp ChildProduct -> Product -> ProductSkillImpact trong 1 câu, mỗi dòng là impactIndex của một sản phẩm
     // vào một skill. Không SUM trong SQL vì điểm kỹ năng tính theo lợi ích giảm dần (SkillScoreCalculator)
     @Query("""

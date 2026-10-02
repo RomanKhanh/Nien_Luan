@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +41,6 @@ public class SkillRecommendationService {
     private static final int MAX_LIMIT = 20;
     private static final int MAX_GAINS_IN_REASON = 2;
     private static final double MIN_NOTABLE_GAIN = 0.5;
-    private static final Locale VI = Locale.forLanguageTag("vi-VN");
 
     private final ProductRepository productRepository;
     private final SkillProfileRepository skillProfileRepository;
@@ -119,7 +117,7 @@ public class SkillRecommendationService {
                 .limit(MAX_GAINS_IN_REASON)
                 .toList();
         String gainText = (notable.isEmpty() ? sorted.stream().limit(1).toList() : notable).stream()
-                .map(gain -> gain.skillName() + " +" + formatScore(gain.gain()))
+                .map(gain -> gain.skillName() + " +" + SkillScoreCalculator.format(gain.gain()))
                 .collect(Collectors.joining(", "));
         if (gainText.isEmpty()) {
             return reasons;
@@ -127,11 +125,6 @@ public class SkillRecommendationService {
         List<String> withGain = new ArrayList<>(reasons);
         withGain.add(Math.max(0, withGain.size() - 1), "Dự kiến điểm kỹ năng của bé tăng: " + gainText);
         return withGain;
-    }
-
-    // 2.5 -> "2,5" như cách hiển thị số thập phân ở frontend
-    private String formatScore(double value) {
-        return String.format(VI, "%.1f", value);
     }
 
     private Scored score(Product product, Skill weakestSkill, Set<Long> interestedSkillIds) {

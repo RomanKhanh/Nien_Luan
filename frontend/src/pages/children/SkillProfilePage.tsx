@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { childApi } from '@/api/endpoints'
@@ -17,6 +17,7 @@ import { AddToyModal } from '@/features/children/AddToyModal'
 import { ChildFormModal } from '@/features/children/ChildFormModal'
 import { childKeys, invalidateChildData } from '@/features/children/keys'
 import { SkillGainChips } from '@/features/skills/SkillGainChips'
+import { SkillRadar, type RadarPoint } from '@/features/skills/SkillRadar'
 import { SkillTimelineChart } from '@/features/skills/SkillTimelineChart'
 import { formatDate, formatDecimal, formatPrice, initials } from '@/lib/format'
 import { skillLevel, skillTheme } from '@/lib/skills'
@@ -166,7 +167,10 @@ function SkillMap({ child }: { child: ChildProfile }) {
                   label={skillLevel(s.score)}
                 />
               ))}
-              <p className="text-[12px] text-ink-faint">Độ phủ của bộ đồ chơi lên từng nhóm: càng nhiều món tốt cho nhóm đó thanh càng dài, món sau bổ sung ít dần. Đây là tham khảo khi chọn đồ chơi, không phải đánh giá năng lực của bé.</p>
+              <p className="text-[12px] text-ink-faint">
+                Độ phủ của bộ đồ chơi lên từng nhóm: càng nhiều món tốt cho nhóm đó thanh càng dài, món sau bổ sung ít
+                dần. Đây là tham khảo khi chọn đồ chơi, không phải đánh giá năng lực của bé.
+              </p>
             </div>
             <Highlights profile={p} />
           </div>
@@ -335,8 +339,24 @@ function Recommendations({ child }: { child: ChildProfile }) {
     queryKey: childKeys.recommendations(child.id),
     queryFn: () => childApi.recommendations(child.id, 4),
   })
+  const profile = useQuery({
+    queryKey: childKeys.skillProfile(child.id),
+    queryFn: () => childApi.skillProfile(child.id),
+  })
   const addToCart = useAddToCart()
   const chat = useChatWidget()
+  // gợi ý đang xem trên radar: rê chuột / focus (desktop) hoặc bấm "So trên biểu đồ" (cảm ứng)
+  const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const [pinnedId, setPinnedId] = useState<number | null>(null)
+  const radarRef = useRef<HTMLDivElement>(null)
+  const active = recs.data?.find((r) => r.productId === (hoveredId ?? pinnedId))
+  const radarPoints: RadarPoint[] = (profile.data?.skillScores ?? []).map((s) => ({
+    code: s.skillCode,
+    name: s.skillName,
+    current: s.score,
+    projected: active ? (active.skillGains.find((g) => g.skillId === s.skillId)?.projectedScore ?? s.score) : undefined,
+  }))
+
   return (
     <section className="card p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -346,13 +366,18 @@ function Recommendations({ child }: { child: ChildProfile }) {
             Dựa trên tuổi của bé, nhóm kỹ năng đang thiếu và nhóm phụ huynh quan tâm
           </p>
         </div>
-        <Button
-          size="sm"
-          variant="soft"
-          onClick={() => chat.ask({ text: `Bé ${child.name} nên mua gì tiếp theo?`, childProfileId: child.id })}
-        >
-          🤖 Hỏi Bin nên mua gì
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink to={`/products?child=${child.id}`} size="sm" variant="secondary">
+            Xem mọi món hợp với bé
+          </ButtonLink>
+          <Button
+            size="sm"
+            variant="soft"
+            onClick={() => chat.ask({ text: `Bé ${child.name} nên mua gì tiếp theo?`, childProfileId: child.id })}
+          >
+            🤖 Hỏi Bin nên mua gì
+          </Button>
+        </div>
       </div>
       {recs.isPending ? (
         <Skeleton className="mt-4 h-40" />
@@ -361,47 +386,85 @@ function Recommendations({ child }: { child: ChildProfile }) {
       ) : recs.data.length === 0 ? (
         <p className="mt-4 text-[14px] text-ink-muted">Chưa có sản phẩm còn hàng phù hợp độ tuổi của bé.</p>
       ) : (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {recs.data.map((r) => (
-            <article
-              key={r.productId}
-              className="flex flex-col overflow-hidden rounded-[20px] border-2 border-line transition hover:-translate-y-1 hover:border-sky/50 hover:shadow-card-hover"
-            >
-              <Link to={`/products/${r.productId}`} className="block">
-                <ProductArt url={r.thumbnailUrl} name={r.name} className="!aspect-[16/7]" />
-              </Link>
-              <div className="flex flex-1 flex-col p-4">
-                <Link to={`/products/${r.productId}`} className="font-semibold text-ink hover:text-primary">
-                  {r.name}
+        <div className="mt-4 grid gap-5 lg:grid-cols-[290px_minmax(0,1fr)]">
+          {radarPoints.length > 0 && (
+            <div ref={radarRef} className="self-start rounded-2xl bg-muted/50 p-3 lg:sticky lg:top-28">
+              <p className="px-1 text-[13.5px] font-bold">Hình dạng bộ đồ chơi của bé</p>
+              <SkillRadar points={radarPoints} projectedLabel={active ? `Nếu thêm món này` : undefined} />
+              <p className="px-1 text-[12px] text-ink-muted">
+                {active ? (
+                  <>
+                    Nét đứt: hồ sơ nếu bé có thêm <b className="text-ink-2">{active.name}</b>.
+                  </>
+                ) : (
+                  'Rê chuột vào một gợi ý (hoặc bấm "So trên biểu đồ") để xem hồ sơ của bé thay đổi thế nào.'
+                )}
+              </p>
+            </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            {recs.data.map((r) => (
+              <article
+                key={r.productId}
+                onMouseEnter={() => setHoveredId(r.productId)}
+                onMouseLeave={() => setHoveredId(null)}
+                onFocus={() => setHoveredId(r.productId)}
+                onBlur={() => setHoveredId(null)}
+                className={`flex flex-col overflow-hidden rounded-[20px] border-2 transition hover:-translate-y-1 hover:border-sky/50 hover:shadow-card-hover ${
+                  active?.productId === r.productId ? 'border-primary' : 'border-line'
+                }`}
+              >
+                <Link to={`/products/${r.productId}`} className="block">
+                  <ProductArt url={r.thumbnailUrl} name={r.name} className="!aspect-[16/7]" />
                 </Link>
-                <p className="mt-0.5 font-display text-[19px] font-extrabold text-coral">{formatPrice(r.price)}</p>
-                <div className="mt-2">
-                  <SkillGainChips gains={r.skillGains} />
-                </div>
-                {/* linh vật "giải thích" lý do gợi ý trong bong bóng lời nói */}
-                <div className="mt-2.5 flex items-start gap-2">
-                  <Mascot className="w-9 shrink-0" />
-                  <div className="flex-1 rounded-2xl rounded-tl-sm bg-primary-soft px-3 py-2 text-[13px] text-ink-2">
-                    <b className="text-primary-hover">Vì sao: </b>
-                    {r.reasons.join('; ')}.
+                <div className="flex flex-1 flex-col p-4">
+                  <Link to={`/products/${r.productId}`} className="font-semibold text-ink hover:text-primary">
+                    {r.name}
+                  </Link>
+                  <p className="mt-0.5 font-display text-[19px] font-extrabold text-coral">{formatPrice(r.price)}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <SkillGainChips gains={r.skillGains} />
+                    <button
+                      type="button"
+                      aria-pressed={pinnedId === r.productId}
+                      className="text-[12.5px] font-semibold text-primary"
+                      onClick={() => {
+                        const next = pinnedId === r.productId ? null : r.productId
+                        setPinnedId(next)
+                        // màn hình hẹp: radar nằm phía trên danh sách, cuộn lên để thấy
+                        if (next && window.innerWidth < 1024) {
+                          radarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        }
+                      }}
+                    >
+                      {pinnedId === r.productId ? 'Bỏ so sánh' : 'So trên biểu đồ'}
+                    </button>
+                  </div>
+                  {/* linh vật "giải thích" lý do gợi ý trong bong bóng lời nói */}
+                  <div className="mt-2.5 flex items-start gap-2">
+                    <Mascot className="w-9 shrink-0" />
+                    <div className="flex-1 rounded-2xl rounded-tl-sm bg-primary-soft px-3 py-2 text-[13px] text-ink-2">
+                      <b className="text-primary-hover">Vì sao: </b>
+                      {r.reasons.join('; ')}.
+                    </div>
+                  </div>
+                  <div className="mt-auto flex gap-2 pt-3">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      loading={addToCart.isPending && addToCart.variables?.productId === r.productId}
+                      onClick={() => addToCart.mutate({ productId: r.productId, quantity: 1 })}
+                    >
+                      Thêm vào giỏ
+                    </Button>
+                    <ButtonLink to={`/products/${r.productId}`} size="sm" variant="secondary">
+                      Chi tiết
+                    </ButtonLink>
                   </div>
                 </div>
-                <div className="mt-auto flex gap-2 pt-3">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    loading={addToCart.isPending && addToCart.variables?.productId === r.productId}
-                    onClick={() => addToCart.mutate({ productId: r.productId, quantity: 1 })}
-                  >
-                    Thêm vào giỏ
-                  </Button>
-                  <ButtonLink to={`/products/${r.productId}`} size="sm" variant="secondary">
-                    Chi tiết
-                  </ButtonLink>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
       )}
     </section>

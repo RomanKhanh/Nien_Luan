@@ -8,6 +8,7 @@ import { ProductCard, ProductCardSkeleton } from '@/components/product/ProductCa
 import { SkillBar } from '@/components/ui/Badges'
 import { ButtonLink } from '@/components/ui/Button'
 import { useSkills } from '@/features/catalog/queries'
+import { RecentlyViewed } from '@/features/catalog/RecentlyViewed'
 import { childKeys } from '@/features/children/keys'
 import { AGE_GROUPS, SKILL_HINTS, skillLevel, skillTheme } from '@/lib/skills'
 
@@ -84,6 +85,11 @@ export default function HomePage() {
           </div>
         </Reveal>
       </section>
+
+      {/* chỉ hiện khi trình duyệt này đã xem sản phẩm nào đó */}
+      <div className="container-page">
+        <RecentlyViewed />
+      </div>
 
       <RoadmapSection />
     </>

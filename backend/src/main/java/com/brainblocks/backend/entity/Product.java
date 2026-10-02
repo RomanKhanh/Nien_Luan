@@ -1,5 +1,6 @@
 package com.brainblocks.backend.entity;
 
+import com.brainblocks.backend.util.SearchTextUtils;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -57,6 +58,11 @@ public class Product {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    // tên + mô tả đã bỏ dấu, chữ thường (SearchTextUtils) để tìm kiếm không dấu; tự cập nhật khi lưu.
+    // Cột phụ trợ cho tìm kiếm, không có trên sơ đồ lớp
+    @Column(columnDefinition = "TEXT")
+    private String searchText;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
@@ -87,4 +93,10 @@ public class Product {
     @Builder.Default
     @OneToMany(mappedBy = "product")
     private List<ChildProduct> childProducts = new ArrayList<>();
+
+    @PrePersist
+    @PreUpdate
+    public void syncSearchText() {
+        this.searchText = SearchTextUtils.normalize(name + " " + (description == null ? "" : description));
+    }
 }

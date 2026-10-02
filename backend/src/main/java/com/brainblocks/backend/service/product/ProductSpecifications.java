@@ -1,7 +1,9 @@
 package com.brainblocks.backend.service.product;
 
+import com.brainblocks.backend.entity.ChildProduct;
 import com.brainblocks.backend.entity.Product;
 import com.brainblocks.backend.entity.ProductSkillImpact;
+import com.brainblocks.backend.util.SearchTextUtils;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
@@ -12,7 +14,6 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 final class ProductSpecifications {
     private ProductSpecifications() {
@@ -24,11 +25,19 @@ final class ProductSpecifications {
             if (!c.includeInactive()) {
                 predicates.add(cb.isTrue(root.get("active")));
             }
-            if (c.keyword() != null && !c.keyword().isBlank()) {
-                String pattern = "%" + escapeLike(c.keyword().trim().toLowerCase(Locale.ROOT)) + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("name")), pattern, '\\'),
-                        cb.like(cb.lower(root.get("description")), pattern, '\\')));
+            // so trên tên + mô tả đã bỏ dấu, nên gõ "lap rap" vẫn ra "lắp ráp"
+            String keyword = SearchTextUtils.normalize(c.keyword());
+            if (keyword != null && !keyword.isEmpty()) {
+                predicates.add(cb.like(root.get("searchText"), "%" + escapeLike(keyword) + "%", '\\'));
+            }
+            // "Hợp với bé": bỏ các sản phẩm bé đã có
+            if (c.excludeOwnedByChildId() != null) {
+                Subquery<Long> owned = query.subquery(Long.class);
+                Root<ChildProduct> cp = owned.from(ChildProduct.class);
+                owned.select(cp.get("id")).where(
+                        cb.equal(cp.get("product"), root),
+                        cb.equal(cp.get("childProfile").get("id"), c.excludeOwnedByChildId()));
+                predicates.add(cb.not(cb.exists(owned)));
             }
             if (c.categoryId() != null) {
                 predicates.add(cb.equal(root.get("category").get("id"), c.categoryId()));

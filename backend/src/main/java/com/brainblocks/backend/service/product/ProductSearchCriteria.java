@@ -11,6 +11,7 @@ import java.util.List;
  * @param skillCodes      nhóm kỹ năng: sản phẩm khớp khi tác động mạnh (>= ProductService.SKILL_FILTER_MIN_IMPACT)
  *                        vào ít nhất một nhóm được chọn
  * @param includeInactive true chỉ dành cho admin: lấy cả sản phẩm đã ẩn
+ * @param excludeOwnedByChildId bỏ các sản phẩm hồ sơ trẻ này đã có ("Hợp với bé"); null = không lọc
  */
 public record ProductSearchCriteria(
         String keyword,
@@ -21,7 +22,8 @@ public record ProductSearchCriteria(
         BigDecimal minPrice,
         BigDecimal maxPrice,
         boolean inStockOnly,
-        boolean includeInactive
+        boolean includeInactive,
+        Long excludeOwnedByChildId
 ) {
     public boolean hasSkillFilter() {
         return skillCodes != null && !skillCodes.isEmpty();

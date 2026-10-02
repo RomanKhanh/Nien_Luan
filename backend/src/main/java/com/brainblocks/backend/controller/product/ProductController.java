@@ -53,7 +53,7 @@ public class ProductController {
             @RequestParam(defaultValue = "12") int size) {
         ProductSearchCriteria criteria = new ProductSearchCriteria(keyword, categoryId,
                 age != null ? age : ageFrom, age != null ? age : ageTo, normalizeCodes(skills),
-                minPrice, maxPrice, inStock, false);
+                minPrice, maxPrice, inStock, false, null);
         return ResponseEntity.ok(ApiResponse.success(
                 productService.search(criteria, ProductSort.from(sort), page, size)));
     }
@@ -79,7 +79,7 @@ public class ProductController {
                 .body(ApiResponse.success("Review created", reviewService.createReview(id, request)));
     }
 
-    static List<String> normalizeCodes(List<String> codes) {
+    public static List<String> normalizeCodes(List<String> codes) {
         if (codes == null) {
             return List.of();
         }

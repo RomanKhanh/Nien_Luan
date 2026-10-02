@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
+import java.util.Locale;
 
 /**
  * Điểm một nhóm kỹ năng của bé theo kiểu lợi ích giảm dần, thang 0-10:
@@ -16,6 +17,7 @@ import java.util.Collection;
 @Component
 public class SkillScoreCalculator {
     public static final int MAX_SCORE = 10;
+    private static final Locale VI = Locale.forLanguageTag("vi-VN");
 
     private final double alpha;
 
@@ -25,6 +27,11 @@ public class SkillScoreCalculator {
             throw new IllegalStateException("app.skill-score.alpha must be in (0, 1], got " + alpha);
         }
         this.alpha = alpha;
+    }
+
+    // 2.5 -> "2,5": cách viết số thập phân trong lý do gợi ý / thông báo, khớp frontend
+    public static String format(double score) {
+        return String.format(VI, "%.1f", score);
     }
 
     // impactIndex của từng sản phẩm bé có vào nhóm kỹ năng này; làm tròn 1 chữ số
