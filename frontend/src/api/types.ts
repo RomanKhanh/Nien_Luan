@@ -266,6 +266,24 @@ export interface Recommendation {
   thumbnailUrl: string | null
   score: number
   reasons: string[]
+  skillGains: SkillGain[]
+}
+
+// điểm một nhóm kỹ năng của bé hiện tại và nếu thêm sản phẩm (thang 0-10)
+export interface SkillGain {
+  skillId: number
+  skillCode: string
+  skillName: string
+  currentScore: number
+  projectedScore: number
+  gain: number
+}
+
+export interface SkillPreview {
+  childProfileId: number
+  productId: number
+  alreadyOwned: boolean
+  gains: SkillGain[]
 }
 
 // ===== Khiếu nại =====

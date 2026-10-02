@@ -9,8 +9,7 @@ import { SkillBar } from '@/components/ui/Badges'
 import { ButtonLink } from '@/components/ui/Button'
 import { useSkills } from '@/features/catalog/queries'
 import { childKeys } from '@/features/children/keys'
-import { averageImpact } from '@/features/skills/skillMath'
-import { AGE_GROUPS, SKILL_HINTS, skillTheme } from '@/lib/skills'
+import { AGE_GROUPS, SKILL_HINTS, skillLevel, skillTheme } from '@/lib/skills'
 
 export default function HomePage() {
   const { isCustomer } = useAuth()
@@ -373,7 +372,7 @@ function HeroProfileCard() {
     ? profile.data!.skillScores.map((s: SkillScore) => ({
         code: s.skillCode,
         name: s.skillName,
-        value: averageImpact(s, profile.data!.totalProducts),
+        value: s.score,
       }))
     : (skills.data ?? []).slice(0, 4).map((s, i) => ({ code: s.code, name: s.name, value: [8, 4.5, 6, 7.5][i] ?? 5 }))
   const weakest = real ? profile.data!.weakestSkill : null
@@ -393,7 +392,7 @@ function HeroProfileCard() {
       </div>
       <div className="space-y-4">
         {scores.map((s) => (
-          <SkillBar key={s.code} code={s.code} name={s.name} value={s.value} />
+          <SkillBar key={s.code} code={s.code} name={s.name} value={s.value} label={skillLevel(s.value)} />
         ))}
       </div>
       <p className="mt-5 rounded-md bg-muted px-4 py-3 text-[13.5px] text-ink-2">

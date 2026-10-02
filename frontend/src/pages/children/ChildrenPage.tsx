@@ -8,10 +8,9 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { ChildFormModal } from '@/features/children/ChildFormModal'
 import { childKeys } from '@/features/children/keys'
-import { averageImpact } from '@/features/skills/skillMath'
-import { formatDate, formatDecimal, initials } from '@/lib/format'
+import { formatDate, initials } from '@/lib/format'
 import { GENDER } from '@/lib/labels'
-import { skillTheme } from '@/lib/skills'
+import { skillLevel, skillTheme } from '@/lib/skills'
 
 export default function ChildrenPage() {
   const children = useQuery({ queryKey: childKeys.list, queryFn: childApi.list })
@@ -108,7 +107,7 @@ function ChildCard({ child, color, onEdit }: { child: ChildProfile; color: strin
           </p>
         </div>
       </div>
-      <div className="mt-5 grid grid-cols-4 gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {(profile.data?.skillScores ?? []).slice(0, 4).map((s) => {
           const theme = skillTheme(s.skillCode, s.skillName)
           return (
@@ -118,8 +117,8 @@ function ChildCard({ child, color, onEdit }: { child: ChildProfile; color: strin
               style={{ background: theme.soft, color: theme.color }}
             >
               <SkillIcon code={s.skillCode} className="mx-auto h-5 w-5" />
-              <p className="font-display text-[22px] font-extrabold leading-tight" style={{ color: theme.color }}>
-                {formatDecimal(averageImpact(s, total))}
+              <p className="mt-1 text-[13.5px] font-extrabold leading-tight sm:min-h-[2.5em]" style={{ color: theme.color }}>
+                {skillLevel(s.score)}
               </p>
               <p className="truncate text-[12px] font-semibold text-ink-2">{theme.short || s.skillName}</p>
             </div>

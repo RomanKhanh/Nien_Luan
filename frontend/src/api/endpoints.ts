@@ -24,6 +24,7 @@ import type {
   Recommendation,
   Review,
   Skill,
+  SkillPreview,
   SkillProfile,
   SkillTimeline,
   UserProfile,
@@ -112,6 +113,9 @@ export const childApi = {
     request<void>(http.delete(`/children/${id}/products/${childProductId}`)),
   skillProfile: (id: number) => request<SkillProfile>(http.get(`/children/${id}/skill-profile`)),
   timeline: (id: number) => request<SkillTimeline>(http.get(`/children/${id}/skill-profile/timeline`)),
+  // dự kiến điểm kỹ năng của bé nếu thêm sản phẩm productId
+  skillPreview: (id: number, productId: number) =>
+    request<SkillPreview>(http.get(`/children/${id}/skill-profile/preview`, { params: { productId } })),
   recommendations: (id: number, limit = 4) =>
     request<Recommendation[]>(http.get(`/children/${id}/skill-profile/recommendations`, { params: { limit } })),
 }

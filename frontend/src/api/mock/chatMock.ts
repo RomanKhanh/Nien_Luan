@@ -511,11 +511,18 @@ async function answer(question: string, session: MockSession): Promise<BotAnswer
         sources: pickSources(question, skill),
       }
     }
-    const products = picks.map((p) => {
+    // tư vấn cho bé đang chọn: kèm mức tăng dự kiến của hồ sơ kỹ năng (backend tính theo lợi ích giảm dần)
+    const childId = childName && !ageMatch ? session.childProfileId : null
+    const previews = childId
+      ? await Promise.all(picks.map((p) => childApi.skillPreview(childId, p.id).catch(() => null)))
+      : []
+    const products = picks.map((p, i) => {
       const parts: string[] = []
       if (skill) parts.push(`Tác động ${impactOf(p.skillImpacts, skill)}/10 vào ${SKILL_NAMES[skill] ?? skill}`)
       if (age) parts.push(`phù hợp độ tuổi ${p.minAge}–${p.maxAge}`)
       if (skill && skill === weakest) parts.push('bổ sung nhóm bé đang ít được khai thác')
+      const topGain = previews[i]?.gains.filter((g) => g.gain > 0).sort((a, b) => b.gain - a.gain)[0]
+      if (topGain) parts.push(`hồ sơ của bé: ${topGain.skillName} +${String(topGain.gain).replace('.', ',')}`)
       return toSuggestion(p, parts.join(' · ') || `Được phụ huynh quan tâm nhiều · ${p.minAge}–${p.maxAge} tuổi`)
     })
     return {

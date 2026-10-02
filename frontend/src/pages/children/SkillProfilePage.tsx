@@ -16,10 +16,10 @@ import { useChatWidget } from '@/features/chat/chatContext'
 import { AddToyModal } from '@/features/children/AddToyModal'
 import { ChildFormModal } from '@/features/children/ChildFormModal'
 import { childKeys, invalidateChildData } from '@/features/children/keys'
-import { averageImpact } from '@/features/skills/skillMath'
+import { SkillGainChips } from '@/features/skills/SkillGainChips'
 import { SkillTimelineChart } from '@/features/skills/SkillTimelineChart'
 import { formatDate, formatDecimal, formatPrice, initials } from '@/lib/format'
-import { skillTheme } from '@/lib/skills'
+import { skillLevel, skillTheme } from '@/lib/skills'
 
 export default function SkillProfilePage() {
   const id = Number(useParams().id)
@@ -162,10 +162,11 @@ function SkillMap({ child }: { child: ChildProfile }) {
                   key={s.skillId}
                   code={s.skillCode}
                   name={s.skillName}
-                  value={averageImpact(s, p.totalProducts)}
+                  value={s.score}
+                  label={skillLevel(s.score)}
                 />
               ))}
-              <p className="text-[12px] text-ink-faint">Mức tác động trung bình mỗi món lên từng nhóm (thang 0–10).</p>
+              <p className="text-[12px] text-ink-faint">Độ phủ của bộ đồ chơi lên từng nhóm: càng nhiều món tốt cho nhóm đó thanh càng dài, món sau bổ sung ít dần. Đây là tham khảo khi chọn đồ chơi, không phải đánh giá năng lực của bé.</p>
             </div>
             <Highlights profile={p} />
           </div>
@@ -183,17 +184,17 @@ function SkillMap({ child }: { child: ChildProfile }) {
 }
 
 function Highlights({ profile }: { profile: SkillProfile }) {
-  const { strongestSkill: strong, weakestSkill: weak, totalProducts } = profile
+  const { strongestSkill: strong, weakestSkill: weak } = profile
   return (
     <div className="space-y-3">
       {strong && (
         <div className="rounded-2xl border-2 border-line bg-surface p-4">
           <Pill tone="green">Đang được chú trọng</Pill>
           <p className="mt-2 font-bold" style={{ color: skillTheme(strong.skillCode).color }}>
-            {strong.skillName} · {formatDecimal(averageImpact(strong, totalProducts))}/10
+            {strong.skillName} · {skillLevel(strong.score)}
           </p>
           <p className="mt-1 text-[13.5px] text-ink-muted">
-            Chiếm {formatDecimal(strong.percentage)}% tổng tác động từ đồ chơi của bé.
+            Chiếm {formatDecimal(strong.percentage)}% tổng điểm các nhóm kỹ năng của bé.
           </p>
         </div>
       )}
@@ -201,7 +202,7 @@ function Highlights({ profile }: { profile: SkillProfile }) {
         <div className="rounded-2xl border-2 border-line bg-surface p-4">
           <Pill tone="amber">Chưa khai thác nhiều</Pill>
           <p className="mt-2 font-bold" style={{ color: skillTheme(weak.skillCode).color }}>
-            {weak.skillName} · {formatDecimal(averageImpact(weak, totalProducts))}/10
+            {weak.skillName} · {skillLevel(weak.score)}
           </p>
           <p className="mt-1 text-[13.5px] text-ink-muted">
             Chỉ chiếm {formatDecimal(weak.percentage)}% — xem gợi ý bên dưới để cân bằng lộ trình.
@@ -374,6 +375,9 @@ function Recommendations({ child }: { child: ChildProfile }) {
                   {r.name}
                 </Link>
                 <p className="mt-0.5 font-display text-[19px] font-extrabold text-coral">{formatPrice(r.price)}</p>
+                <div className="mt-2">
+                  <SkillGainChips gains={r.skillGains} />
+                </div>
                 {/* linh vật "giải thích" lý do gợi ý trong bong bóng lời nói */}
                 <div className="mt-2.5 flex items-start gap-2">
                   <Mascot className="w-9 shrink-0" />
