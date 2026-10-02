@@ -13,7 +13,9 @@ import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { cartKey, useCart } from '@/features/cart/useCart'
 import { childKeys } from '@/features/children/keys'
+import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { MomoMark } from '@/features/payment/PaymentPanel'
+import { ChildBundlePreview } from '@/features/skills/ChildBundlePreview'
 import { usePayWithMomo } from '@/features/payment/usePayWithMomo'
 import { formatPrice } from '@/lib/format'
 
@@ -85,6 +87,16 @@ export default function CheckoutPage() {
     },
     onError: (e) => toast.error(e.message),
   })
+
+  // bé được gán món -> các món đó, để xem trước hồ sơ kỹ năng của từng bé sau khi nhận đơn
+  const assignedChildren = (children.data ?? [])
+    .map((child) => ({
+      child,
+      productIds: Object.entries(assignments)
+        .filter(([, childId]) => childId === child.id)
+        .map(([productId]) => Number(productId)),
+    }))
+    .filter((entry) => entry.productIds.length > 0)
 
   if (cart.isPending || me.isPending) return <PageLoader />
   if (cart.isError) return <ErrorState message={cart.error.message} onRetry={() => cart.refetch()} />
@@ -181,6 +193,13 @@ export default function CheckoutPage() {
                   ))}
                 </ul>
               )}
+              {assignedChildren.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {assignedChildren.map(({ child, productIds }) => (
+                    <ChildBundlePreview key={child.id} child={child} productIds={productIds} />
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="card p-5 sm:p-6">
@@ -240,11 +259,14 @@ export default function CheckoutPage() {
                 {formatPrice(cart.data.totalAmount)}
               </span>
             </div>
+            <div className="mt-5">
+              <UnboxingVideoReminder compact />
+            </div>
             <Button
               type="submit"
               size="lg"
               block
-              className="mt-5"
+              className="mt-4"
               loading={placeOrder.isPending || payWithMomo.isPending}
             >
               {paymentMethod === 'MOMO' ? 'Đặt hàng & thanh toán MoMo' : 'Đặt hàng'}

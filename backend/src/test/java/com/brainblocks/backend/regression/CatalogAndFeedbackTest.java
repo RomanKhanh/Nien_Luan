@@ -1,5 +1,8 @@
 package com.brainblocks.backend.regression;
 
+import com.brainblocks.backend.entity.Complaint;
+import com.brainblocks.backend.repository.ComplaintRepository;
+import com.brainblocks.backend.service.complaint.AdminComplaintService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,9 +13,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,6 +41,12 @@ class CatalogAndFeedbackTest {
 
     @Autowired
     private Environment environment;
+
+    @Autowired
+    private ComplaintRepository complaintRepository;
+
+    @Autowired
+    private AdminComplaintService adminComplaintService;
 
     private String baseUrl;
     private String adminToken;
@@ -209,12 +221,12 @@ class CatalogAndFeedbackTest {
         String complaintsPath = "/api/orders/" + orderId + "/complaints";
         Map<String, Object> exchange = Map.of("type", "EXCHANGE", "content", "Thiếu chi tiết");
 
-        assertThat(call("POST", complaintsPath, token, exchange).status()).isEqualTo(400);
+        assertThat(submitComplaint(token, orderId, exchange).status()).isEqualTo(400);
         // khách khác không gửi được khiếu nại cho đơn không phải của mình
         assertThat(call("POST", complaintsPath, newCustomer(), Map.of("type", "OTHER",
                 "content", "x")).status()).isEqualTo(404);
         deliver(orderId);
-        long complaintId = call("POST", complaintsPath, token, exchange).data().path("id").asLong();
+        long complaintId = submitComplaint(token, orderId, exchange).data().path("id").asLong();
 
         // chưa tiếp nhận thì không được đánh dấu đã giải quyết
         assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
@@ -331,7 +343,273 @@ class CatalogAndFeedbackTest {
         assertThat(call("GET", "/api/admin/stats", newCustomer(), null).status()).isEqualTo(403);
     }
 
+    // tìm kiếm bỏ qua dấu tiếng Việt và hoa thường
+    @Test
+    void searchIgnoresVietnameseDiacritics() throws Exception {
+        String tag = "zq" + SEQ.incrementAndGet();
+        long productId = createProduct(createCategory(), "Bộ Lắp Ráp Đặc Biệt " + tag, 3, 12, Map.of());
+        assertThat(ids(call("GET", "/api/products?keyword=lap%20rap%20dac%20biet%20" + tag, null, null)
+                .data().path("content"))).containsExactly(productId);
+        assertThat(ids(call("GET", "/api/products?keyword=" + URLEncoder.encode("LẮP RÁP đặc biệt " + tag,
+                StandardCharsets.UTF_8), null, null).data().path("content"))).containsExactly(productId);
+    }
+
+    // "Hợp với bé": theo tuổi bé, bỏ món bé đã có, sắp theo mức bổ sung; xem trước cả giỏ
+    @Test
+    void productMatchesFollowChildAndBundlePreviewSkipsOwned() throws Exception {
+        long categoryId = createCategory();
+        long logic = skillId("LOGIC");
+        long creative = skillId("CREATIVE");
+        long owned = createProduct(categoryId, "pm-owned", 3, 12, Map.of(logic, 10));
+        long creativeToy = createProduct(categoryId, "pm-creative", 3, 12, Map.of(creative, 10));
+        long logicToy = createProduct(categoryId, "pm-logic", 3, 12, Map.of(logic, 2));
+        createProduct(categoryId, "pm-too-old", 10, 14, Map.of(creative, 10));
+        String token = newCustomer();
+        // sinh 2019-01-01 -> 7 tuổi
+        long childId = call("POST", "/api/children", token, Map.of("name", "Kid", "birthDate", "2019-01-01"))
+                .data().path("id").asLong();
+        call("POST", "/api/children/" + childId + "/products", token, Map.of("productId", owned));
+
+        JsonNode matches = call("GET", "/api/children/" + childId + "/product-matches?categoryId=" + categoryId,
+                token, null).data().path("content");
+        List<Long> matchIds = new ArrayList<>();
+        matches.forEach(m -> matchIds.add(m.path("product").path("id").asLong()));
+        // Sáng tạo đang 0 nên +5,0; Logic đang 5,0 nên món 2 điểm chỉ +0,5
+        assertThat(matchIds).containsExactly(creativeToy, logicToy);
+        assertThat(matches.path(0).path("fitScore").asDouble()).isEqualTo(5.0);
+        assertThat(matches.path(1).path("fitScore").asDouble()).isEqualTo(0.5);
+
+        Res bundle = call("GET", "/api/children/" + childId + "/skill-profile/preview-bundle?productIds="
+                + owned + "," + creativeToy + "," + logicToy, token, null);
+        assertThat(bundle.status()).isEqualTo(200);
+        List<Long> ownedIds = new ArrayList<>();
+        bundle.data().path("alreadyOwnedProductIds").forEach(id -> ownedIds.add(id.asLong()));
+        assertThat(ownedIds).containsExactly(owned);
+        Map<Long, Double> projected = new HashMap<>();
+        bundle.data().path("gains").forEach(g ->
+                projected.put(g.path("skillId").asLong(), g.path("projectedScore").asDouble()));
+        assertThat(projected.get(logic)).isEqualTo(5.5);
+        assertThat(projected.get(creative)).isEqualTo(5.0);
+
+        assertThat(call("GET", "/api/children/" + childId + "/product-matches", newCustomer(), null).status())
+                .isGreaterThanOrEqualTo(400);
+    }
+
+    // khách nhận thông báo khi đơn đổi trạng thái / hồ sơ bé thay đổi / khiếu nại được xử lý;
+    // admin nhận thông báo đơn mới, khiếu nại mới, đánh giá mới
+    @Test
+    void notificationsReachCustomerAndAdmins() throws Exception {
+        long logic = skillId("LOGIC");
+        long productId = createProduct(createCategory(), "notify", 3, 12, Map.of(logic, 8));
+        String token = newCustomer();
+        long childId = call("POST", "/api/children", token, Map.of("name", "Kid", "birthDate", "2019-01-01"))
+                .data().path("id").asLong();
+        call("PATCH", "/api/notifications/read-all", adminToken, null);
+
+        call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
+        Res order = call("POST", "/api/orders", token, Map.of("receiverName", "Test", "receiverPhone", "0901234567",
+                "shippingAddress", "1 Test", "paymentMethod", "COD",
+                "childAssignments", List.of(Map.of("productId", productId, "childProfileId", childId))));
+        assertThat(order.status()).isEqualTo(201);
+        assertThat(unread(adminToken).path("byType").path("NEW_ORDER").asLong()).isEqualTo(1);
+        deliver(order.data().path("id").asLong());
+
+        // xác nhận, đang giao, đã giao + hồ sơ kỹ năng của bé
+        JsonNode counts = unread(token);
+        assertThat(counts.path("total").asLong()).isEqualTo(4);
+        assertThat(counts.path("byType").path("ORDER_STATUS").asLong()).isEqualTo(3);
+        JsonNode latest = call("GET", "/api/notifications?size=1", token, null).data().path("content").path(0);
+        assertThat(latest.path("type").asString()).isEqualTo("SKILL_PROFILE_UPDATED");
+        assertThat(latest.path("message").asString()).contains("Tư duy Logic +4,0");
+        assertThat(latest.path("link").asString()).isEqualTo("/children/" + childId);
+
+        // người khác không đánh dấu được thông báo của mình
+        long latestId = latest.path("id").asLong();
+        call("PATCH", "/api/notifications/" + latestId + "/read", newCustomer(), null);
+        assertThat(unread(token).path("total").asLong()).isEqualTo(4);
+        call("PATCH", "/api/notifications/" + latestId + "/read", token, null);
+        assertThat(unread(token).path("total").asLong()).isEqualTo(3);
+
+        long orderId = order.data().path("id").asLong();
+        // khiếu nại chất lượng không bắt buộc video
+        long complaintId = call("POST", "/api/orders/" + orderId + "/complaints", token,
+                Map.of("type", "QUALITY", "content", "Thiếu chi tiết")).data().path("id").asLong();
+        assertThat(call("POST", "/api/products/" + productId + "/reviews", token, Map.of("rating", 5)).status())
+                .isEqualTo(201);
+        JsonNode adminCounts = unread(adminToken).path("byType");
+        assertThat(adminCounts.path("NEW_COMPLAINT").asLong()).isEqualTo(1);
+        assertThat(adminCounts.path("NEW_REVIEW").asLong()).isEqualTo(1);
+
+        // admin mở trang Đánh giá: chỉ các thông báo đánh giá được đánh dấu đã đọc
+        call("PATCH", "/api/notifications/read-all?types=NEW_REVIEW", adminToken, null);
+        adminCounts = unread(adminToken).path("byType");
+        assertThat(adminCounts.has("NEW_REVIEW")).isFalse();
+        assertThat(adminCounts.path("NEW_COMPLAINT").asLong()).isEqualTo(1);
+
+        call("PATCH", "/api/admin/complaints/" + complaintId, adminToken, Map.of("status", "PROCESSING"));
+        assertThat(unread(token).path("byType").path("COMPLAINT_UPDATED").asLong()).isEqualTo(1);
+        call("PATCH", "/api/notifications/read-all", token, null);
+        assertThat(unread(token).path("total").asLong()).isZero();
+    }
+
+    // trả hàng: duyệt xong khách có 7 ngày gửi hàng về; quá hạn thì không duyệt hoàn tất được
+    // và yêu cầu tự bị từ chối, đánh dấu do khách trễ hạn
+    @Test
+    void approvedReturnExpiresAfterSevenDays() throws Exception {
+        long productId = createProduct(createCategory(), "return-window", 3, 12, Map.of());
+        String token = newCustomer();
+        long orderId = placeOrder(token, productId);
+        deliver(orderId);
+        long complaintId = submitComplaint(token, orderId, Map.of("type", "RETURN", "content", "Muốn trả hàng"))
+                .data().path("id").asLong();
+
+        JsonNode accepted = call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "PROCESSING")).data();
+        LocalDateTime acceptedAt = LocalDateTime.parse(accepted.path("acceptedAt").asString());
+        assertThat(LocalDateTime.parse(accepted.path("returnDeadline").asString())).isEqualTo(acceptedAt.plusDays(7));
+        assertThat(adminComplaintService.expireOverdueReturns()).isZero();
+
+        // giả lập đã duyệt từ 8 ngày trước
+        Complaint complaint = complaintRepository.findById(complaintId).orElseThrow();
+        complaint.setAcceptedAt(LocalDateTime.now().minusDays(8));
+        complaintRepository.save(complaint);
+
+        assertThat(call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "RESOLVED", "response", "Đã nhận hàng")).status()).isEqualTo(400);
+        assertThat(adminComplaintService.expireOverdueReturns()).isEqualTo(1);
+
+        JsonNode mine = call("GET", "/api/complaints", token, null).data().path(0);
+        assertThat(mine.path("status").asString()).isEqualTo("REJECTED");
+        assertThat(mine.path("returnExpired").asBoolean()).isTrue();
+        assertThat(mine.path("response").asString()).startsWith("Quá hạn gửi hàng về");
+        assertThat(call("GET", "/api/notifications?size=1", token, null).data().path("content").path(0)
+                .path("title").asString()).isEqualTo("Yêu cầu trả hàng đã hết hạn");
+        // đã đóng thì lần chạy sau không đụng lại
+        assertThat(adminComplaintService.expireOverdueReturns()).isZero();
+    }
+
+    // đổi / trả / chất lượng bắt buộc video mở hàng; file giả đuôi bị chặn; chỉ chủ khiếu nại và admin xem được file;
+    // đổi hàng cũng có hạn 7 ngày gửi hàng về
+    @Test
+    void evidenceIsRequiredAndPrivate() throws Exception {
+        long productId = createProduct(createCategory(), "evidence", 3, 12, Map.of());
+        String token = newCustomer();
+        long orderId = placeOrder(token, productId);
+        deliver(orderId);
+        String path = "/api/orders/" + orderId + "/complaints";
+        Map<String, Object> exchange = Map.of("type", "EXCHANGE", "content", "Hộp bị móp, thiếu chi tiết");
+        Part request = new Part("request", null, "application/json", JSON.writeValueAsBytes(exchange));
+
+        // không có video mở hàng: JSON hay multipart đều bị từ chối
+        assertThat(call("POST", path, token, exchange).status()).isEqualTo(400);
+        assertThat(multipart(path, token, List.of(request)).status()).isEqualTo(400);
+        // file đổi đuôi .mp4 nhưng không phải video
+        assertThat(multipart(path, token, List.of(request, new Part("unboxingVideo", "fake.mp4", "video/mp4",
+                "not a video at all".getBytes(StandardCharsets.UTF_8)))).status()).isEqualTo(400);
+        // phản hồi khác không cần video; khiếu nại chất lượng chỉ kèm ảnh / video minh họa tùy chọn
+        assertThat(call("POST", path, token, Map.of("type", "OTHER", "content", "Giao hơi chậm")).status())
+                .isEqualTo(201);
+        Res quality = multipart(path, token, List.of(
+                new Part("request", null, "application/json",
+                        JSON.writeValueAsBytes(Map.of("type", "QUALITY", "content", "Bánh răng bị kẹt"))),
+                new Part("conditionFiles", "banh-rang.png", "image/png", FAKE_PNG)));
+        assertThat(quality.status()).as(quality.body().toString()).isEqualTo(201);
+        assertThat(quality.data().path("attachments").path(0).path("kind").asString()).isEqualTo("CONDITION");
+
+        Res created = multipart(path, token, List.of(request,
+                new Part("unboxingVideo", "mo-hang.mp4", "video/mp4", FAKE_MP4),
+                new Part("conditionFiles", "hop-mop.png", "image/png", FAKE_PNG)));
+        assertThat(created.status()).as(created.body().toString()).isEqualTo(201);
+        long complaintId = created.data().path("id").asLong();
+        JsonNode attachments = created.data().path("attachments");
+        assertThat(attachments.size()).isEqualTo(2);
+        assertThat(attachments.path(0).path("kind").asString()).isEqualTo("UNBOXING_VIDEO");
+        assertThat(attachments.path(1).path("kind").asString()).isEqualTo("CONDITION");
+
+        String videoUrl = baseUrl + "/api/complaints/" + complaintId + "/attachments"
+                + "/" + attachments.path(0).path("id").asLong();
+        HttpResponse<byte[]> own = download(videoUrl, token);
+        assertThat(own.statusCode()).isEqualTo(200);
+        assertThat(own.headers().firstValue("Content-Type")).hasValue("video/mp4");
+        assertThat(own.body()).isEqualTo(FAKE_MP4);
+        assertThat(download(videoUrl, adminToken).statusCode()).isEqualTo(200);
+        assertThat(download(videoUrl, newCustomer()).statusCode()).isEqualTo(404);
+        assertThat(download(videoUrl, null).statusCode()).isIn(401, 403);
+
+        JsonNode accepted = call("PATCH", "/api/admin/complaints/" + complaintId, adminToken,
+                Map.of("status", "PROCESSING")).data();
+        assertThat(accepted.path("returnDeadline").isNull()).isFalse();
+    }
+
+    // bằng chứng tự xóa 30 ngày sau khi yêu cầu đóng, trừ khi admin giữ lại; yêu cầu còn mở không bị xóa;
+    // bản ghi file vẫn còn để thống kê
+    @Test
+    void closedComplaintEvidenceIsPurgedAfterRetentionUnlessHeld() throws Exception {
+        long productId = createProduct(createCategory(), "purge", 3, 12, Map.of());
+        String token = newCustomer();
+        long closedId = deliveredComplaint(token, productId);
+        long heldId = deliveredComplaint(token, productId);
+        long openId = deliveredComplaint(token, productId);
+        for (long id : List.of(closedId, heldId)) {
+            call("PATCH", "/api/admin/complaints/" + id, adminToken, Map.of("status", "PROCESSING"));
+            call("PATCH", "/api/admin/complaints/" + id, adminToken, Map.of("status", "RESOLVED", "response", "Đã đổi"));
+        }
+        JsonNode closed = call("GET", "/api/admin/complaints/" + closedId, adminToken, null).data();
+        assertThat(LocalDateTime.parse(closed.path("evidencePurgeAt").asString()))
+                .isEqualTo(LocalDateTime.parse(closed.path("handledAt").asString()).plusDays(30));
+        JsonNode held = call("PATCH", "/api/admin/complaints/" + heldId + "/evidence-hold", adminToken,
+                Map.of("hold", true)).data();
+        assertThat(held.path("evidenceHold").asBoolean()).isTrue();
+        assertThat(held.path("evidencePurgeAt").isNull()).isTrue();
+
+        // giả lập đã đóng 31 ngày trước
+        for (long id : List.of(closedId, heldId)) {
+            Complaint complaint = complaintRepository.findById(id).orElseThrow();
+            complaint.setHandledAt(LocalDateTime.now().minusDays(31));
+            complaintRepository.save(complaint);
+        }
+        assertThat(adminComplaintService.purgeExpiredEvidence()).isEqualTo(1);
+
+        JsonNode purged = call("GET", "/api/admin/complaints/" + closedId, adminToken, null).data();
+        JsonNode file = purged.path("attachments").path(0);
+        assertThat(file.path("purgedAt").isNull()).isFalse();
+        assertThat(file.path("originalName").asString()).isEqualTo("mo-hang.mp4");
+        assertThat(purged.path("evidencePurgeAt").isNull()).isTrue();
+        assertThat(download(baseUrl + "/api/complaints/" + closedId + "/attachments/" + file.path("id").asLong(),
+                token).statusCode()).isEqualTo(404);
+
+        for (long id : List.of(heldId, openId)) {
+            long attachmentId = call("GET", "/api/admin/complaints/" + id, adminToken, null).data()
+                    .path("attachments").path(0).path("id").asLong();
+            assertThat(download(baseUrl + "/api/complaints/" + id + "/attachments/" + attachmentId, token)
+                    .statusCode()).isEqualTo(200);
+        }
+        // đã dọn thì lần chạy sau không đụng lại
+        assertThat(adminComplaintService.purgeExpiredEvidence()).isZero();
+    }
+
     // =================================== helpers =======================================
+
+    // đơn mới đã giao + yêu cầu đổi hàng kèm video mở hàng; trả id yêu cầu
+    private long deliveredComplaint(String token, long productId) throws Exception {
+        long orderId = placeOrder(token, productId);
+        deliver(orderId);
+        Res res = submitComplaint(token, orderId, Map.of("type", "EXCHANGE", "content", "Hộp bị móp"));
+        assertThat(res.status()).as(res.body().toString()).isEqualTo(201);
+        return res.data().path("id").asLong();
+    }
+
+    private HttpResponse<byte[]> download(String url, String token) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url)).GET();
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+        return HTTP.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private JsonNode unread(String token) throws Exception {
+        return call("GET", "/api/notifications/unread-count", token, null).data();
+    }
 
     private double logicScore(String token, long childId, long logicId) throws Exception {
         return logicIn(call("GET", "/api/children/" + childId + "/skill-profile", token, null).data()
@@ -422,6 +700,43 @@ class CatalogAndFeedbackTest {
     }
 
     // multipart/form-data một field "file"
+    // vài byte đầu đủ để qua kiểm tra chữ ký: MP4 có "ftyp" ở offset 4, PNG mở đầu bằng 0x89 PNG
+    private static final byte[] FAKE_MP4 = {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 2, 0};
+    private static final byte[] FAKE_PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 0x0D};
+
+    record Part(String name, String fileName, String contentType, byte[] content) {
+    }
+
+    // khiếu nại kèm video mở hàng (đổi / trả / chất lượng bắt buộc có video)
+    private Res submitComplaint(String token, long orderId, Map<String, Object> body) throws Exception {
+        return multipart("/api/orders/" + orderId + "/complaints", token, List.of(
+                new Part("request", null, "application/json", JSON.writeValueAsBytes(body)),
+                new Part("unboxingVideo", "mo-hang.mp4", "video/mp4", FAKE_MP4)));
+    }
+
+    private Res multipart(String path, String token, List<Part> parts) throws Exception {
+        String boundary = "----test" + System.nanoTime();
+        List<byte[]> chunks = new ArrayList<>();
+        for (Part part : parts) {
+            String disposition = "form-data; name=\"" + part.name() + "\""
+                    + (part.fileName() == null ? "" : "; filename=\"" + part.fileName() + "\"");
+            chunks.add(("--" + boundary + "\r\nContent-Disposition: " + disposition + "\r\nContent-Type: "
+                    + part.contentType() + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            chunks.add(part.content());
+            chunks.add("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        chunks.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArrays(chunks));
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+        HttpResponse<String> r = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        JsonNode node = r.body() == null || r.body().isBlank() ? JSON.createObjectNode() : JSON.readTree(r.body());
+        return new Res(r.statusCode(), node);
+    }
+
     private Res upload(String path, String token, String fileName, String contentType, byte[] content) throws Exception {
         String boundary = "----test" + System.nanoTime();
         byte[] head = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + fileName

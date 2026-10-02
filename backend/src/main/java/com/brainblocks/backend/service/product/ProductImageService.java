@@ -7,6 +7,7 @@ import com.brainblocks.backend.entity.ProductImage;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.ProductImageRepository;
 import com.brainblocks.backend.repository.ProductRepository;
+import com.brainblocks.backend.util.FileSignatures;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,6 +39,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductImageService {
     static final int MAX_IMAGES_PER_PRODUCT = 10;
+    private static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
     private static final String PUBLIC_PREFIX = "/uploads/";
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
@@ -153,6 +153,10 @@ public class ProductImageService {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File is empty");
         }
+        // giới hạn multipart chung đã nâng lên cho video bằng chứng khiếu nại, ảnh sản phẩm giữ mức 5MB
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw new IllegalArgumentException("Product images must be at most 5MB");
+        }
         String originalName = file.getOriginalFilename();
         int dotIndex = originalName == null ? -1 : originalName.lastIndexOf('.');
         if (dotIndex < 0) {
@@ -164,39 +168,11 @@ public class ProductImageService {
         }
         // Content-Type do client tự khai nên chưa đủ: đọc thêm vài byte đầu để chặn file đổi đuôi giả dạng ảnh
         String expectedContentType = CONTENT_TYPE_BY_EXTENSION.get(extension);
-        if (!expectedContentType.equalsIgnoreCase(file.getContentType()) || !hasImageSignature(file, expectedContentType)) {
+        if (!expectedContentType.equalsIgnoreCase(file.getContentType())
+                || !FileSignatures.matches(file, expectedContentType)) {
             throw new IllegalArgumentException("File content does not match its extension");
         }
         return extension;
-    }
-
-    private boolean hasImageSignature(MultipartFile file, String contentType) {
-        byte[] head;
-        try (InputStream in = file.getInputStream()) {
-            head = in.readNBytes(12);
-        } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to read uploaded file", ex);
-        }
-        return switch (contentType) {
-            case "image/jpeg" -> startsWith(head, 0, (byte) 0xFF, (byte) 0xD8, (byte) 0xFF);
-            case "image/png" -> startsWith(head, 0, (byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G');
-            // RIFF <4 byte kích thước> WEBP
-            case "image/webp" -> startsWith(head, 0, "RIFF".getBytes(StandardCharsets.US_ASCII))
-                    && startsWith(head, 8, "WEBP".getBytes(StandardCharsets.US_ASCII));
-            default -> false;
-        };
-    }
-
-    private boolean startsWith(byte[] data, int offset, byte... signature) {
-        if (data.length < offset + signature.length) {
-            return false;
-        }
-        for (int i = 0; i < signature.length; i++) {
-            if (data[offset + i] != signature[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private Path uploadRoot() {

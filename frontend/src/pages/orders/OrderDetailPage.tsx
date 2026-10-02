@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { ComplaintModal } from '@/features/complaints/ComplaintModal'
 import { OrderTimeline } from '@/features/orders/OrderTimeline'
+import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { PaymentPanel } from '@/features/payment/PaymentPanel'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { formatDateTime, formatPrice } from '@/lib/format'
@@ -66,6 +67,9 @@ export default function OrderDetailPage() {
           <p className="mt-1 text-[14px] text-ink-2">
             Mã đơn <b>{o.orderCode}</b>. BrainBlocks sẽ xác nhận đơn sớm và giao hàng tới địa chỉ của bạn.
           </p>
+          <div className="mt-4">
+            <UnboxingVideoReminder />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2.5">
             <ButtonLink to="/orders" size="sm">
               Xem đơn hàng
