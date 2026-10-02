@@ -10,8 +10,11 @@ import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
+import { EvidenceList } from '@/features/complaints/EvidenceList'
+import { ReturnDeadline } from '@/features/complaints/ReturnDeadline'
 import { complaintItemsText, formatDateTime } from '@/lib/format'
 import { COMPLAINT_STATUS, COMPLAINT_TYPE } from '@/lib/labels'
+import { useNow } from '@/lib/useNow'
 
 const TABS: (ComplaintStatus | undefined)[] = [undefined, 'PENDING', 'PROCESSING', 'RESOLVED', 'REJECTED']
 
@@ -72,6 +75,7 @@ export default function ComplaintsPage() {
                   <p className="mt-1 text-[12.5px] text-ink-muted">
                     {c.customerName} · {formatDateTime(c.createdAt)}
                   </p>
+                  <ReturnDeadline complaint={c} audience="admin" />
                 </button>
               </li>
             ))}
@@ -92,7 +96,12 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
   const [response, setResponse] = useState(complaint.response ?? '')
   const toast = useToast()
   const queryClient = useQueryClient()
+  const now = useNow()
   const closed = complaint.status === 'RESOLVED' || complaint.status === 'REJECTED'
+  const returnOverdue =
+    complaint.status === 'PROCESSING' &&
+    complaint.returnDeadline !== null &&
+    new Date(complaint.returnDeadline).getTime() < now
   const handle = useMutation({
     mutationFn: (status: ComplaintStatus) => adminApi.handleComplaint(complaint.id, { status, response }),
     onSuccess: (c) => {
@@ -112,6 +121,13 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
           <span className="text-ink-muted">Đơn hàng:</span>
           <OrderStatusBadge status={complaint.orderStatus} />
         </div>
+        <ReturnDeadline complaint={complaint} audience="admin" />
+        {(complaint.type === 'RETURN' || complaint.type === 'EXCHANGE') && complaint.status === 'PENDING' && (
+          <p className="rounded-md bg-sky-soft px-3 py-2.5 text-[12.5px] text-ink-2">
+            Sau khi tiếp nhận, khách có 7 ngày để gửi hàng về. Quá hạn mà chưa đánh dấu đã giải quyết thì yêu cầu tự bị
+            từ chối, ghi rõ do khách trễ hạn, và khách không được đổi / trả nữa.
+          </p>
+        )}
         <div>
           <p className="font-semibold">
             {complaint.customerName} <span className="font-normal text-ink-muted">· {complaint.customerEmail}</span>
@@ -122,17 +138,22 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
           </p>
           <p className="mt-3 whitespace-pre-line rounded-md bg-muted px-4 py-3 text-ink-2">{complaint.content}</p>
         </div>
+        <EvidenceList complaint={complaint} audience="admin" />
         {complaint.handledByName && (
           <p className="text-[12.5px] text-ink-muted">
             Người xử lý: {complaint.handledByName}
             {complaint.handledAt && ` · đóng lúc ${formatDateTime(complaint.handledAt)}`}
           </p>
         )}
-        <Field label="Phản hồi gửi khách" htmlFor="response" hint={
+        <Field
+          label="Phản hồi gửi khách"
+          htmlFor="response"
+          hint={
             complaint.status === 'PENDING'
               ? 'Không bắt buộc khi tiếp nhận, bắt buộc khi từ chối.'
               : 'Bắt buộc khi đánh dấu đã giải quyết.'
-          }>
+          }
+        >
           <Textarea
             id="response"
             value={response}
@@ -171,6 +192,8 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
             ) : (
               <Button
                 loading={handle.isPending && handle.variables === 'RESOLVED'}
+                // quá hạn gửi hàng về thì backend từ chối, hệ thống sẽ tự đóng yêu cầu
+                disabled={returnOverdue}
                 onClick={() => handle.mutate('RESOLVED')}
               >
                 Đã giải quyết

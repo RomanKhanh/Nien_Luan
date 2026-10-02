@@ -2,6 +2,7 @@ package com.brainblocks.backend.controller;
 
 import com.brainblocks.backend.dto.response.ApiResponse;
 import com.brainblocks.backend.dto.response.product.ProductRecommendationResponse;
+import com.brainblocks.backend.dto.response.skill.SkillBundlePreviewResponse;
 import com.brainblocks.backend.dto.response.skill.SkillPreviewResponse;
 import com.brainblocks.backend.dto.response.skill.SkillProfileResponse;
 import com.brainblocks.backend.dto.response.skill.SkillTimelineResponse;
@@ -24,6 +25,8 @@ import java.util.List;
 @PreAuthorize("hasRole('CUSTOMER')")
 @RequiredArgsConstructor
 public class SkillProfileController {
+    private static final int MAX_BUNDLE_SIZE = 50;
+
     private final SkillProfileService skillProfileService;
     private final SkillRecommendationService skillRecommendationService;
 
@@ -49,6 +52,17 @@ public class SkillProfileController {
             @PathVariable Long id,
             @RequestParam Long productId) {
         return ResponseEntity.ok(ApiResponse.success(skillProfileService.previewProduct(id, productId)));
+    }
+
+    // dự kiến hồ sơ nếu bé nhận cùng lúc nhiều sản phẩm: productIds=1,2,3 (vd các món gán cho bé lúc thanh toán)
+    @GetMapping("/preview-bundle")
+    public ResponseEntity<ApiResponse<SkillBundlePreviewResponse>> previewBundle(
+            @PathVariable Long id,
+            @RequestParam List<Long> productIds) {
+        if (productIds.size() > MAX_BUNDLE_SIZE) {
+            throw new IllegalArgumentException("At most " + MAX_BUNDLE_SIZE + " products per preview");
+        }
+        return ResponseEntity.ok(ApiResponse.success(skillProfileService.previewProducts(id, productIds)));
     }
 
     // limit ngoài khoảng 1..20 được đưa về biên gần nhất

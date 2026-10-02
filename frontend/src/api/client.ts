@@ -89,7 +89,17 @@ const EXACT: Record<string, string> = {
   'Only jpg, jpeg, png, webp files are allowed': 'Chỉ nhận ảnh JPG, PNG hoặc WebP.',
   'File content does not match its extension': 'Nội dung tệp không phải ảnh đúng định dạng.',
   'A product can have at most 10 images': 'Mỗi sản phẩm tối đa 10 ảnh.',
-  'Maximum upload size exceeded': 'Ảnh vượt quá dung lượng cho phép (5MB).',
+  'Maximum upload size exceeded': 'Tệp vượt quá dung lượng cho phép (tổng tối đa 200MB mỗi lần gửi).',
+  'Product images must be at most 5MB': 'Ảnh sản phẩm tối đa 5MB.',
+  'An unboxing video is required for exchange and return requests':
+    'Cần đính kèm video mở hàng cho yêu cầu đổi hoặc trả hàng.',
+  'The unboxing video must be an mp4, mov or webm file': 'Video mở hàng phải là tệp MP4, MOV hoặc WebM.',
+  'Evidence must be a jpg, png, webp image or an mp4, mov, webm video':
+    'Ảnh / video tình trạng phải là ảnh JPG, PNG, WebP hoặc video MP4, MOV, WebM.',
+  'Evidence file is empty': 'Tệp đính kèm bị trống.',
+  'At most 5 condition photos/videos': 'Tối đa 5 ảnh / video tình trạng sản phẩm.',
+  'Attachment not found': 'Không tìm thấy tệp đính kèm.',
+  'Attachment has been deleted': 'Tệp đã được xóa tự động sau thời hạn lưu trữ.',
   'Image not found for this product': 'Không tìm thấy ảnh của sản phẩm này.',
   'Category name already exists': 'Tên danh mục đã tồn tại.',
   'Category still has products, move them to another category first':
@@ -111,6 +121,8 @@ const PREFIX: [string, string][] = [
   ['Cannot change order status from ', 'Không thể chuyển trạng thái đơn từ '],
   ['Quantity per product cannot exceed ', 'Mỗi sản phẩm tối đa '],
   ['Cannot change complaint status from ', 'Không thể chuyển trạng thái yêu cầu từ '],
+  ['File content does not match its extension: ', 'Nội dung tệp không đúng định dạng: '],
+  ['File is too large: ', 'Tệp quá lớn: '],
   ['Duplicate orderItemId: ', 'Sản phẩm bị chọn trùng trong yêu cầu, mã dòng hàng: '],
   ['Order item does not belong to this order: ', 'Sản phẩm không thuộc đơn hàng này, mã dòng hàng: '],
   [

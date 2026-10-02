@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { catalogApi, childApi } from '@/api/endpoints'
@@ -13,6 +13,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader, Skeleton } from '@/components/ui/States'
 import { QuantityStepper } from '@/components/ui/QuantityStepper'
 import { useAddToCart } from '@/features/cart/useCart'
+import { RecentlyViewed, recordProductView } from '@/features/catalog/RecentlyViewed'
 import { useChatWidget } from '@/features/chat/chatContext'
 import { AssignToChildModal } from '@/features/children/AssignToChildModal'
 import { childKeys } from '@/features/children/keys'
@@ -59,6 +60,10 @@ function ProductView({ product }: { product: ProductDetail }) {
   const videoId = youtubeId(product.videoUrl)
 
   const buyNow = () => addToCart.mutate({ productId: product.id, quantity }, { onSuccess: () => navigate('/cart') })
+
+  useEffect(() => {
+    recordProductView(product.id)
+  }, [product.id])
 
   return (
     <>
@@ -285,6 +290,7 @@ function ProductView({ product }: { product: ProductDetail }) {
 
         <ReviewSection product={product} />
         <RelatedProducts product={product} />
+        <RecentlyViewed excludeId={product.id} />
 
         {isCustomer && (
           <AssignToChildModal
@@ -348,7 +354,7 @@ function ChildGainPanel({ productId }: { productId: number }) {
   )
 }
 
-const AVATAR_COLORS =['#1fa6dd', '#e8467c', '#7cc243', '#e08700', '#5b3df5']
+const AVATAR_COLORS = ['#1fa6dd', '#e8467c', '#7cc243', '#e08700', '#5b3df5']
 
 function ReviewSection({ product }: { product: ProductDetail }) {
   const { isCustomer } = useAuth()

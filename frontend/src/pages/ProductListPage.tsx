@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { catalogApi } from '@/api/endpoints'
-import type { ProductQuery, ProductSort } from '@/api/types'
+import { catalogApi, childApi } from '@/api/endpoints'
+import type { ChildProfile, Page, ProductQuery, ProductSort, ProductSummary, SkillGain } from '@/api/types'
+import { useAuth } from '@/auth/AuthContext'
 import { SkillIcon } from '@/components/decor/Decor'
 import { PageHero } from '@/components/layout/PageHero'
 import { ProductCard, ProductCardSkeleton } from '@/components/product/ProductCard'
@@ -12,6 +13,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { useCategories, useSkills } from '@/features/catalog/queries'
+import { childKeys } from '@/features/children/keys'
 import { AGE_GROUPS, skillTheme } from '@/lib/skills'
 
 const PAGE_SIZE = 12
@@ -30,9 +32,16 @@ const PRICE_RANGES = [
   { label: 'Trên 1.000.000₫', min: 1000000, max: undefined },
 ]
 
+// chỉ có khi đang xem "Hợp với bé": sắp theo mức bổ sung cho hồ sơ kỹ năng của bé
+const FIT_SORT = { value: 'fit' as const, label: 'Bổ sung nhiều nhất cho bé' }
+
+// một ô sản phẩm; gains chỉ có ở chế độ "Hợp với bé"
+type ListItem = { product: ProductSummary; gains?: SkillGain[] }
+
 // bộ lọc nằm trên URL để chia sẻ / quay lại trang vẫn giữ nguyên
-function readQuery(params: URLSearchParams): ProductQuery {
+function readQuery(params: URLSearchParams, forChild: boolean): ProductQuery {
   const num = (key: string) => (params.get(key) ? Number(params.get(key)) : undefined)
+  const sort = params.get('sort') as ProductSort | null
   return {
     keyword: params.get('keyword') ?? undefined,
     categoryId: num('categoryId'),
@@ -42,7 +51,8 @@ function readQuery(params: URLSearchParams): ProductQuery {
     minPrice: num('minPrice'),
     maxPrice: num('maxPrice'),
     inStock: params.get('inStock') === 'true' || undefined,
-    sort: (params.get('sort') as ProductSort) ?? 'relevance',
+    // mặc định: "Hợp với bé" sắp theo mức bổ sung, còn lại theo mức độ phù hợp; fit không dùng được khi bỏ chọn bé
+    sort: sort && (forChild || sort !== 'fit') ? sort : forChild ? 'fit' : 'relevance',
     page: num('page') ?? 0,
     size: PAGE_SIZE,
   }
@@ -50,12 +60,25 @@ function readQuery(params: URLSearchParams): ProductQuery {
 
 export default function ProductListPage() {
   const [params, setParams] = useSearchParams()
-  const query = readQuery(params)
+  const { isCustomer } = useAuth()
   const [filterOpen, setFilterOpen] = useState(false)
 
+  // "Hợp với bé": ?child=<id> -> lọc theo tuổi bé, ẩn món bé đã có, kèm mức bổ sung cho hồ sơ kỹ năng
+  const children = useQuery({ queryKey: childKeys.list, queryFn: childApi.list, enabled: isCustomer })
+  const childParam = Number(params.get('child')) || undefined
+  const child = isCustomer ? children.data?.find((c) => c.id === childParam) : undefined
+  const waitingForChild = isCustomer && childParam !== undefined && children.isPending
+  const query = readQuery(params, Boolean(child))
+  const defaultSort = child ? 'fit' : 'relevance'
+
   const products = useQuery({
-    queryKey: ['products', query],
-    queryFn: () => catalogApi.products(query),
+    queryKey: child ? ['product-matches', child.id, query] : ['products', query],
+    queryFn: async (): Promise<Page<ListItem>> => {
+      if (child) return childApi.productMatches(child.id, query)
+      const page = await catalogApi.products(query)
+      return { ...page, content: page.content.map((product) => ({ product })) }
+    },
+    enabled: !waitingForChild,
     placeholderData: keepPreviousData,
   })
 
@@ -68,26 +91,41 @@ export default function ProductListPage() {
   }
 
   const activeCount =
-    (query.ageFrom !== undefined ? 1 : 0) +
+    (query.ageFrom !== undefined && !child ? 1 : 0) +
     (query.skills?.length ?? 0) +
     (query.categoryId ? 1 : 0) +
     (query.minPrice !== undefined || query.maxPrice !== undefined ? 1 : 0) +
     (query.inStock ? 1 : 0)
 
-  const filters = <FilterPanel query={query} update={update} />
+  // xoá bộ lọc nhưng vẫn giữ bé đang chọn
+  const clearFilters = () => setParams(child ? { child: String(child.id) } : {})
+  const filters = <FilterPanel query={query} update={update} child={child} />
 
   return (
     <>
       <PageHero
         crumbs={[{ label: 'Sản phẩm' }]}
         kicker="Đồ chơi STEM"
-        title={query.keyword ? `Kết quả cho “${query.keyword}”` : 'Tất cả sản phẩm'}
-        subtitle="Lọc theo độ tuổi, nhóm kỹ năng và mức giá để tìm món phù hợp với bé."
+        title={
+          child ? `Hợp với bé ${child.name}` : query.keyword ? `Kết quả cho “${query.keyword}”` : 'Tất cả sản phẩm'
+        }
+        subtitle={
+          child
+            ? `Đồ chơi hợp ${child.age} tuổi mà bé chưa có, kèm mức bổ sung cho hồ sơ kỹ năng của bé.`
+            : 'Lọc theo độ tuổi, nhóm kỹ năng và mức giá để tìm món phù hợp với bé.'
+        }
       >
         <QuickSkillChips
           selected={query.skills ?? []}
           onToggle={(next) => update({ skills: next.join(',') || undefined })}
         />
+        {isCustomer && (children.data?.length ?? 0) > 0 && (
+          <ChildPicker
+            childrenList={children.data!}
+            selectedId={child?.id}
+            onSelect={(id) => update({ child: id ? String(id) : undefined, sort: undefined })}
+          />
+        )}
       </PageHero>
       <div className="container-page py-8">
         <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
@@ -96,11 +134,7 @@ export default function ProductListPage() {
               <div className="mb-4 flex items-center justify-between">
                 <p className="font-display text-[20px] font-extrabold">Bộ lọc</p>
                 {activeCount > 0 && (
-                  <button
-                    type="button"
-                    className="text-[13px] font-semibold text-primary"
-                    onClick={() => setParams({})}
-                  >
+                  <button type="button" className="text-[13px] font-semibold text-primary" onClick={clearFilters}>
                     Xoá tất cả
                   </button>
                 )}
@@ -111,9 +145,15 @@ export default function ProductListPage() {
 
           <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[14px] text-ink-muted">
-                <b className="text-ink">{products.data?.totalElements ?? '…'}</b> sản phẩm phù hợp bộ lọc
-              </p>
+              {/* chưa chọn bộ lọc / từ khóa nào thì đang xem toàn bộ, không nói "phù hợp bộ lọc" */}
+              {!child && activeCount === 0 && !query.keyword ? (
+                <p className="text-[14px] font-semibold text-ink">Tất cả sản phẩm</p>
+              ) : (
+                <p className="text-[14px] text-ink-muted">
+                  <b className="text-ink">{products.data?.totalElements ?? '…'}</b>{' '}
+                  {child ? `món hợp tuổi bé ${child.name}, đã ẩn món bé có rồi` : 'sản phẩm phù hợp bộ lọc'}
+                </p>
+              )}
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setFilterOpen(true)}>
                   Bộ lọc{activeCount > 0 && ` · ${activeCount}`}
@@ -122,10 +162,10 @@ export default function ProductListPage() {
                   <span className="hidden sm:inline">Sắp xếp</span>
                   <Select
                     value={query.sort}
-                    onChange={(e) => update({ sort: e.target.value === 'relevance' ? undefined : e.target.value })}
+                    onChange={(e) => update({ sort: e.target.value === defaultSort ? undefined : e.target.value })}
                     className="!w-auto !py-2 text-[13px]"
                   >
-                    {SORTS.map((s) => (
+                    {(child ? [FIT_SORT, ...SORTS] : SORTS).map((s) => (
                       <option key={s.value} value={s.value}>
                         {s.label}
                       </option>
@@ -146,9 +186,13 @@ export default function ProductListPage() {
             ) : products.data.content.length === 0 ? (
               <EmptyState
                 title="Chưa có sản phẩm nào"
-                description="Thử bỏ bớt bộ lọc hoặc đổi từ khoá tìm kiếm."
+                description={
+                  child
+                    ? `Không còn món nào hợp tuổi bé ${child.name} mà bé chưa có với bộ lọc này.`
+                    : 'Thử bỏ bớt bộ lọc hoặc đổi từ khoá tìm kiếm.'
+                }
                 action={
-                  <Button variant="secondary" onClick={() => setParams({})}>
+                  <Button variant="secondary" onClick={clearFilters}>
                     Xoá bộ lọc
                   </Button>
                 }
@@ -159,7 +203,7 @@ export default function ProductListPage() {
                   className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${products.isPlaceholderData ? 'opacity-60' : ''}`}
                 >
                   {products.data.content.map((p) => (
-                    <ProductCard key={p.id} product={p} />
+                    <ProductCard key={p.product.id} product={p.product} gains={p.gains} />
                   ))}
                 </div>
                 <div className="mt-8">
@@ -183,7 +227,7 @@ export default function ProductListPage() {
           title="Bộ lọc"
           footer={
             <>
-              <Button variant="secondary" onClick={() => setParams({})}>
+              <Button variant="secondary" onClick={clearFilters}>
                 Xoá tất cả
               </Button>
               <Button onClick={() => setFilterOpen(false)}>Xem {products.data?.totalElements ?? ''} sản phẩm</Button>
@@ -226,12 +270,54 @@ function QuickSkillChips({ selected, onToggle }: { selected: string[]; onToggle:
   )
 }
 
+// "Hợp với bé": chọn bé để lọc theo tuổi bé và xem mức bổ sung; "Tất cả" = danh sách thường
+function ChildPicker({
+  childrenList,
+  selectedId,
+  onSelect,
+}: {
+  childrenList: ChildProfile[]
+  selectedId?: number
+  onSelect: (id: number | undefined) => void
+}) {
+  const chip = (on: boolean) =>
+    `rounded-full border-2 px-3.5 py-1.5 text-[13.5px] font-bold transition hover:-translate-y-0.5 ${
+      on ? 'border-sun bg-sun text-ink shadow-card' : 'border-white/60 bg-white/15 text-white hover:bg-white/25'
+    }`
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <span className="text-[13.5px] font-semibold text-white/90">Hợp với bé:</span>
+      <button
+        type="button"
+        aria-pressed={!selectedId}
+        className={chip(!selectedId)}
+        onClick={() => onSelect(undefined)}
+      >
+        Tất cả sản phẩm
+      </button>
+      {childrenList.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          aria-pressed={selectedId === c.id}
+          className={chip(selectedId === c.id)}
+          onClick={() => onSelect(c.id)}
+        >
+          🧒 {c.name} · {c.age} tuổi
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function FilterPanel({
   query,
   update,
+  child,
 }: {
   query: ProductQuery
   update: (changes: Record<string, string | undefined>) => void
+  child?: ChildProfile
 }) {
   const skills = useSkills()
   const categories = useCategories()
@@ -245,23 +331,13 @@ function FilterPanel({
   return (
     <div className="space-y-6 text-[14px]">
       <FilterGroup title="Độ tuổi">
-        {AGE_GROUPS.map((g) => {
-          const checked = query.ageFrom === g.from && query.ageTo === g.to
-          return (
-            <CheckRow
-              key={g.label}
-              type="radio"
-              name="age"
-              checked={checked}
-              label={g.label}
-              onChange={() =>
-                update(
-                  checked ? { ageFrom: undefined, ageTo: undefined } : { ageFrom: String(g.from), ageTo: String(g.to) },
-                )
-              }
-            />
-          )
-        })}
+        {child ? (
+          <p className="rounded-xl bg-primary-soft px-3 py-2 text-[13px] font-semibold text-primary-hover">
+            Theo tuổi bé {child.name}: {child.age} tuổi
+          </p>
+        ) : (
+          <AgeOptions query={query} update={update} />
+        )}
       </FilterGroup>
 
       <FilterGroup title="Nhóm kỹ năng">
@@ -331,6 +407,36 @@ function FilterPanel({
         onChange={() => update({ inStock: query.inStock ? undefined : 'true' })}
       />
     </div>
+  )
+}
+
+function AgeOptions({
+  query,
+  update,
+}: {
+  query: ProductQuery
+  update: (changes: Record<string, string | undefined>) => void
+}) {
+  return (
+    <>
+      {AGE_GROUPS.map((g) => {
+        const checked = query.ageFrom === g.from && query.ageTo === g.to
+        return (
+          <CheckRow
+            key={g.label}
+            type="radio"
+            name="age"
+            checked={checked}
+            label={g.label}
+            onChange={() =>
+              update(
+                checked ? { ageFrom: undefined, ageTo: undefined } : { ageFrom: String(g.from), ageTo: String(g.to) },
+              )
+            }
+          />
+        )
+      })}
+    </>
   )
 }
 

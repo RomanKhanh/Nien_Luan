@@ -19,6 +19,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("select p from Product p join fetch p.category where p.id = :id")
     Optional<Product> findWithCategoryById(@Param("id") Long id);
 
+    // sản phẩm cũ chưa có search_text (ProductSearchTextBackfillRunner)
+    List<Product> findBySearchTextIsNull();
+
     // danh sách có lọc (ProductSpecifications): kèm danh mục để product card không phát sinh N+1
     @Override
     @EntityGraph(attributePaths = "category")

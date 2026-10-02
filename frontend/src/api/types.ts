@@ -88,7 +88,8 @@ export interface ProductDetail extends Omit<ProductSummary, 'thumbnailUrl'> {
   createdAt: string
 }
 
-export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'name'
+// fit chỉ dùng cho danh sách "Hợp với bé": bổ sung nhiều nhất cho hồ sơ kỹ năng của bé
+export type ProductSort = 'relevance' | 'price_asc' | 'price_desc' | 'newest' | 'name' | 'fit'
 
 export interface ProductQuery {
   keyword?: string
@@ -286,6 +287,46 @@ export interface SkillPreview {
   gains: SkillGain[]
 }
 
+// hồ sơ dự kiến nếu bé nhận cùng lúc nhiều món; gains gồm mọi nhóm kỹ năng
+export interface SkillBundlePreview {
+  childProfileId: number
+  alreadyOwnedProductIds: number[]
+  gains: SkillGain[]
+}
+
+// một sản phẩm trong danh sách "Hợp với bé"
+export interface ProductMatch {
+  product: ProductSummary
+  fitScore: number
+  gains: SkillGain[]
+}
+
+// ===== Thông báo =====
+
+export type NotificationType =
+  | 'ORDER_STATUS'
+  | 'SKILL_PROFILE_UPDATED'
+  | 'COMPLAINT_UPDATED'
+  | 'NEW_ORDER'
+  | 'ORDER_CANCELLED_BY_CUSTOMER'
+  | 'NEW_COMPLAINT'
+  | 'NEW_REVIEW'
+
+export interface AppNotification {
+  id: number
+  type: NotificationType
+  title: string
+  message: string | null
+  link: string | null
+  read: boolean
+  createdAt: string
+}
+
+export interface UnreadCount {
+  total: number
+  byType: Partial<Record<NotificationType, number>>
+}
+
 // ===== Khiếu nại =====
 
 export type ComplaintType = 'RETURN' | 'EXCHANGE' | 'CANCEL' | 'QUALITY' | 'OTHER'
@@ -315,6 +356,26 @@ export interface Complaint {
   items: ComplaintItem[]
   createdAt: string
   handledAt: string | null
+  // yêu cầu trả hàng: lúc được duyệt, hạn chót gửi hàng về (7 ngày sau khi duyệt),
+  // và có bị hệ thống tự từ chối vì khách trễ hạn không
+  acceptedAt: string | null
+  returnDeadline: string | null
+  returnExpired: boolean
+  // video mở hàng, ảnh / video tình trạng sản phẩm khách đính kèm
+  attachments: ComplaintAttachment[]
+  // admin giữ lại bằng chứng (không tự xóa); ngày file sẽ tự xóa, null nếu chưa đóng / đang giữ / đã xóa hết
+  evidenceHold: boolean
+  evidencePurgeAt: string | null
+}
+
+export interface ComplaintAttachment {
+  id: number
+  kind: 'UNBOXING_VIDEO' | 'CONDITION'
+  contentType: string
+  originalName: string
+  sizeBytes: number
+  // lúc file bị xóa tự động (hết hạn lưu); null = vẫn xem được
+  purgedAt: string | null
 }
 
 // ===== Admin =====

@@ -40,7 +40,7 @@ public class AdminProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         ProductSearchCriteria criteria = new ProductSearchCriteria(keyword, categoryId, null, null, null,
-                null, null, false, true);
+                null, null, false, true, null);
         return ResponseEntity.ok(ApiResponse.success(
                 adminProductService.search(criteria, ProductSort.from(sort), page, size)));
     }

@@ -1,6 +1,7 @@
 import { ApiError, http, request, toApiError } from './client'
 import type {
   AdminStats,
+  AppNotification,
   Cart,
   Category,
   ChildProduct,
@@ -11,6 +12,7 @@ import type {
   ComplaintType,
   CreateOrderRequest,
   LoginResponse,
+  NotificationType,
   Order,
   OrderStatus,
   OrderSummary,
@@ -18,15 +20,18 @@ import type {
   PaymentInfo,
   ProductDetail,
   ProductImage,
+  ProductMatch,
   ProductQuery,
   ProductRequest,
   ProductSummary,
   Recommendation,
   Review,
   Skill,
+  SkillBundlePreview,
   SkillPreview,
   SkillProfile,
   SkillTimeline,
+  UnreadCount,
   UserProfile,
 } from './types'
 
@@ -116,18 +121,71 @@ export const childApi = {
   // dự kiến điểm kỹ năng của bé nếu thêm sản phẩm productId
   skillPreview: (id: number, productId: number) =>
     request<SkillPreview>(http.get(`/children/${id}/skill-profile/preview`, { params: { productId } })),
+  // dự kiến hồ sơ nếu bé nhận cùng lúc nhiều món (vd các món gán cho bé lúc thanh toán)
+  skillPreviewBundle: (id: number, productIds: number[]) =>
+    request<SkillBundlePreview>(
+      http.get(`/children/${id}/skill-profile/preview-bundle`, { params: { productIds: productIds.join(',') } }),
+    ),
+  // "Hợp với bé": cùng bộ lọc với danh sách sản phẩm, độ tuổi luôn theo tuổi bé (backend bỏ qua ageFrom/ageTo)
+  productMatches: (id: number, q: ProductQuery) =>
+    request<Page<ProductMatch>>(
+      http.get(`/children/${id}/product-matches`, {
+        params: { ...productParams(q), age: undefined, ageFrom: undefined, ageTo: undefined },
+      }),
+    ),
   recommendations: (id: number, limit = 4) =>
     request<Recommendation[]>(http.get(`/children/${id}/skill-profile/recommendations`, { params: { limit } })),
+}
+
+// thông báo của chính người đang đăng nhập (khách hàng hoặc admin)
+export const notificationApi = {
+  list: (page = 0, size = 10) => request<Page<AppNotification>>(http.get('/notifications', { params: { page, size } })),
+  unreadCount: () => request<UnreadCount>(http.get('/notifications/unread-count')),
+  markRead: (id: number) => request<void>(http.patch(`/notifications/${id}/read`)),
+  // types rỗng = tất cả
+  markAllRead: (types: NotificationType[] = []) =>
+    request<number>(
+      http.patch('/notifications/read-all', null, { params: { types: types.length ? types.join(',') : undefined } }),
+    ),
 }
 
 export const feedbackApi = {
   myReviews: () => request<Review[]>(http.get('/reviews/mine')),
   myComplaints: () => request<Complaint[]>(http.get('/complaints')),
   // items rỗng = khiếu nại chung cả đơn
+  // có file bằng chứng thì gửi multipart: part "request" (JSON) + "unboxingVideo" + "conditionFiles";
+  // onProgress nhận tỉ lệ 0..1 để hiện thanh tải lên (video có thể lớn)
   createComplaint: (
     orderId: number,
     body: { type: ComplaintType; content: string; items: { orderItemId: number; quantity: number }[] },
-  ) => request<Complaint>(http.post(`/orders/${orderId}/complaints`, body)),
+    evidence?: { unboxingVideo?: File; conditionFiles: File[] },
+    onProgress?: (ratio: number) => void,
+  ) => {
+    if (!evidence?.unboxingVideo && !evidence?.conditionFiles.length) {
+      return request<Complaint>(http.post(`/orders/${orderId}/complaints`, body))
+    }
+    const form = new FormData()
+    form.append('request', new Blob([JSON.stringify(body)], { type: 'application/json' }))
+    if (evidence.unboxingVideo) form.append('unboxingVideo', evidence.unboxingVideo)
+    evidence.conditionFiles.forEach((file) => form.append('conditionFiles', file))
+    return request<Complaint>(
+      http.post(`/orders/${orderId}/complaints`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => e.total && onProgress?.(e.loaded / e.total),
+      }),
+    )
+  },
+  // file bằng chứng là dữ liệu riêng tư: tải kèm token rồi hiển thị qua object URL (thẻ <video src> không gửi được token)
+  complaintAttachment: async (complaintId: number, attachmentId: number) => {
+    try {
+      const res = await http.get<Blob>(`/complaints/${complaintId}/attachments/${attachmentId}`, {
+        responseType: 'blob',
+      })
+      return res.data
+    } catch (e) {
+      throw toApiError(e)
+    }
+  },
 }
 
 export const adminApi = {
@@ -190,4 +248,7 @@ export const adminApi = {
     request<Page<Complaint>>(http.get('/admin/complaints', { params })),
   handleComplaint: (id: number, body: { status: ComplaintStatus; response: string }) =>
     request<Complaint>(http.patch(`/admin/complaints/${id}`, body)),
+  // giữ lại bằng chứng (không tự xóa sau 30 ngày) / bỏ giữ
+  setEvidenceHold: (id: number, hold: boolean) =>
+    request<Complaint>(http.patch(`/admin/complaints/${id}/evidence-hold`, { hold })),
 }

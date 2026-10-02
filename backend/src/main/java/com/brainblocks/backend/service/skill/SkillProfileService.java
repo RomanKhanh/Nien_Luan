@@ -1,5 +1,6 @@
 package com.brainblocks.backend.service.skill;
 
+import com.brainblocks.backend.dto.response.skill.SkillBundlePreviewResponse;
 import com.brainblocks.backend.dto.response.skill.SkillGainResponse;
 import com.brainblocks.backend.dto.response.skill.SkillPreviewResponse;
 import com.brainblocks.backend.dto.response.skill.SkillProfileResponse;
@@ -19,6 +20,7 @@ import com.brainblocks.backend.repository.ChildProductRepository.ChildSkillImpac
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.ChildProfileRepository;
 import com.brainblocks.backend.repository.ProductRepository;
+import com.brainblocks.backend.repository.ProductSkillImpactRepository;
 import com.brainblocks.backend.repository.SkillProfileRepository;
 import com.brainblocks.backend.repository.SkillRepository;
 import com.brainblocks.backend.service.child.ChildProfileAccessGuard;
@@ -31,10 +33,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -49,6 +54,7 @@ public class SkillProfileService {
     private final ChildProductRepository childProductRepository;
     private final ChildProfileRepository childProfileRepository;
     private final ProductRepository productRepository;
+    private final ProductSkillImpactRepository productSkillImpactRepository;
     private final ChildProfileAccessGuard accessGuard;
     private final SkillScoreCalculator scoreCalculator;
 
@@ -186,15 +192,64 @@ public class SkillProfileService {
                 projectGains(currentImpacts(child.getId()), product));
     }
 
+    // skillId -> điểm đang lưu của bé (chưa có hồ sơ thì rỗng); dùng nội bộ để so trước/sau khi hồ sơ thay đổi
+    @Transactional(readOnly = true)
+    public Map<Long, Double> storedScores(Long childId) {
+        return skillProfileRepository.findWithScoresByChildProfileId(childId)
+                .map(profile -> profile.getSkillScores().stream()
+                        .collect(Collectors.toMap(score -> score.getSkill().getId(), SkillScore::getScore)))
+                .orElse(Map.of());
+    }
+
     // skillId -> impactIndex của từng sản phẩm bé đang có; childId phải đã được kiểm tra quyền sở hữu
     @Transactional(readOnly = true)
     public Map<Long, List<Integer>> currentImpacts(Long childId) {
         return groupImpacts(List.of(childId)).getOrDefault(childId, Map.of());
     }
 
+    /**
+     * Dự kiến hồ sơ kỹ năng nếu bé nhận cùng lúc nhiều sản phẩm (vd cả giỏ hàng lúc thanh toán).
+     * Sản phẩm bé đã có hoặc đã ngừng bán thì bỏ qua; gains gồm mọi nhóm kỹ năng, kể cả nhóm không đổi.
+     */
+    @Transactional(readOnly = true)
+    public SkillBundlePreviewResponse previewProducts(Long childId, List<Long> productIds) {
+        ChildProfile child = accessGuard.getOwnedChildProfile(childId);
+        Set<Long> owned = new HashSet<>(childProductRepository.findProductIdsByChildProfileId(child.getId()));
+        List<Long> wanted = productIds.stream().distinct().toList();
+        List<Long> ownedRequested = wanted.stream().filter(owned::contains).toList();
+        List<Long> addable = productRepository.findAllById(wanted).stream()
+                .filter(Product::isActive)
+                .map(Product::getId)
+                .filter(id -> !owned.contains(id))
+                .toList();
+
+        Map<Long, List<Integer>> current = currentImpacts(child.getId());
+        Map<Long, List<Integer>> projected = new HashMap<>();
+        current.forEach((skillId, impacts) -> projected.put(skillId, new ArrayList<>(impacts)));
+        if (!addable.isEmpty()) {
+            for (ProductSkillImpact impact : productSkillImpactRepository.findAllWithSkillByProductIdIn(addable)) {
+                projected.computeIfAbsent(impact.getSkill().getId(), id -> new ArrayList<>())
+                        .add(impact.getImpactIndex());
+            }
+        }
+
+        List<SkillGainResponse> gains = skillRepository.findAll(Sort.by("id")).stream()
+                .map(skill -> toGain(skill,
+                        current.getOrDefault(skill.getId(), List.of()),
+                        projected.getOrDefault(skill.getId(), List.of())))
+                .toList();
+        return new SkillBundlePreviewResponse(child.getId(), ownedRequested, gains);
+    }
+
     // điểm hiện tại và sau khi thêm sản phẩm của các nhóm mà sản phẩm có tác động, theo id skill
     public List<SkillGainResponse> projectGains(Map<Long, List<Integer>> impactsBySkillId, Product product) {
-        return product.getProductSkillImpacts().stream()
+        return projectGains(impactsBySkillId, product.getProductSkillImpacts());
+    }
+
+    // như trên, nhận thẳng chỉ số tác động của sản phẩm (đã fetch kèm skill) để tính cho nhiều sản phẩm không N+1
+    public List<SkillGainResponse> projectGains(Map<Long, List<Integer>> impactsBySkillId,
+                                                Collection<ProductSkillImpact> productImpacts) {
+        return productImpacts.stream()
                 .filter(impact -> impact.getImpactIndex() > 0)
                 .sorted(Comparator.comparing(impact -> impact.getSkill().getId()))
                 .map(impact -> {
@@ -202,16 +257,20 @@ public class SkillProfileService {
                     List<Integer> current = impactsBySkillId.getOrDefault(skill.getId(), List.of());
                     List<Integer> projected = new ArrayList<>(current);
                     projected.add(impact.getImpactIndex());
-                    double currentScore = scoreCalculator.score(current);
-                    double projectedScore = scoreCalculator.score(projected);
-                    // trừ trên BigDecimal để không ra kiểu 0.30000000000000004
-                    double gain = BigDecimal.valueOf(projectedScore)
-                            .subtract(BigDecimal.valueOf(currentScore))
-                            .doubleValue();
-                    return new SkillGainResponse(skill.getId(), skill.getCode(), skill.getName(),
-                            currentScore, projectedScore, gain);
+                    return toGain(skill, current, projected);
                 })
                 .toList();
+    }
+
+    private SkillGainResponse toGain(Skill skill, List<Integer> current, List<Integer> projected) {
+        double currentScore = scoreCalculator.score(current);
+        double projectedScore = scoreCalculator.score(projected);
+        // trừ trên BigDecimal để không ra kiểu 0.30000000000000004
+        double gain = BigDecimal.valueOf(projectedScore)
+                .subtract(BigDecimal.valueOf(currentScore))
+                .doubleValue();
+        return new SkillGainResponse(skill.getId(), skill.getCode(), skill.getName(),
+                currentScore, projectedScore, gain);
     }
 
     private SkillProfile newProfile(ChildProfile child) {

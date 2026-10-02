@@ -1,19 +1,42 @@
 import { useEffect } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { meApi } from '@/api/endpoints'
+import type { NotificationType } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
+import { useMarkAllRead, useUnreadCount } from '@/features/notifications/useNotifications'
 import { Logo } from '@/components/layout/Logo'
 import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { initials } from '@/lib/format'
 
-const NAV = [
+// badge: loại thông báo đếm vào số mới của mục đó; mở mục thì các thông báo này được đánh dấu đã đọc.
+// dataKey: query của trang đó, tải lại khi có mục mới trong lúc admin đang mở trang
+const NAV: {
+  to: string
+  label: string
+  icon: string
+  end?: boolean
+  badge?: NotificationType[]
+  dataKey?: string[]
+}[] = [
   { to: '/admin', label: 'Tổng quan', icon: '📊', end: true },
   { to: '/admin/products', label: 'Sản phẩm & kho', icon: '🧸' },
   { to: '/admin/catalog', label: 'Danh mục & kỹ năng', icon: '🗂️' },
-  { to: '/admin/orders', label: 'Đơn hàng', icon: '📦' },
-  { to: '/admin/complaints', label: 'Khiếu nại & yêu cầu', icon: '💬' },
-  { to: '/admin/reviews', label: 'Đánh giá', icon: '⭐' },
+  {
+    to: '/admin/orders',
+    label: 'Đơn hàng',
+    icon: '📦',
+    badge: ['NEW_ORDER', 'ORDER_CANCELLED_BY_CUSTOMER'],
+    dataKey: ['admin', 'orders'],
+  },
+  {
+    to: '/admin/complaints',
+    label: 'Khiếu nại & yêu cầu',
+    icon: '💬',
+    badge: ['NEW_COMPLAINT'],
+    dataKey: ['admin', 'complaints'],
+  },
+  { to: '/admin/reviews', label: 'Đánh giá', icon: '⭐', badge: ['NEW_REVIEW'], dataKey: ['admin', 'reviews'] },
   { to: '/admin/users', label: 'Người dùng', icon: '👥' },
   { to: '/admin/chatbot', label: 'Chatbot AI', icon: '🤖' },
   { to: '/admin/knowledge', label: 'Cơ sở tri thức', icon: '📚' },
@@ -24,10 +47,25 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const me = useQuery({ queryKey: ['me'], queryFn: meApi.get })
+  const queryClient = useQueryClient()
+  const unread = useUnreadCount()
+  const markAllRead = useMarkAllRead()
+  const { mutate: markSectionRead } = markAllRead
+  const countFor = (types?: NotificationType[]) =>
+    (types ?? []).reduce((sum, t) => sum + (unread.data?.byType[t] ?? 0), 0)
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [location.pathname])
+
+  // vào mục Đơn hàng / Khiếu nại / Đánh giá: coi như đã xem các mục mới của mục đó
+  const current = NAV.find((item) => item.badge && location.pathname.startsWith(item.to))
+  const currentNew = countFor(current?.badge)
+  useEffect(() => {
+    if (!current?.badge || currentNew === 0) return
+    markSectionRead(current.badge)
+    queryClient.invalidateQueries({ queryKey: current.dataKey })
+  }, [current, currentNew, markSectionRead, queryClient])
 
   return (
     <div className="min-h-screen bg-[#f3f8fb] lg:grid lg:grid-cols-[240px_1fr]">
@@ -54,6 +92,14 @@ export default function AdminLayout() {
             >
               <span aria-hidden>{item.icon}</span>
               {item.label}
+              {countFor(item.badge) > 0 && (
+                <span
+                  className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-coral px-1.5 text-[11px] font-bold text-white"
+                  aria-label={`${countFor(item.badge)} mới`}
+                >
+                  {countFor(item.badge)}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

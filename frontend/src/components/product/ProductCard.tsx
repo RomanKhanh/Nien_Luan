@@ -1,13 +1,23 @@
 import { Link } from 'react-router-dom'
-import type { ProductSummary } from '@/api/types'
+import type { ProductSummary, SkillGain } from '@/api/types'
 import { SkillBadge } from '@/components/ui/Badges'
 import { Button } from '@/components/ui/Button'
 import { ageRange, formatDecimal, formatPrice } from '@/lib/format'
 import { dominantSkill, topImpacts } from '@/lib/skills'
 import { useAddToCart } from '@/features/cart/useCart'
+import { SkillGainChips } from '@/features/skills/SkillGainChips'
 import { ProductArt } from './ProductArt'
 
-export function ProductCard({ product, showAddButton = true }: { product: ProductSummary; showAddButton?: boolean }) {
+// gains: mức tăng hồ sơ kỹ năng của bé nếu thêm món này (danh sách "Hợp với bé"); không truyền thì không hiện
+export function ProductCard({
+  product,
+  showAddButton = true,
+  gains,
+}: {
+  product: ProductSummary
+  showAddButton?: boolean
+  gains?: SkillGain[]
+}) {
   const addToCart = useAddToCart()
   const outOfStock = product.stockQuantity <= 0
   return (
@@ -40,6 +50,18 @@ export function ProductCard({ product, showAddButton = true }: { product: Produc
             <SkillBadge key={i.skillId} code={i.skillCode} name={i.skillName} value={i.impactIndex} />
           ))}
         </div>
+        {gains && (
+          <div className="mt-2.5 border-t border-dashed border-line pt-2">
+            <p className="mb-1 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-ink-faint">
+              Bổ sung cho bé
+            </p>
+            {gains.some((g) => g.gain > 0) ? (
+              <SkillGainChips gains={gains} />
+            ) : (
+              <p className="text-[12.5px] text-ink-muted">Bé đã có nhiều đồ chơi các nhóm này</p>
+            )}
+          </div>
+        )}
         <div className="mt-auto flex items-end justify-between pt-3">
           <span className="font-display text-[20px] font-extrabold leading-none text-coral">
             {formatPrice(product.price)}

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -64,4 +65,23 @@ public class Complaint {
     private LocalDateTime createdAt;
 
     private LocalDateTime handledAt;
+
+    // lúc admin tiếp nhận (PROCESSING); yêu cầu trả hàng tính hạn gửi hàng về từ mốc này (ReturnPolicy)
+    private LocalDateTime acceptedAt;
+
+    // video mở hàng, ảnh / video tình trạng sản phẩm; batch để trang danh sách admin không N+1
+    @Builder.Default
+    @BatchSize(size = 50)
+    @OneToMany(mappedBy = "complaint", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ComplaintAttachment> attachments = new ArrayList<>();
+
+    // true = admin giữ lại bằng chứng (vd đang tranh chấp, làm việc với đơn vị vận chuyển): không tự xóa file
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean evidenceHold = false;
+
+    // true = yêu cầu đổi / trả hàng bị hệ thống tự từ chối vì khách gửi hàng về trễ hạn
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean returnExpired = false;
 }

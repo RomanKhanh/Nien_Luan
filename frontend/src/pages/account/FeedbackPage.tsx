@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { feedbackApi } from '@/api/endpoints'
 import { ComplaintStatusBadge, Stars } from '@/components/ui/Badges'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
+import { EvidenceList } from '@/features/complaints/EvidenceList'
+import { ReturnDeadline } from '@/features/complaints/ReturnDeadline'
 import { complaintItemsText, formatDateTime } from '@/lib/format'
 import { COMPLAINT_TYPE } from '@/lib/labels'
 import { AccountShell } from './AccountShell'
@@ -46,6 +48,12 @@ export default function FeedbackPage() {
                   {c.items.length > 0 && ` · ${complaintItemsText(c.items)}`}
                 </p>
                 <p className="mt-2 whitespace-pre-line text-[14px] text-ink-2">{c.content}</p>
+                <ReturnDeadline complaint={c} audience="customer" />
+                {c.attachments.length > 0 && (
+                  <div className="mt-3">
+                    <EvidenceList complaint={c} audience="customer" />
+                  </div>
+                )}
                 {c.response && (
                   <div className="mt-3 rounded-md bg-primary-soft px-4 py-3 text-[14px]">
                     <p className="text-[12.5px] font-semibold text-primary-hover">

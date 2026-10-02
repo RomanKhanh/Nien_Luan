@@ -7,6 +7,7 @@ import com.brainblocks.backend.dto.response.review.ReviewResponse;
 import com.brainblocks.backend.entity.Customer;
 import com.brainblocks.backend.entity.Product;
 import com.brainblocks.backend.entity.Review;
+import com.brainblocks.backend.enums.NotificationType;
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CustomerRepository;
@@ -14,6 +15,7 @@ import com.brainblocks.backend.repository.OrderItemRepository;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.repository.ReviewRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
+import com.brainblocks.backend.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +37,7 @@ public class ReviewService {
     private final CustomerRepository customerRepository;
     private final OrderItemRepository orderItemRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public PageResponse<ReviewResponse> getProductReviews(Long productId, int page, int size) {
@@ -63,6 +66,10 @@ public class ReviewService {
                 .rating(request.rating())
                 .comment(blankToNull(request.comment()))
                 .build());
+        notificationService.notifyAdmins(NotificationType.NEW_REVIEW,
+                "Đánh giá mới " + review.getRating() + "★ cho " + product.getName(),
+                customer.getFullName() + (review.getComment() == null ? " chưa viết nhận xét." : ": " + review.getComment()),
+                "/admin/reviews");
         return toResponse(review, product);
     }
 

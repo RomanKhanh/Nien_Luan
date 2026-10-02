@@ -1,5 +1,6 @@
 package com.brainblocks.backend.controller.admin;
 
+import com.brainblocks.backend.dto.request.complaint.EvidenceHoldRequest;
 import com.brainblocks.backend.dto.request.complaint.UpdateComplaintStatusRequest;
 import com.brainblocks.backend.dto.response.ApiResponse;
 import com.brainblocks.backend.dto.response.PageResponse;
@@ -34,5 +35,13 @@ public class AdminComplaintController {
     public ResponseEntity<ApiResponse<ComplaintResponse>> updateStatus(
             @PathVariable Long id, @Valid @RequestBody UpdateComplaintStatusRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Complaint updated", adminComplaintService.updateStatus(id, request)));
+    }
+
+    // giữ lại / bỏ giữ bằng chứng (video, ảnh) để không bị xóa tự động
+    @PatchMapping("/{id}/evidence-hold")
+    public ResponseEntity<ApiResponse<ComplaintResponse>> setEvidenceHold(
+            @PathVariable Long id, @Valid @RequestBody EvidenceHoldRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Evidence hold updated",
+                adminComplaintService.setEvidenceHold(id, request.hold())));
     }
 }
