@@ -48,6 +48,16 @@ export const SKILL_HINTS: Record<string, string> = {
   STEM: 'Thí nghiệm, mạch điện, robot',
 }
 
+// Mức của điểm hồ sơ kỹ năng (0-10, lợi ích giảm dần). Hiển thị bằng chữ chứ không "x/10" để phụ huynh
+// không so ngang với chỉ số tác động in trên từng sản phẩm: đây là độ phủ của cả bộ đồ chơi, không phải
+// đánh giá năng lực của bé. Với alpha 0.5: 1 món 6 điểm ≈ 3, 1 món 10 điểm = 5, 3 món 8 điểm ≈ 7,8.
+export function skillLevel(score: number): string {
+  if (score <= 0) return 'Chưa có'
+  if (score < 3.5) return 'Mới bắt đầu'
+  if (score < 7) return 'Đang phát triển'
+  return 'Phong phú'
+}
+
 // tối đa n nhóm có chỉ số cao nhất (quy ước product card: tối đa 2 badge)
 export function topImpacts(impacts: SkillImpact[], n = 2): SkillImpact[] {
   return [...impacts]

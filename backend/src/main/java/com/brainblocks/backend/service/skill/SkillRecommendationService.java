@@ -1,6 +1,7 @@
 package com.brainblocks.backend.service.skill;
 
 import com.brainblocks.backend.dto.response.product.ProductRecommendationResponse;
+import com.brainblocks.backend.dto.response.skill.SkillGainResponse;
 import com.brainblocks.backend.entity.ChildProfile;
 import com.brainblocks.backend.entity.Product;
 import com.brainblocks.backend.entity.ProductSkillImpact;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,9 +40,13 @@ import java.util.stream.Stream;
 public class SkillRecommendationService {
     private static final int WEAKEST_SKILL_WEIGHT = 2;
     private static final int MAX_LIMIT = 20;
+    private static final int MAX_GAINS_IN_REASON = 2;
+    private static final double MIN_NOTABLE_GAIN = 0.5;
+    private static final Locale VI = Locale.forLanguageTag("vi-VN");
 
     private final ProductRepository productRepository;
     private final SkillProfileRepository skillProfileRepository;
+    private final SkillProfileService skillProfileService;
     private final ChildProfileAccessGuard accessGuard;
 
     @Transactional(readOnly = true)
@@ -80,9 +86,13 @@ public class SkillRecommendationService {
                 .stream()
                 .collect(Collectors.toMap(ProductThumbnail::getProductId, ProductThumbnail::getUrl, (a, b) -> a));
 
+        // điểm kỹ năng hiện tại của bé lấy 1 lần, dùng để dự kiến mức tăng cho từng gợi ý
+        Map<Long, List<Integer>> currentImpacts = skillProfileService.currentImpacts(child.getId());
+
         return ranked.stream()
                 .map(scored -> {
                     Product product = scored.product();
+                    List<SkillGainResponse> gains = skillProfileService.projectGains(currentImpacts, product);
                     return new ProductRecommendationResponse(
                             product.getId(),
                             product.getName(),
@@ -91,9 +101,37 @@ public class SkillRecommendationService {
                             product.getMaxAge(),
                             thumbnailByProductId.get(product.getId()),
                             scored.score(),
-                            scored.reasons());
+                            withGainReason(scored.reasons(), gains),
+                            gains);
                 })
                 .toList();
+    }
+
+    // thêm lý do "điểm của bé tăng bao nhiêu" trước dòng độ tuổi (dòng cuối), chatbot đọc lại được
+    private List<String> withGainReason(List<String> reasons, List<SkillGainResponse> gains) {
+        List<SkillGainResponse> sorted = gains.stream()
+                .filter(gain -> gain.gain() > 0)
+                .sorted(Comparator.comparingDouble(SkillGainResponse::gain).reversed())
+                .toList();
+        // mức tăng nhỏ chỉ làm rối; món nào cũng chỉ tăng ít thì vẫn nêu nhóm tăng nhiều nhất (giống frontend)
+        List<SkillGainResponse> notable = sorted.stream()
+                .filter(gain -> gain.gain() >= MIN_NOTABLE_GAIN)
+                .limit(MAX_GAINS_IN_REASON)
+                .toList();
+        String gainText = (notable.isEmpty() ? sorted.stream().limit(1).toList() : notable).stream()
+                .map(gain -> gain.skillName() + " +" + formatScore(gain.gain()))
+                .collect(Collectors.joining(", "));
+        if (gainText.isEmpty()) {
+            return reasons;
+        }
+        List<String> withGain = new ArrayList<>(reasons);
+        withGain.add(Math.max(0, withGain.size() - 1), "Dự kiến điểm kỹ năng của bé tăng: " + gainText);
+        return withGain;
+    }
+
+    // 2.5 -> "2,5" như cách hiển thị số thập phân ở frontend
+    private String formatScore(double value) {
+        return String.format(VI, "%.1f", value);
     }
 
     private Scored score(Product product, Skill weakestSkill, Set<Long> interestedSkillIds) {

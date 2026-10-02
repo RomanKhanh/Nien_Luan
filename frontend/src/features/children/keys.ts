@@ -7,15 +7,17 @@ export const childKeys = {
   skillProfile: (id: number) => ['skill-profile', id] as const,
   timeline: (id: number) => ['skill-timeline', id] as const,
   recommendations: (id: number) => ['recommendations', id] as const,
+  skillPreview: (id: number, productId: number) => ['skill-preview', id, productId] as const,
 }
 
-// đồ chơi của bé thay đổi -> hồ sơ kỹ năng, lộ trình và gợi ý đều phải tải lại
+// đồ chơi của bé thay đổi -> hồ sơ kỹ năng, lộ trình, gợi ý và dự kiến tăng điểm đều phải tải lại
 export function invalidateChildData(queryClient: QueryClient, id: number) {
   for (const key of [
     childKeys.detail(id),
     childKeys.skillProfile(id),
     childKeys.timeline(id),
     childKeys.recommendations(id),
+    ['skill-preview', id],
   ]) {
     queryClient.invalidateQueries({ queryKey: key })
   }

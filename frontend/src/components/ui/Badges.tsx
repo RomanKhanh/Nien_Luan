@@ -62,7 +62,20 @@ export function ComplaintStatusBadge({ status }: { status: ComplaintStatus }) {
 }
 
 // thanh chỉ số kỹ năng 0-10 (mockup "Thanh chỉ số kỹ năng")
-export function SkillBar({ code, name, value, max = 10 }: { code: string; name: string; value: number; max?: number }) {
+// label: chữ hiển thị thay cho "value/max" (vd mức hồ sơ kỹ năng "Đang phát triển")
+export function SkillBar({
+  code,
+  name,
+  value,
+  max = 10,
+  label,
+}: {
+  code: string
+  name: string
+  value: number
+  max?: number
+  label?: string
+}) {
   const theme = skillTheme(code, name)
   const pct = Math.max(0, Math.min(100, (value / max) * 100))
   return (
@@ -70,7 +83,7 @@ export function SkillBar({ code, name, value, max = 10 }: { code: string; name: 
       <div className="mb-1.5 flex items-baseline justify-between text-[13.5px]">
         <span className="font-semibold text-ink-2">{name}</span>
         <span className="font-bold" style={{ color: theme.color }}>
-          {Number.isInteger(value) ? value : formatDecimal(value)}/{max}
+          {label ?? `${Number.isInteger(value) ? value : formatDecimal(value)}/${max}`}
         </span>
       </div>
       <div className="h-3 overflow-hidden rounded-full p-[2px]" style={{ background: theme.soft }}>

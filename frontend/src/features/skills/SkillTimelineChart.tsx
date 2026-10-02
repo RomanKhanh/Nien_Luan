@@ -2,17 +2,17 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, X
 import type { SkillTimeline } from '@/api/types'
 import { formatDate, formatDecimal } from '@/lib/format'
 import { skillTheme } from '@/lib/skills'
-import { averageImpact } from './skillMath'
 
 /**
- * Biểu đồ lộ trình: mỗi mốc là một lần bé có thêm đồ chơi, giá trị là mức tác động trung bình (0-10)
- * cộng dồn tới mốc đó. Màu theo nhóm kỹ năng cố định (đã kiểm tra bằng validate_palette của dataviz).
+ * Biểu đồ lộ trình: mỗi mốc là một lần bé có thêm đồ chơi, giá trị là điểm kỹ năng (0-10) backend tính
+ * tới mốc đó (lợi ích giảm dần, không tụt khi thêm món).
+ * Màu theo nhóm kỹ năng cố định (đã kiểm tra bằng validate_palette của dataviz).
  */
 export function SkillTimelineChart({ timeline }: { timeline: SkillTimeline }) {
   const skills = timeline.points[0]?.skillScores ?? []
   const data = timeline.points.map((p, i) => {
     const row: Record<string, number | string> = { index: i + 1, product: p.productName, date: p.addedAt }
-    p.skillScores.forEach((s) => (row[s.skillCode] = averageImpact(s, p.totalProducts)))
+    p.skillScores.forEach((s) => (row[s.skillCode] = s.score))
     return row
   })
 

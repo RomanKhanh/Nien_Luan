@@ -38,31 +38,21 @@ public interface ChildProductRepository extends JpaRepository<ChildProduct, Long
 
     long countByChildProfileId(Long childProfileId);
 
-    // gộp ChildProduct -> Product -> ProductSkillImpact trong 1 câu, cộng impactIndex theo từng skill
+    // gộp ChildProduct -> Product -> ProductSkillImpact trong 1 câu, mỗi dòng là impactIndex của một sản phẩm
+    // vào một skill. Không SUM trong SQL vì điểm kỹ năng tính theo lợi ích giảm dần (SkillScoreCalculator)
     @Query("""
-            select psi.skill.id as skillId, sum(psi.impactIndex) as totalImpact
+            select cp.childProfile.id as childProfileId, psi.skill.id as skillId, psi.impactIndex as impactIndex
             from ChildProduct cp
             join cp.product p
             join p.productSkillImpacts psi
-            where cp.childProfile.id = :childProfileId
-            group by psi.skill.id
+            where cp.childProfile.id in :childProfileIds
             """)
-    List<SkillImpactSum> sumImpactBySkill(@Param("childProfileId") Long childProfileId);
+    List<ChildSkillImpact> findSkillImpactsForChildren(@Param("childProfileIds") List<Long> childProfileIds);
 
     // ===== dùng khi tính lại theo lô cho nhiều hồ sơ trẻ (vd admin sửa impactIndex của một sản phẩm) =====
 
     @Query("select distinct cp.childProfile.id from ChildProduct cp where cp.product.id = :productId")
     List<Long> findChildProfileIdsByProductId(@Param("productId") Long productId);
-
-    @Query("""
-            select cp.childProfile.id as childProfileId, psi.skill.id as skillId, sum(psi.impactIndex) as totalImpact
-            from ChildProduct cp
-            join cp.product p
-            join p.productSkillImpacts psi
-            where cp.childProfile.id in :childProfileIds
-            group by cp.childProfile.id, psi.skill.id
-            """)
-    List<ChildSkillImpactSum> sumImpactBySkillForChildren(@Param("childProfileIds") List<Long> childProfileIds);
 
     @Query("""
             select cp.childProfile.id as childProfileId, count(cp) as total
@@ -72,18 +62,12 @@ public interface ChildProductRepository extends JpaRepository<ChildProduct, Long
             """)
     List<ChildProductCount> countByChildProfileIds(@Param("childProfileIds") List<Long> childProfileIds);
 
-    interface SkillImpactSum {
-        Long getSkillId();
-
-        Long getTotalImpact();
-    }
-
-    interface ChildSkillImpactSum {
+    interface ChildSkillImpact {
         Long getChildProfileId();
 
         Long getSkillId();
 
-        Long getTotalImpact();
+        Integer getImpactIndex();
     }
 
     interface ChildProductCount {

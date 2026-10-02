@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { catalogApi } from '@/api/endpoints'
+import { catalogApi, childApi } from '@/api/endpoints'
 import type { ProductDetail } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { Mascot, SkillIcon, TornEdge } from '@/components/decor/Decor'
@@ -10,12 +10,14 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { SkillBar, Stars } from '@/components/ui/Badges'
 import { Button } from '@/components/ui/Button'
 import { Pagination } from '@/components/ui/Pagination'
-import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
+import { EmptyState, ErrorState, PageLoader, Skeleton } from '@/components/ui/States'
 import { QuantityStepper } from '@/components/ui/QuantityStepper'
 import { useAddToCart } from '@/features/cart/useCart'
 import { useChatWidget } from '@/features/chat/chatContext'
 import { AssignToChildModal } from '@/features/children/AssignToChildModal'
+import { childKeys } from '@/features/children/keys'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
+import { SkillGainChips } from '@/features/skills/SkillGainChips'
 import { ageRange, formatDecimal, formatPrice, formatRelative, initials } from '@/lib/format'
 import { dominantSkill, skillTheme } from '@/lib/skills'
 import { youtubeEmbedUrl, youtubeId } from '@/lib/youtube'
@@ -176,6 +178,7 @@ function ProductView({ product }: { product: ProductDetail }) {
                     })}
                   </div>
                 )}
+                {isCustomer && product.skillImpacts.length > 0 && <ChildGainPanel productId={product.id} />}
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -296,7 +299,55 @@ function ProductView({ product }: { product: ProductDetail }) {
   )
 }
 
-const AVATAR_COLORS = ['#1fa6dd', '#e8467c', '#7cc243', '#e08700', '#5b3df5']
+// "Nếu thêm cho bé": món này bổ sung bao nhiêu cho hồ sơ kỹ năng của bé (nhóm đã cao thì tăng ít)
+function ChildGainPanel({ productId }: { productId: number }) {
+  const children = useQuery({ queryKey: childKeys.list, queryFn: childApi.list })
+  const [pickedId, setPickedId] = useState<number | null>(null)
+  const childId = pickedId ?? children.data?.[0]?.id ?? null
+  const preview = useQuery({
+    queryKey: childKeys.skillPreview(childId ?? 0, productId),
+    queryFn: () => childApi.skillPreview(childId!, productId),
+    enabled: childId !== null,
+  })
+  if (!children.data || children.data.length === 0 || childId === null) return null
+
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[13.5px]">
+        <span className="font-bold text-ink">Nếu thêm cho bé</span>
+        {children.data.length > 1 ? (
+          <select
+            aria-label="Chọn hồ sơ bé"
+            value={childId}
+            onChange={(e) => setPickedId(Number(e.target.value))}
+            className="min-w-0 cursor-pointer truncate rounded-full border-2 border-line bg-sky-soft/60 px-3 py-0.5 font-bold text-ink outline-none focus:border-sky"
+          >
+            {children.data.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="font-bold text-primary">{children.data[0].name}</span>
+        )}
+      </div>
+      {preview.isPending ? (
+        <Skeleton className="h-7" />
+      ) : preview.isError ? (
+        <p className="text-[13px] text-ink-muted">Chưa tính được mức bổ sung cho bé.</p>
+      ) : preview.data.alreadyOwned ? (
+        <p className="text-[13px] text-ink-muted">Bé đã có món này trong hồ sơ.</p>
+      ) : preview.data.gains.some((g) => g.gain > 0) ? (
+        <SkillGainChips gains={preview.data.gains} />
+      ) : (
+        <p className="text-[13px] text-ink-muted">Các nhóm kỹ năng của món này bé đã có nhiều, món này bổ sung thêm không đáng kể.</p>
+      )}
+    </div>
+  )
+}
+
+const AVATAR_COLORS =['#1fa6dd', '#e8467c', '#7cc243', '#e08700', '#5b3df5']
 
 function ReviewSection({ product }: { product: ProductDetail }) {
   const { isCustomer } = useAuth()

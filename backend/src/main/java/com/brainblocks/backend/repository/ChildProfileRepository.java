@@ -20,6 +20,10 @@ public interface ChildProfileRepository extends JpaRepository<ChildProfile, Long
             """)
     List<ChildProfile> findAllByCustomerId(@Param("customerId") Long customerId);
 
+    // dùng khi tính lại hồ sơ kỹ năng của mọi bé lúc khởi động
+    @Query("select c.id from ChildProfile c order by c.id")
+    List<Long> findAllIds();
+
     // Gỡ liên kết "dành cho" trước khi xóa hồ sơ trẻ: dòng đơn hàng là dữ liệu lịch sử nên giữ lại,
     // chỉ bỏ tham chiếu tới bé để không vướng khóa ngoại
     @Modifying(flushAutomatically = true)
