@@ -91,16 +91,89 @@ class CatalogAndFeedbackTest {
         long childId = call("POST", "/api/children", token, Map.of("name", "Kid", "birthDate", "2019-01-01"))
                 .data().path("id").asLong();
         call("POST", "/api/children/" + childId + "/products", token, Map.of("productId", productId));
-        assertThat(logicScore(token, childId, logic)).isEqualTo(8);
+        // alpha mặc định 0.5: một món 8 điểm -> 0.5 x 8
+        assertThat(logicScore(token, childId, logic)).isEqualTo(4.0);
 
         Res updated = call("PUT", "/api/admin/products/" + productId, adminToken, productBody(categoryId, "recalc",
                 3, 12, Map.of(logic, 3)));
         assertThat(updated.status()).isEqualTo(200);
-        assertThat(logicScore(token, childId, logic)).isEqualTo(3);
+        assertThat(logicScore(token, childId, logic)).isEqualTo(1.5);
 
         assertThat(call("DELETE", "/api/admin/products/" + productId, adminToken, null).status()).isEqualTo(200);
         assertThat(call("GET", "/api/products/" + productId, null, null).status()).isEqualTo(404);
         assertThat(call("GET", "/api/admin/products/" + productId, adminToken, null).status()).isEqualTo(200);
+    }
+
+    // điểm kỹ năng theo lợi ích giảm dần: thêm món điểm thấp không làm tụt điểm,
+    // mốc cuối của lộ trình khớp điểm hồ sơ, gỡ món thì điểm về như trước
+    @Test
+    void skillScoreHasDiminishingReturnsAndTimelineMatchesProfile() throws Exception {
+        long categoryId = createCategory();
+        long logic = skillId("LOGIC");
+        long strong = createProduct(categoryId, "dr-strong", 3, 12, Map.of(logic, 10));
+        long weak = createProduct(categoryId, "dr-weak", 3, 12, Map.of(logic, 2));
+        String token = newCustomer();
+        long childId = call("POST", "/api/children", token, Map.of("name", "Kid", "birthDate", "2019-01-01"))
+                .data().path("id").asLong();
+
+        call("POST", "/api/children/" + childId + "/products", token, Map.of("productId", strong));
+        assertThat(logicScore(token, childId, logic)).isEqualTo(5.0);
+
+        long weakChildProductId = call("POST", "/api/children/" + childId + "/products", token,
+                Map.of("productId", weak)).data().path("id").asLong();
+        // 5.0 + 2/10 x (10 - 5.0) x 0.5 = 5.5
+        assertThat(logicScore(token, childId, logic)).isEqualTo(5.5);
+
+        JsonNode points = call("GET", "/api/children/" + childId + "/skill-profile/timeline", token, null)
+                .data().path("points");
+        assertThat(points.size()).isEqualTo(2);
+        assertThat(logicIn(points.path(0).path("skillScores"), logic)).isEqualTo(5.0);
+        assertThat(logicIn(points.path(1).path("skillScores"), logic)).isEqualTo(5.5);
+
+        assertThat(call("DELETE", "/api/children/" + childId + "/products/" + weakChildProductId, token, null)
+                .status()).isLessThan(300);
+        assertThat(logicScore(token, childId, logic)).isEqualTo(5.0);
+    }
+
+    // xem trước: thêm món này thì điểm từng nhóm của bé tăng bao nhiêu; món đã có thì không tính; hồ sơ người khác bị chặn
+    @Test
+    void previewShowsProjectedGainForChild() throws Exception {
+        long categoryId = createCategory();
+        long logic = skillId("LOGIC");
+        long owned = createProduct(categoryId, "pv-owned", 3, 12, Map.of(logic, 10));
+        long candidate = createProduct(categoryId, "pv-candidate", 3, 12, Map.of(logic, 2));
+        String token = newCustomer();
+        long childId = call("POST", "/api/children", token, Map.of("name", "Kid", "birthDate", "2019-01-01"))
+                .data().path("id").asLong();
+        call("POST", "/api/children/" + childId + "/products", token, Map.of("productId", owned));
+
+        Res preview = call("GET", "/api/children/" + childId + "/skill-profile/preview?productId=" + candidate,
+                token, null);
+        assertThat(preview.status()).isEqualTo(200);
+        assertThat(preview.data().path("alreadyOwned").asBoolean()).isFalse();
+        JsonNode gain = preview.data().path("gains").path(0);
+        assertThat(preview.data().path("gains").size()).isEqualTo(1);
+        assertThat(gain.path("skillId").asLong()).isEqualTo(logic);
+        assertThat(gain.path("currentScore").asDouble()).isEqualTo(5.0);
+        assertThat(gain.path("projectedScore").asDouble()).isEqualTo(5.5);
+        assertThat(gain.path("gain").asDouble()).isEqualTo(0.5);
+
+        Res ownedPreview = call("GET", "/api/children/" + childId + "/skill-profile/preview?productId=" + owned,
+                token, null);
+        assertThat(ownedPreview.data().path("alreadyOwned").asBoolean()).isTrue();
+        assertThat(ownedPreview.data().path("gains").size()).isZero();
+
+        assertThat(call("GET", "/api/children/" + childId + "/skill-profile/preview?productId=" + candidate,
+                newCustomer(), null).status()).isGreaterThanOrEqualTo(400);
+
+        // gợi ý tiếp theo cũng kèm mức tăng dự kiến
+        for (JsonNode rec : call("GET", "/api/children/" + childId + "/skill-profile/recommendations?limit=20",
+                token, null).data()) {
+            assertThat(rec.path("skillGains").isArray()).isTrue();
+            if (rec.path("productId").asLong() == candidate) {
+                assertThat(rec.path("skillGains").path(0).path("gain").asDouble()).isEqualTo(0.5);
+            }
+        }
     }
 
     // chỉ đánh giá được sau khi đơn đã giao, mỗi sản phẩm 1 lần; đánh giá bị ẩn không tính vào điểm
@@ -260,10 +333,15 @@ class CatalogAndFeedbackTest {
 
     // =================================== helpers =======================================
 
-    private long logicScore(String token, long childId, long logicId) throws Exception {
-        for (JsonNode s : call("GET", "/api/children/" + childId + "/skill-profile", token, null).data().path("skillScores")) {
+    private double logicScore(String token, long childId, long logicId) throws Exception {
+        return logicIn(call("GET", "/api/children/" + childId + "/skill-profile", token, null).data()
+                .path("skillScores"), logicId);
+    }
+
+    private double logicIn(JsonNode skillScores, long logicId) {
+        for (JsonNode s : skillScores) {
             if (s.path("skillId").asLong() == logicId) {
-                return Math.round(s.path("score").asDouble());
+                return s.path("score").asDouble();
             }
         }
         return -1;
