@@ -338,10 +338,11 @@ function ChildGainPanel({ productId }: { productId: number }) {
         <p className="text-[13px] text-ink-muted">Chưa tính được mức bổ sung cho bé.</p>
       ) : preview.data.alreadyOwned ? (
         <p className="text-[13px] text-ink-muted">Bé đã có món này trong hồ sơ.</p>
-      ) : preview.data.gains.some((g) => g.gain > 0) ? (
-        <SkillGainChips gains={preview.data.gains} />
+      ) : preview.data.gains.length > 0 ? (
+        // hiện đủ mọi nhóm sản phẩm có tác động, khớp với bảng chỉ số phía trên
+        <SkillGainChips gains={preview.data.gains} compact={false} />
       ) : (
-        <p className="text-[13px] text-ink-muted">Các nhóm kỹ năng của món này bé đã có nhiều, món này bổ sung thêm không đáng kể.</p>
+        <p className="text-[13px] text-ink-muted">Món này chưa có chỉ số kỹ năng để tính mức bổ sung.</p>
       )}
     </div>
   )
