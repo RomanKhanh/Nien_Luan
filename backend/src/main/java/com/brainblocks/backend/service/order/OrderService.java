@@ -5,6 +5,7 @@ import com.brainblocks.backend.dto.request.order.OrderItemChildRequest;
 import com.brainblocks.backend.dto.response.order.OrderItemResponse;
 import com.brainblocks.backend.dto.response.order.OrderResponse;
 import com.brainblocks.backend.entity.*;
+import com.brainblocks.backend.enums.NotificationType;
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.enums.PaymentMethod;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
@@ -14,14 +15,17 @@ import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import com.brainblocks.backend.service.child.ChildProfileAccessGuard;
+import com.brainblocks.backend.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -37,6 +41,7 @@ public class OrderService {
     private final CurrentUserProvider currentUserProvider;
     private final OrderAccessGuard orderAccessGuard;
     private final ChildProfileAccessGuard childProfileAccessGuard;
+    private final NotificationService notificationService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -94,6 +99,10 @@ public class OrderService {
         Order saved = orderRepository.save(order);
         cart.getItems().clear();
 
+        notificationService.notifyAdmins(NotificationType.NEW_ORDER, "Đơn hàng mới " + saved.getOrderCode(),
+                saved.getCustomer().getFullName() + " vừa đặt " + saved.getItems().size() + " sản phẩm, tổng "
+                        + formatMoney(total) + ".",
+                "/admin/orders");
         return toOrderResponse(saved);
     }
 
@@ -120,7 +129,16 @@ public class OrderService {
         }
         restoreStock(order);
         order.setStatus(OrderStatus.CANCELLED);
+        notificationService.notifyAdmins(NotificationType.ORDER_CANCELLED_BY_CUSTOMER,
+                "Khách đã hủy đơn " + order.getOrderCode(),
+                order.getCustomer().getFullName() + " đã tự hủy đơn, hàng đã được hoàn về kho.",
+                "/admin/orders");
         return toOrderResponse(order);
+    }
+
+    // 459000 -> "459.000₫"
+    private static String formatMoney(BigDecimal amount) {
+        return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "₫";
     }
 
     // hoàn kho cho mọi dòng của đơn bị hủy; dùng chung cho khách tự hủy và admin hủy

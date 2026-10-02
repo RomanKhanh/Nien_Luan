@@ -4,13 +4,18 @@ import com.brainblocks.backend.dto.request.order.UpdateOrderStatusRequest;
 import com.brainblocks.backend.dto.response.PageResponse;
 import com.brainblocks.backend.dto.response.order.OrderResponse;
 import com.brainblocks.backend.dto.response.order.OrderSummaryResponse;
+import com.brainblocks.backend.dto.response.skill.SkillProfileResponse;
+import com.brainblocks.backend.dto.response.skill.SkillScoreResponse;
 import com.brainblocks.backend.entity.*;
+import com.brainblocks.backend.enums.NotificationType;
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.enums.ProductSource;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.ChildProductRepository;
 import com.brainblocks.backend.repository.OrderRepository;
+import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.skill.SkillProfileService;
+import com.brainblocks.backend.service.skill.SkillScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +28,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +51,7 @@ public class AdminOrderService {
     private final SkillProfileService skillProfileService;
 
     private final OrderService orderService;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> getOrders(OrderStatus status, int page, int size) {
@@ -78,6 +85,7 @@ public class AdminOrderService {
             orderService.restoreStock(order);
         }
         order.setStatus(newStatus);
+        notifyCustomer(order, newStatus);
 
         if (newStatus == OrderStatus.DELIVERED) {
             createChildProductsForDeliveredOrder(order);
@@ -85,6 +93,27 @@ public class AdminOrderService {
 
         return orderService.toOrderResponse(order);
     }
+
+    private void notifyCustomer(Order order, OrderStatus status) {
+        String code = order.getOrderCode();
+        String[] content = switch (status) {
+            case CONFIRMED -> new String[]{"Đơn hàng đã được xác nhận",
+                    "Đơn " + code + " đã được xác nhận và đang được chuẩn bị."};
+            case SHIPPING -> new String[]{"Đơn hàng đang được giao",
+                    "Đơn " + code + " đã được giao cho đơn vị vận chuyển. Nhớ quay video khi mở hàng: video mở hàng"
+                            + " là bắt buộc nếu bạn cần đổi hoặc trả hàng."};
+            case DELIVERED -> new String[]{"Đơn hàng đã giao thành công",
+                    "Đơn " + code + " đã giao xong. Bạn có thể đánh giá sản phẩm trong trang đơn hàng."};
+            case CANCELLED -> new String[]{"Đơn hàng đã bị hủy",
+                    "Đơn " + code + " đã được cửa hàng hủy. Liên hệ cửa hàng nếu bạn cần hỗ trợ."};
+            case PENDING -> null;
+        };
+        if (content != null) {
+            notificationService.notify(order.getCustomer(), NotificationType.ORDER_STATUS, content[0], content[1],
+                    "/orders/" + order.getId());
+        }
+    }
+
     private void createChildProductsForDeliveredOrder(Order order) {
         // gom các bé có thêm sản phẩm để mỗi bé chỉ tính lại hồ sơ kỹ năng 1 lần, dù đơn có nhiều dòng cho cùng bé
         Map<Long, ChildProfile> changedChildren = new LinkedHashMap<>();
@@ -105,7 +134,31 @@ public class AdminOrderService {
                     .build());
             changedChildren.put(child.getId(), child);
         }
-        changedChildren.values().forEach(skillProfileService::recalculateFor);
+        for (ChildProfile child : changedChildren.values()) {
+            // điểm trước khi thêm đồ chơi, để báo phụ huynh hồ sơ của bé vừa thay đổi thế nào
+            Map<Long, Double> before = skillProfileService.storedScores(child.getId());
+            SkillProfileResponse after = skillProfileService.recalculateFor(child);
+            notificationService.notify(order.getCustomer(), NotificationType.SKILL_PROFILE_UPDATED,
+                    "Hồ sơ kỹ năng của bé " + child.getName() + " vừa cập nhật",
+                    skillChangeMessage(order, before, after),
+                    "/children/" + child.getId());
+        }
+    }
+
+    // "Nhờ đơn BB123: Sáng tạo +2,6, Logic +0,8." (tối đa 3 nhóm tăng nhiều nhất)
+    private String skillChangeMessage(Order order, Map<Long, Double> before, SkillProfileResponse after) {
+        Map<String, Double> gainBySkill = after.skillScores().stream()
+                .collect(Collectors.toMap(SkillScoreResponse::skillName,
+                        score -> score.score() - before.getOrDefault(score.skillId(), 0.0)));
+        String gains = gainBySkill.entrySet().stream()
+                .filter(entry -> entry.getValue() >= 0.05) // còn hiện được "+0,1" sau khi làm tròn
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .limit(3)
+                .map(entry -> entry.getKey() + " +" + SkillScoreCalculator.format(entry.getValue()))
+                .collect(Collectors.joining(", "));
+        return gains.isEmpty()
+                ? "Đồ chơi trong đơn " + order.getOrderCode() + " đã được thêm vào hồ sơ của bé."
+                : "Nhờ đơn " + order.getOrderCode() + ": " + gains + ".";
     }
     private OrderSummaryResponse toSummaryResponse(Order order) {
         Customer customer = order.getCustomer();

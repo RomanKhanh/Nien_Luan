@@ -5,6 +5,7 @@ import { meApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { buttonClass } from '@/components/ui/Button'
 import { useCartCount } from '@/features/cart/useCart'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { initials } from '@/lib/format'
 import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { Logo } from './Logo'
@@ -106,6 +107,7 @@ function Header({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: (
               )}
             </Link>
           )}
+          {isCustomer && <NotificationBell />}
           {session ? (
             <UserMenu />
           ) : (
@@ -200,6 +202,7 @@ function UserMenu() {
         { to: '/account', label: 'Thông tin tài khoản' },
         { to: '/children', label: 'Hồ sơ bé' },
         { to: '/orders', label: 'Đơn hàng của tôi' },
+        { to: '/notifications', label: 'Thông báo' },
         { to: '/feedback', label: 'Phản hồi & khiếu nại' },
       ]
 

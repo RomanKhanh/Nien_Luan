@@ -17,6 +17,7 @@ export function AccountShell({ children }: { children: ReactNode }) {
       ? [
           { to: '/children', label: 'Hồ sơ bé', icon: '🧒' },
           { to: '/orders', label: 'Đơn hàng của tôi', icon: '📦' },
+          { to: '/notifications', label: 'Thông báo', icon: '🔔' },
           { to: '/feedback', label: 'Phản hồi & khiếu nại', icon: '💬' },
         ]
       : []),

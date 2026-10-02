@@ -19,6 +19,7 @@ const CheckoutPage = lazy(() => import('@/pages/cart/CheckoutPage'))
 const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'))
 const FeedbackPage = lazy(() => import('@/pages/account/FeedbackPage'))
+const NotificationsPage = lazy(() => import('@/pages/account/NotificationsPage'))
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'))
 const MomoReturnPage = lazy(() => import('@/pages/payment/MomoReturnPage'))
 
@@ -92,6 +93,14 @@ export default function App() {
             element={
               <RequireAuth role="CUSTOMER">
                 <OrderDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="notifications"
+            element={
+              <RequireAuth role="CUSTOMER">
+                <NotificationsPage />
               </RequireAuth>
             }
           />
