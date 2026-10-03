@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { childApi } from '@/api/endpoints'
 import type { ChildProfile, SkillProfile } from '@/api/types'
 import { Mascot } from '@/components/decor/Decor'
-import { PageHero } from '@/components/layout/PageHero'
 import { ProductArt } from '@/components/product/ProductArt'
 import { Pill, SkillBar } from '@/components/ui/Badges'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -21,6 +20,7 @@ import { SkillRadar, type RadarPoint } from '@/features/skills/SkillRadar'
 import { SkillTimelineChart } from '@/features/skills/SkillTimelineChart'
 import { formatDate, formatDecimal, formatPrice, initials } from '@/lib/format'
 import { skillLevel, skillTheme } from '@/lib/skills'
+import { AccountShell } from '../account/AccountShell'
 
 export default function SkillProfilePage() {
   const id = Number(useParams().id)
@@ -32,7 +32,7 @@ export default function SkillProfilePage() {
   if (child.isPending) return <PageLoader />
   if (child.isError) {
     return (
-      <div className="container-page">
+      <AccountShell>
         {child.error.status === 404 ? (
           <EmptyState
             title="Không tìm thấy hồ sơ bé"
@@ -41,51 +41,55 @@ export default function SkillProfilePage() {
         ) : (
           <ErrorState message={child.error.message} onRetry={() => child.refetch()} />
         )}
-      </div>
+      </AccountShell>
     )
   }
 
+  // nằm trong khung tài khoản (menu bên trái) như trang danh sách hồ sơ bé
   return (
-    <>
-      <PageHero
-        crumbs={[{ label: 'Hồ sơ bé', to: '/children' }, { label: `Bé ${child.data.name}` }]}
-        kicker={`${child.data.age} tuổi`}
-        title={`Lộ trình kỹ năng của bé ${child.data.name}`}
-      >
-        {/* chuyển nhanh giữa các bé */}
-        <div className="mt-5 flex gap-2 overflow-x-auto p-1">
-          {children.data?.map((c) => (
-            <Link
-              key={c.id}
-              to={`/children/${c.id}`}
-              className={`flex shrink-0 items-center gap-2.5 rounded-full border-2 py-1.5 pl-1.5 pr-4 text-[14px] font-bold shadow-card transition hover:-translate-y-0.5 ${
-                c.id === id
-                  ? 'border-sun bg-white text-primary-hover'
-                  : 'border-transparent bg-white/85 text-ink-2 hover:text-ink'
-              }`}
-            >
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
-                {initials(c.name)}
-              </span>
-              Bé {c.name} · {c.age} tuổi
-            </Link>
-          ))}
+    <AccountShell>
+      <nav className="text-[13px] text-ink-muted">
+        <Link to="/children" className="text-ink-muted hover:text-ink">
+          Hồ sơ bé
+        </Link>{' '}
+        / <span className="text-ink-2">Bé {child.data.name}</span>
+      </nav>
+      <h1 className="h1 mt-2">Lộ trình kỹ năng của bé {child.data.name}</h1>
+      <p className="mt-1 text-[13.5px] text-ink-muted">{child.data.age} tuổi</p>
+      {/* chuyển nhanh giữa các bé */}
+      <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto p-1">
+        {children.data?.map((c) => (
           <Link
-            to="/children"
-            className="flex shrink-0 items-center rounded-full border-2 border-dashed border-white/70 px-4 text-[14px] font-bold text-white hover:bg-white/15 hover:text-white"
+            key={c.id}
+            to={`/children/${c.id}`}
+            className={`flex shrink-0 items-center gap-2.5 rounded-full border-2 py-1.5 pl-1.5 pr-4 text-[14px] font-bold transition ${
+              c.id === id
+                ? 'border-primary bg-primary-soft text-primary-hover'
+                : 'border-line bg-surface text-ink-2 hover:border-primary hover:text-ink'
+            }`}
           >
-            + Thêm hồ sơ bé
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
+              {initials(c.name)}
+            </span>
+            Bé {c.name} · {c.age} tuổi
           </Link>
-        </div>
-      </PageHero>
-      <div className="container-page py-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+        ))}
+        <Link
+          to="/children"
+          className="flex shrink-0 items-center rounded-full border-2 border-dashed border-line-strong px-4 text-[14px] font-bold text-ink-2 hover:border-primary hover:text-primary"
+        >
+          + Thêm hồ sơ bé
+        </Link>
+      </div>
+      <div className="mt-6">
+        {/* trong khung tài khoản cột nội dung đã hẹp: thông tin bé nằm trên thành một hàng, nội dung chính dùng hết bề rộng */}
+        <div className="flex flex-col gap-6">
           <div className="min-w-0 space-y-6">
             <SkillMap child={child.data} />
             <ToyList child={child.data} />
             <Recommendations child={child.data} />
           </div>
-          <aside className="space-y-4">
+          <aside className="order-first grid gap-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">
             <div className="card p-5">
               <p className="font-display text-[19px] font-extrabold">Nhóm kỹ năng quan tâm</p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -125,7 +129,7 @@ export default function SkillProfilePage() {
           onDeleted={() => navigate('/children')}
         />
       </div>
-    </>
+    </AccountShell>
   )
 }
 

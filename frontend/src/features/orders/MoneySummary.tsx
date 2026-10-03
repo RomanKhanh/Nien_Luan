@@ -1,19 +1,16 @@
 import type { ReactNode } from 'react'
 import type { Order } from '@/api/types'
 import { formatPrice } from '@/lib/format'
-import { shippingLabel } from './shippingLabel'
 
 // 3 dòng tiền: tạm tính (tiền hàng) / phí vận chuyển / tổng thanh toán
 export function MoneySummary({
   subtotal,
-  shippingLabel: label,
   shippingValue,
   total,
   totalNote,
   className = '',
 }: {
   subtotal: number
-  shippingLabel: string
   shippingValue: ReactNode
   total: number
   // ghi chú dưới tổng, vd "Chưa gồm phí vận chuyển"
@@ -28,7 +25,7 @@ export function MoneySummary({
           <dd className="tabular-nums">{formatPrice(subtotal)}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-ink-2">{label}</dt>
+          <dt className="text-ink-2">Phí vận chuyển</dt>
           <dd className="text-right tabular-nums">{shippingValue}</dd>
         </div>
       </dl>
@@ -47,7 +44,6 @@ export function OrderMoneySummary({ order, className }: { order: Order; classNam
     <MoneySummary
       className={className}
       subtotal={order.subtotal}
-      shippingLabel={shippingLabel(order.shippingZoneLabel, order.parcelCount)}
       shippingValue={formatPrice(order.shippingFee)}
       total={order.totalAmount}
     />

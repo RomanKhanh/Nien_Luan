@@ -16,7 +16,6 @@ import { ScrollToTop } from './ScrollToTop'
 const NAV = [
   { to: '/', label: 'Trang chủ', end: true },
   { to: '/products', label: 'Sản phẩm', end: false },
-  { to: '/children', label: 'Hồ sơ bé', end: false },
   { to: '/chat', label: 'Tư vấn AI', end: false },
 ]
 
