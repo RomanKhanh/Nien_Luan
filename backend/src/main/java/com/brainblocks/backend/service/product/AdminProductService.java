@@ -110,6 +110,10 @@ public class AdminProductService {
         product.setStockQuantity(request.stockQuantity());
         product.setMinAge(request.minAge());
         product.setMaxAge(request.maxAge());
+        product.setWeightGrams(request.weightGrams());
+        product.setLengthCm(request.lengthCm());
+        product.setWidthCm(request.widthCm());
+        product.setHeightCm(request.heightCm());
         product.setCategory(category);
         return applyImpacts(product, request.skillImpacts() == null ? List.of() : request.skillImpacts());
     }

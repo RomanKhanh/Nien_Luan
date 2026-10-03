@@ -29,6 +29,23 @@ public record ProductRequest(
         @Min(0) @Max(18) int minAge,
         @Min(0) @Max(18) int maxAge,
         @NotNull @Positive Long categoryId,
+        // thông số vận chuyển của gói hàng sau đóng gói: gram và cm nguyên, bắt buộc
+        @NotNull(message = "Vui lòng nhập cân nặng sau đóng gói")
+        @Positive(message = "Cân nặng phải lớn hơn 0")
+        @Max(value = 50_000, message = "Cân nặng tối đa 50.000 g (50 kg)")
+        Integer weightGrams,
+        @NotNull(message = "Vui lòng nhập chiều dài gói hàng")
+        @Positive(message = "Chiều dài phải lớn hơn 0")
+        @Max(value = 200, message = "Chiều dài tối đa 200 cm")
+        Integer lengthCm,
+        @NotNull(message = "Vui lòng nhập chiều rộng gói hàng")
+        @Positive(message = "Chiều rộng phải lớn hơn 0")
+        @Max(value = 200, message = "Chiều rộng tối đa 200 cm")
+        Integer widthCm,
+        @NotNull(message = "Vui lòng nhập chiều cao gói hàng")
+        @Positive(message = "Chiều cao phải lớn hơn 0")
+        @Max(value = 200, message = "Chiều cao tối đa 200 cm")
+        Integer heightCm,
         List<@NotNull @Valid SkillImpactRequest> skillImpacts,
         // null khi tạo mới = đang bán; khi sửa = giữ nguyên
         Boolean active

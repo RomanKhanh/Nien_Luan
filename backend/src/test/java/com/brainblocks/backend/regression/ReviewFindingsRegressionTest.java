@@ -357,7 +357,8 @@ class ReviewFindingsRegressionTest {
             em.persist(category);
             Product product = Product.builder()
                     .name("[REG] " + name).price(new BigDecimal("100000.00"))
-                    .stockQuantity(stock).minAge(3).maxAge(12).category(category).build();
+                    .stockQuantity(stock).minAge(3).maxAge(12).category(category)
+                    .weightGrams(500).lengthCm(20).widthCm(15).heightCm(10).build();
             if (impacts != null) {
                 impacts.forEach((skillId, value) -> product.getProductSkillImpacts().add(ProductSkillImpact.builder()
                         .product(product).skill(em.getReference(Skill.class, skillId)).impactIndex(value).build()));
