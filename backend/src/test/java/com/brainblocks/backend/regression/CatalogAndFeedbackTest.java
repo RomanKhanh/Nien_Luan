@@ -354,6 +354,37 @@ class CatalogAndFeedbackTest {
                 StandardCharsets.UTF_8), null, null).data().path("content"))).containsExactly(productId);
     }
 
+    // gợi ý khi gõ: so khớp không dấu nhưng trả về tên gốc có dấu, khớp đầu tên xếp trước, bỏ sản phẩm đã ẩn
+    @Test
+    void suggestionsMatchWithoutDiacriticsAndKeepOriginalName() throws Exception {
+        String tag = "gy" + SEQ.incrementAndGet();
+        long categoryId = createCategory();
+        long inside = createProduct(categoryId, "Bộ Lắp Ráp Gợi Ý " + tag, 3, 12, Map.of());
+        long prefix = createProduct(categoryId, tag + " Lắp Ráp Gợi Ý", 3, 12, Map.of());
+        long hidden = createProduct(categoryId, "Lắp Ráp Gợi Ý Đã Ẩn " + tag, 3, 12, Map.of());
+        assertThat(call("DELETE", "/api/admin/products/" + hidden, adminToken, null).status()).isEqualTo(200);
+
+        JsonNode plain = call("GET", "/api/products/suggestions?q=lap%20rap%20goi%20y%20" + tag, null, null).data();
+        List<Long> productIds = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        plain.forEach(s -> {
+            if (s.path("type").asString().equals("PRODUCT")) {
+                productIds.add(s.path("id").asLong());
+                labels.add(s.path("label").asString());
+            }
+        });
+        assertThat(productIds).containsExactlyInAnyOrder(inside, prefix);
+        assertThat(labels).contains("[TEST] Bộ Lắp Ráp Gợi Ý " + tag);
+
+        // "[TEST] gy.. lắp" bắt đầu bằng từ khớp, nằm trước món chỉ khớp giữa tên
+        JsonNode byTag = call("GET", "/api/products/suggestions?q=" + tag, null, null).data();
+        assertThat(byTag.get(0).path("id").asLong()).isEqualTo(prefix);
+
+        JsonNode skill = call("GET", "/api/products/suggestions?q=sang%20t", null, null).data();
+        assertThat(skill.toString()).contains("\"type\":\"SKILL\"", "\"code\":\"CREATIVE\"", "Sáng tạo");
+        assertThat(call("GET", "/api/products/suggestions?q=%20", null, null).data().size()).isZero();
+    }
+
     // "Hợp với bé": theo tuổi bé, bỏ món bé đã có, sắp theo mức bổ sung; xem trước cả giỏ
     @Test
     void productMatchesFollowChildAndBundlePreviewSkipsOwned() throws Exception {

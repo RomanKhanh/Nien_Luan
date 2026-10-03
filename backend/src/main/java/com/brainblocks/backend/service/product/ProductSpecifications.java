@@ -95,7 +95,7 @@ final class ProductSpecifications {
     }
 
     // từ khóa người dùng gõ có % hoặc _ thì tìm đúng ký tự đó, không coi là wildcard
-    private static String escapeLike(String value) {
+    static String escapeLike(String value) {
         return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

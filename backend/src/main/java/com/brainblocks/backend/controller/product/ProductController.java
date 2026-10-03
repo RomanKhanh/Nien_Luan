@@ -5,10 +5,14 @@ import com.brainblocks.backend.dto.response.ApiResponse;
 import com.brainblocks.backend.dto.response.PageResponse;
 import com.brainblocks.backend.dto.response.product.ProductDetailResponse;
 import com.brainblocks.backend.dto.response.product.ProductSummaryResponse;
+import com.brainblocks.backend.dto.response.product.SearchSuggestionResponse;
+import com.brainblocks.backend.dto.response.product.SearchSuggestionResponse;
 import com.brainblocks.backend.dto.response.review.ReviewResponse;
 import com.brainblocks.backend.service.product.ProductSearchCriteria;
 import com.brainblocks.backend.service.product.ProductService;
 import com.brainblocks.backend.service.product.ProductSort;
+import com.brainblocks.backend.service.product.SearchSuggestionService;
+import com.brainblocks.backend.service.product.SearchSuggestionService;
 import com.brainblocks.backend.service.review.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +38,7 @@ import java.util.Locale;
 public class ProductController {
     private final ProductService productService;
     private final ReviewService reviewService;
+    private final SearchSuggestionService searchSuggestionService;
 
     // age = tuổi của bé (lọc đúng tuổi); ageFrom / ageTo = khoảng tuổi (nhóm tuổi trên bộ lọc)
     // skills nhận dạng skills=LOGIC,STEM hoặc lặp lại tham số; sort: relevance | price_asc | price_desc | newest | name
@@ -56,6 +61,13 @@ public class ProductController {
                 minPrice, maxPrice, inStock, false, null);
         return ResponseEntity.ok(ApiResponse.success(
                 productService.search(criteria, ProductSort.from(sort), page, size)));
+    }
+
+    // gợi ý khi đang gõ ô tìm kiếm: sản phẩm, danh mục, nhóm kỹ năng; gõ không dấu vẫn ra tên có dấu
+    @GetMapping("/suggestions")
+    public ResponseEntity<ApiResponse<List<SearchSuggestionResponse>>> suggest(
+            @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(ApiResponse.success(searchSuggestionService.suggest(q)));
     }
 
     @GetMapping("/{id}")

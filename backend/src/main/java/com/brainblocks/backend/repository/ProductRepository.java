@@ -22,6 +22,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // sản phẩm cũ chưa có search_text (ProductSearchTextBackfillRunner)
     List<Product> findBySearchTextIsNull();
 
+    // gợi ý tìm kiếm: sản phẩm đang bán có search_text chứa chữ đã bỏ dấu (SearchSuggestionService xếp hạng lại)
+    @Query("select p from Product p where p.active = true and p.searchText like :pattern escape '\\'")
+    List<Product> findSuggestionCandidates(@Param("pattern") String pattern, Pageable pageable);
+
     // danh sách có lọc (ProductSpecifications): kèm danh mục để product card không phát sinh N+1
     @Override
     @EntityGraph(attributePaths = "category")
