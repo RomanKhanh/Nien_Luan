@@ -88,6 +88,11 @@ export interface ProductImage {
 export interface ProductDetail extends Omit<ProductSummary, 'thumbnailUrl'> {
   description: string | null
   videoUrl: string | null
+  // thông số vận chuyển của gói hàng sau đóng gói
+  weightGrams: number
+  lengthCm: number
+  widthCm: number
+  heightCm: number
   images: ProductImage[]
   ratingBreakdown: Record<string, number>
   soldCount: number
@@ -395,6 +400,10 @@ export interface ProductRequest {
   minAge: number
   maxAge: number
   categoryId: number
+  weightGrams: number
+  lengthCm: number
+  widthCm: number
+  heightCm: number
   skillImpacts: { skillId: number; impactIndex: number }[]
   active: boolean
 }

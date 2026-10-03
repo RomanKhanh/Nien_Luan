@@ -11,6 +11,11 @@ export function formatDecimal(value: number, digits = 1): string {
   return value.toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
+// cân nặng gram -> kg: 650 -> "0,65 kg", 1400 -> "1,4 kg"
+export function formatWeightKg(grams: number): string {
+  return `${(grams / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} kg`
+}
+
 // backend trả LocalDateTime / LocalDate không kèm múi giờ (giờ Việt Nam), parse như giờ địa phương
 function parse(value: string): Date {
   return value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value)

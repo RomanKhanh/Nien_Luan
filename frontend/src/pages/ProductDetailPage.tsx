@@ -19,7 +19,7 @@ import { AssignToChildModal } from '@/features/children/AssignToChildModal'
 import { childKeys } from '@/features/children/keys'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { SkillGainChips } from '@/features/skills/SkillGainChips'
-import { ageRange, formatDecimal, formatPrice, formatRelative, initials } from '@/lib/format'
+import { ageRange, formatDecimal, formatPrice, formatRelative, formatWeightKg, initials } from '@/lib/format'
 import { dominantSkill, skillTheme } from '@/lib/skills'
 import { youtubeEmbedUrl, youtubeId } from '@/lib/youtube'
 
@@ -153,6 +153,9 @@ function ProductView({ product }: { product: ProductDetail }) {
               </p>
               <p className={`mt-2 text-[14px] font-semibold ${outOfStock ? 'text-danger' : 'text-success'}`}>
                 {outOfStock ? 'Tạm hết hàng' : `Còn ${product.stockQuantity} sản phẩm trong kho`}
+              </p>
+              <p className="mt-1 text-[13px] text-ink-muted">
+                {`Khối lượng: ${formatWeightKg(product.weightGrams)} · Kích thước: ${product.lengthCm}×${product.widthCm}×${product.heightCm} cm`}
               </p>
 
               <div className="card mt-6 border-0 p-5 shadow-card-hover">
