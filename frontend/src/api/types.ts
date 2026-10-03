@@ -29,7 +29,10 @@ export interface UserProfile {
   phone: string | null
   role: Role
   enabled: boolean
+  // địa chỉ mặc định để hiển thị (3 cấp nếu có, không thì chuỗi địa chỉ cũ của tài khoản)
   defaultAddress: string | null
+  // địa chỉ mặc định 3 cấp, tự điền ở trang thanh toán
+  defaultShippingAddress: Address | null
   createdAt: string
 }
 
@@ -178,7 +181,16 @@ export interface Order {
   orderCode: string
   receiverName: string
   receiverPhone: string
+  // địa chỉ đầy đủ để hiển thị; đơn cũ là chuỗi địa chỉ tự do
   shippingAddress: string
+  // null ở đơn đặt trước khi có địa chỉ 3 cấp
+  address: Address | null
+  // totalAmount = subtotal (tiền hàng) + shippingFee; đơn cũ: shippingFee = 0, miền / số kiện = null
+  subtotal: number
+  shippingFee: number
+  shippingZone: ShippingRegion | null
+  shippingZoneLabel: string | null
+  parcelCount: number | null
   totalAmount: number
   status: OrderStatus
   paymentMethod: PaymentMethod
@@ -191,6 +203,8 @@ export interface OrderSummary {
   orderCode: string
   customerName: string
   customerEmail: string
+  subtotal: number
+  shippingFee: number
   totalAmount: number
   status: OrderStatus
   paymentMethod: PaymentMethod
@@ -200,12 +214,74 @@ export interface OrderSummary {
 export interface CreateOrderRequest {
   receiverName: string
   receiverPhone: string
-  shippingAddress: string
+  provinceCode: number
+  districtCode: number
+  // null khi huyện không có cấp xã
+  wardCode: number | null
+  addressDetail: string
   paymentMethod: PaymentMethod
+  // phí ship khách đã thấy; server tự tính lại, lệch thì trả 409 kèm phí mới
+  expectedShippingFee?: number
   childAssignments: { productId: number; childProfileId: number }[]
 }
 
+// ===== Địa chỉ (63 tỉnh/thành trước sáp nhập 07/2025) & phí vận chuyển =====
+
+export type ShippingRegion = 'MIEN_NAM' | 'MIEN_TRUNG' | 'MIEN_BAC'
+
+export interface LocationOption {
+  code: number
+  name: string
+}
+
+export interface ProvinceOption extends LocationOption {
+  region: ShippingRegion
+  regionLabel: string
+}
+
+// hasWards = false: huyện đảo không có cấp xã, không cần chọn phường/xã
+export interface DistrictOption extends LocationOption {
+  hasWards: boolean
+}
+
+export interface Address {
+  provinceCode: number
+  provinceName: string
+  districtCode: number
+  districtName: string
+  wardCode: number | null
+  wardName: string | null
+  addressDetail: string
+  fullAddress: string
+}
+
+// để trống cả 4 field địa chỉ = xóa địa chỉ mặc định
+export interface UpdateProfileRequest {
+  fullName: string
+  phone: string
+  defaultProvinceCode: number | null
+  defaultDistrictCode: number | null
+  defaultWardCode: number | null
+  defaultAddressDetail: string | null
+}
+
+export interface ShippingQuote {
+  provinceCode: number
+  provinceName: string
+  zone: ShippingRegion
+  zoneLabel: string
+  actualWeightGrams: number
+  volumetricWeightGrams: number
+  chargeableWeightGrams: number
+  parcelCount: number
+  baseFee: number
+  bulkySurcharge: number
+  totalFee: number
+  warnings: string[]
+}
+
 // ===== Hồ sơ bé / kỹ năng =====
+
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
 
@@ -415,7 +491,9 @@ export interface AdminStats {
   lowStockProducts: number
   totalOrders: number
   ordersByStatus: Record<OrderStatus, number>
+  // tiền hàng các đơn đã giao, không gồm phí ship
   deliveredRevenue: number
+  deliveredShippingFees: number
   dailyOrders: { date: string; orders: number; amount: number }[]
   topProducts: { productId: number; productName: string; quantity: number; revenue: number }[]
   skillInterests: { skillId: number; skillName: string; children: number }[]

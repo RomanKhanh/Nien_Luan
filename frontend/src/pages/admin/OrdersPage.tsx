@@ -9,6 +9,7 @@ import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
+import { OrderMoneySummary } from '@/features/orders/MoneySummary'
 import { OrderTimeline } from '@/features/orders/OrderTimeline'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { ORDER_NEXT, ORDER_STATUS, PAYMENT_METHOD } from '@/lib/labels'
@@ -161,11 +162,8 @@ function OrderDetailDrawer({ orderId, onClose }: { orderId: number; onClose: () 
                   <span className="shrink-0 tabular-nums">{formatPrice(i.subtotal)}</span>
                 </li>
               ))}
-              <li className="flex justify-between px-4 py-2.5 font-bold">
-                <span>Tổng cộng</span>
-                <span>{formatPrice(o.totalAmount)}</span>
-              </li>
             </ul>
+            <OrderMoneySummary order={o} className="rounded-md border border-line px-4 py-3" />
             <div>
               <p className="mb-2 font-bold">Cập nhật trạng thái</p>
               {ORDER_NEXT[o.status].length === 0 ? (

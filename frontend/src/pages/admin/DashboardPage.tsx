@@ -57,7 +57,13 @@ function Dashboard({ s }: { s: AdminStats }) {
           icon="📦"
           color="#e08700"
         />
-        <Tile label="Doanh thu (đơn đã giao)" value={formatPrice(s.deliveredRevenue)} icon="💰" color="#0f9e7a" />
+        <Tile
+          label="Doanh thu (đơn đã giao)"
+          value={formatPrice(s.deliveredRevenue)}
+          sub={`Tiền hàng. Tổng phí ship đã thu: ${formatPrice(s.deliveredShippingFees)}`}
+          icon="💰"
+          color="#0f9e7a"
+        />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">

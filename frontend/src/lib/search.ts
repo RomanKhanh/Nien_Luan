@@ -32,3 +32,8 @@ export function matchRanges(text: string, query: string): [number, number][] {
     return merged
   }, [])
 }
+
+// chữ để so khớp không dấu: "  Thành phố  Cần Thơ " -> "thanh pho can tho"
+export function normalizeSearch(text: string): string {
+  return fold(text).replace(/\s+/g, ' ').trim()
+}
