@@ -68,9 +68,7 @@ export function AddressFields({
             onChange({ districtCode: e.target.value, wardCode: '', wardRequired: district?.hasWards ?? true })
           }}
         >
-          <option value="">
-            {!provinceCode ? 'Chọn tỉnh/thành trước' : districts.isPending ? 'Đang tải…' : 'Chọn quận/huyện'}
-          </option>
+          <option value="">Chọn quận/huyện</option>
           {districts.data?.map((d) => (
             <option key={d.code} value={d.code}>
               {d.name}
@@ -86,15 +84,8 @@ export function AddressFields({
           invalid={Boolean(errors.wardCode)}
           onChange={(e) => onChange({ wardCode: e.target.value })}
         >
-          <option value="">
-            {!districtCode
-              ? 'Chọn quận/huyện trước'
-              : !value.wardRequired
-                ? 'Huyện không có cấp xã'
-                : wards.isPending
-                  ? 'Đang tải…'
-                  : 'Chọn phường/xã'}
-          </option>
+          {/* huyện đảo (Côn Đảo, Lý Sơn...) không có cấp xã nên không cần chọn */}
+          <option value="">{districtCode && !value.wardRequired ? 'Không có phường/xã' : 'Chọn phường/xã'}</option>
           {wards.data?.map((w) => (
             <option key={w.code} value={w.code}>
               {w.name}
@@ -128,7 +119,8 @@ function shortName(name: string): string {
   return name.replace(/^(Tỉnh|Thành phố)\s+/, '')
 }
 
-// ô chọn tỉnh có gõ tìm: gõ "can tho", "hcm"... không dấu vẫn ra; lên / xuống để chọn, Enter để lấy, Esc để đóng
+// ô chọn tỉnh vừa là dropdown (bấm để mở danh sách) vừa gõ tìm được: "can tho", "hcm"... không dấu vẫn ra;
+// lên / xuống để chọn, Enter để lấy, Esc để đóng
 function ProvinceCombobox({
   id,
   provinces,
@@ -196,6 +188,7 @@ function ProvinceCombobox({
   return (
     <div className="relative">
       <Input
+        className="cursor-pointer pr-9"
         id={id}
         role="combobox"
         aria-expanded={open}
@@ -205,12 +198,14 @@ function ProvinceCombobox({
         autoComplete="off"
         disabled={loading}
         invalid={invalid}
-        placeholder={loading ? 'Đang tải…' : 'Gõ để tìm tỉnh/thành'}
+        placeholder={open && selected ? selected.name : 'Chọn tỉnh/thành'}
         value={open ? query : (selected?.name ?? '')}
         onFocus={() => {
           setOpen(true)
           setActive(0)
         }}
+        // đã chọn xong (danh sách đóng) mà bấm lại vào ô thì mở lại danh sách
+        onClick={() => setOpen(true)}
         onBlur={() => {
           setOpen(false)
           setQuery('')
@@ -224,6 +219,14 @@ function ProvinceCombobox({
         }}
         onKeyDown={onKeyDown}
       />
+      <span
+        className={`pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted transition ${open ? 'rotate-180' : ''}`}
+        aria-hidden
+      >
+        <svg viewBox="0 0 10 6" width="10" height="6">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        </svg>
+      </span>
       {open && (
         <ul
           ref={listRef}
@@ -244,12 +247,11 @@ function ProvinceCombobox({
                 aria-selected={p.code === value}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(p.code)}
-                className={`flex cursor-pointer items-center justify-between gap-2 px-3.5 py-2 text-[14px] ${
-                  i === active ? 'bg-sky-soft' : ''
-                } ${p.code === value ? 'font-semibold text-primary' : ''}`}
+                className={`cursor-pointer px-3.5 py-2 text-[14px] ${i === active ? 'bg-sky-soft' : ''} ${
+                  p.code === value ? 'font-semibold text-primary' : ''
+                }`}
               >
-                <span>{p.name}</span>
-                <span className="shrink-0 text-[11.5px] text-ink-faint">{p.regionLabel}</span>
+                {p.name}
               </li>
             ))
           )}

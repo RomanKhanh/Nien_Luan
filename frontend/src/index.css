@@ -80,6 +80,26 @@
   input[type='number']::-webkit-inner-spin-button {
     opacity: 1;
   }
+  /* Tailwind v4 để nút dùng con trỏ mặc định: mọi thứ bấm được đều hiện bàn tay như link,
+     đang bị khoá thì hiện biểu tượng cấm */
+  button,
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  select,
+  summary,
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  input[type='file'],
+  input[type='color'],
+  label:has(> input[type='checkbox'], > input[type='radio']) {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
 }
 
 @layer components {

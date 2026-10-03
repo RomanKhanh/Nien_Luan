@@ -6,7 +6,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { initials } from '@/lib/format'
 
-// khung trang tài khoản với menu bên trái (mockup màn 08); mobile: menu thành hàng tab cuộn ngang
+// khung trang tài khoản với menu bên trái (mockup màn 08); mobile: menu thành hàng tab cuộn ngang.
+// Mục menu sáng cả khi đang ở trang con (vd /children/5, /orders/12)
 export function AccountShell({ children }: { children: ReactNode }) {
   const { isCustomer, logout } = useAuth()
   const navigate = useNavigate()
@@ -62,7 +63,6 @@ export function AccountShell({ children }: { children: ReactNode }) {
                 <NavLink
                   key={l.to}
                   to={l.to}
-                  end
                   className={({ isActive }) =>
                     `flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[14px] font-semibold transition ${
                       isActive

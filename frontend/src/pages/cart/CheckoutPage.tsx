@@ -14,7 +14,6 @@ import { useToast } from '@/components/ui/Toast'
 import { addressIssues, addressShape, addressToValue, codeOrNull, type AddressValue } from '@/features/address/address'
 import { AddressFields } from '@/features/address/AddressFields'
 import { MoneySummary } from '@/features/orders/MoneySummary'
-import { shippingLabel } from '@/features/orders/shippingLabel'
 import { cartKey, useCart } from '@/features/cart/useCart'
 import { childKeys } from '@/features/children/keys'
 import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
@@ -337,7 +336,7 @@ export default function CheckoutPage() {
   )
 }
 
-// Tạm tính / Phí vận chuyển (Miền X, n kiện) / Tổng thanh toán, theo báo giá của tỉnh đã chọn
+// Tạm tính / Phí vận chuyển / Tổng thanh toán, theo báo giá của tỉnh đã chọn
 function CheckoutMoney({
   subtotal,
   provinceChosen,
@@ -363,7 +362,6 @@ function CheckoutMoney({
     <div aria-live="polite" className={className}>
       <MoneySummary
         subtotal={subtotal}
-        shippingLabel={shippingLabel(fee === undefined ? null : quote.data?.zoneLabel, quote.data?.parcelCount)}
         shippingValue={shippingValue}
         total={subtotal + (fee ?? 0)}
         totalNote={

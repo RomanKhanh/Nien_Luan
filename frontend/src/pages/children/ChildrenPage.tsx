@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { childApi } from '@/api/endpoints'
 import type { ChildProfile } from '@/api/types'
 import { SkillIcon } from '@/components/decor/Decor'
-import { PageHero } from '@/components/layout/PageHero'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/States'
 import { ChildFormModal } from '@/features/children/ChildFormModal'
@@ -11,6 +10,7 @@ import { childKeys } from '@/features/children/keys'
 import { formatDate, initials } from '@/lib/format'
 import { GENDER } from '@/lib/labels'
 import { skillLevel, skillTheme } from '@/lib/skills'
+import { AccountShell } from '../account/AccountShell'
 
 export default function ChildrenPage() {
   const children = useQuery({ queryKey: childKeys.list, queryFn: childApi.list })
@@ -22,23 +22,23 @@ export default function ChildrenPage() {
     setFormOpen(true)
   }
 
+  // nằm trong khung tài khoản (menu bên trái) như Đơn hàng, Thông báo...
   return (
-    <>
-      <PageHero
-        crumbs={[{ label: 'Hồ sơ bé' }]}
-        kicker="Lộ trình kỹ năng"
-        title="Hồ sơ của các bé"
-        subtitle="Mỗi hồ sơ có lộ trình kỹ năng riêng và gợi ý đồ chơi phù hợp."
-        actions={
-          children.data &&
-          children.data.length > 0 && (
-            <Button variant="accent" size="lg" onClick={() => openForm(null)}>
-              + Thêm hồ sơ bé
-            </Button>
-          )
-        }
-      />
-      <div className="container-page py-8">
+    <AccountShell>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="h1">Hồ sơ của các bé</h1>
+          <p className="mt-1 text-[14px] text-ink-muted">
+            Mỗi hồ sơ có lộ trình kỹ năng riêng và gợi ý đồ chơi phù hợp.
+          </p>
+        </div>
+        {children.data && children.data.length > 0 && (
+          <Button variant="accent" onClick={() => openForm(null)}>
+            + Thêm hồ sơ bé
+          </Button>
+        )}
+      </div>
+      <div>
         <div>
           {children.isPending ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -72,7 +72,7 @@ export default function ChildrenPage() {
 
         <ChildFormModal open={formOpen} onClose={() => setFormOpen(false)} child={editing} />
       </div>
-    </>
+    </AccountShell>
   )
 }
 
