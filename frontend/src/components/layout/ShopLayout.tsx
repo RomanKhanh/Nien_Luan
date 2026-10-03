@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { meApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { buttonClass } from '@/components/ui/Button'
 import { useCartCount } from '@/features/cart/useCart'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
+import { SearchBox } from '@/features/catalog/SearchBox'
 import { initials } from '@/lib/format'
 import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { Logo } from './Logo'
@@ -137,43 +138,6 @@ function Header({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: (
         </div>
       )}
     </header>
-  )
-}
-
-function SearchBox({ className = '' }: { className?: string }) {
-  const navigate = useNavigate()
-  const [params] = useSearchParams()
-  const keyword = params.get('keyword') ?? ''
-  const [value, setValue] = useState(keyword)
-  // từ khoá trên URL đổi (bấm link khác, xoá bộ lọc) thì ô tìm kiếm theo
-  const [synced, setSynced] = useState(keyword)
-  if (synced !== keyword) {
-    setSynced(keyword)
-    setValue(keyword)
-  }
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    const next = value.trim()
-    navigate(next ? `/products?keyword=${encodeURIComponent(next)}` : '/products')
-  }
-
-  return (
-    <form role="search" onSubmit={submit} className={className}>
-      <label className="relative block">
-        <span className="sr-only">Tìm sản phẩm</span>
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden>
-          ⌕
-        </span>
-        <input
-          type="search"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Tìm đồ chơi, kỹ năng…"
-          className="w-full rounded-full border-2 border-sky/30 bg-sky-soft/60 py-2 pl-9 pr-4 text-[14px] outline-none transition focus:border-sky focus:bg-surface"
-        />
-      </label>
-    </form>
   )
 }
 

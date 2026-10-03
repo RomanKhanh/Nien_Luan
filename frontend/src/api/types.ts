@@ -72,6 +72,12 @@ export interface ProductSummary {
   reviewCount: number
 }
 
+// gợi ý dưới ô tìm kiếm; label là tên gốc có dấu
+export type SearchSuggestion =
+  | { type: 'PRODUCT'; label: string; id: number; code: null; thumbnailUrl: string | null; price: number }
+  | { type: 'CATEGORY'; label: string; id: number; code: null; thumbnailUrl: null; price: null }
+  | { type: 'SKILL'; label: string; id: null; code: string; thumbnailUrl: null; price: null }
+
 export interface ProductImage {
   id: number
   url: string

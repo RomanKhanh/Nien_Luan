@@ -26,6 +26,7 @@ import type {
   ProductSummary,
   Recommendation,
   Review,
+  SearchSuggestion,
   Skill,
   SkillBundlePreview,
   SkillPreview,
@@ -57,6 +58,8 @@ export const meApi = {
 export const catalogApi = {
   products: (q: ProductQuery) => request<Page<ProductSummary>>(http.get('/products', { params: productParams(q) })),
   product: (id: number) => request<ProductDetail>(http.get(`/products/${id}`)),
+  suggestions: (q: string) =>
+    request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
   reviews: (id: number, page = 0, size = 5) =>
     request<Page<Review>>(http.get(`/products/${id}/reviews`, { params: { page, size } })),
   createReview: (id: number, body: { rating: number; comment: string }) =>
