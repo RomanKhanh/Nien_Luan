@@ -2,12 +2,16 @@ package com.brainblocks.backend.service.user;
 
 import com.brainblocks.backend.dto.request.user.ChangePasswordRequest;
 import com.brainblocks.backend.dto.request.user.UpdateProfileRequest;
+import com.brainblocks.backend.dto.response.location.AddressResponse;
 import com.brainblocks.backend.dto.response.user.UserProfileResponse;
 import com.brainblocks.backend.entity.Customer;
 import com.brainblocks.backend.entity.User;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.UserRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
+import com.brainblocks.backend.service.location.LocationDirectory;
+import com.brainblocks.backend.service.location.LocationDirectory.ResolvedAddress;
+import com.brainblocks.backend.util.AddressUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserProvider currentUserProvider;
+    private final LocationDirectory locations;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile() {
@@ -31,9 +36,9 @@ public class UserService {
         user.setFullName(request.fullName().trim());
         user.setPhone(blankToNull(request.phone()));
 
-        // defaultAddress chỉ có ở Customer; tài khoản Admin bỏ qua field này
+        // địa chỉ mặc định chỉ có ở Customer; tài khoản Admin bỏ qua các field này
         if (user instanceof Customer customer) {
-            customer.setDefaultAddress(blankToNull(request.defaultAddress()));
+            updateDefaultAddress(customer, request);
         }
         return toProfileResponse(user);
     }
@@ -53,9 +58,37 @@ public class UserService {
         user.setTokenVersion(user.getTokenVersion() + 1);
     }
 
+    // để trống cả 4 field = xóa địa chỉ mặc định; có field nào thì phải đủ và đúng quan hệ tỉnh - huyện - xã
+    private void updateDefaultAddress(Customer customer, UpdateProfileRequest request) {
+        String detail = blankToNull(request.defaultAddressDetail());
+        boolean empty = request.defaultProvinceCode() == null && request.defaultDistrictCode() == null
+                && request.defaultWardCode() == null && detail == null;
+        if (empty) {
+            customer.setDefaultProvinceCode(null);
+            customer.setDefaultDistrictCode(null);
+            customer.setDefaultWardCode(null);
+            customer.setDefaultAddressDetail(null);
+            customer.setDefaultAddress(null);
+            return;
+        }
+        ResolvedAddress address = locations.resolve(request.defaultProvinceCode(), request.defaultDistrictCode(),
+                request.defaultWardCode());
+        if (detail == null) {
+            throw new IllegalArgumentException("Address detail is required");
+        }
+        customer.setDefaultProvinceCode(address.province().code());
+        customer.setDefaultDistrictCode(address.district().code());
+        customer.setDefaultWardCode(address.ward() == null ? null : address.ward().code());
+        customer.setDefaultAddressDetail(detail);
+        // đã có địa chỉ 3 cấp thì bỏ chuỗi địa chỉ kiểu cũ
+        customer.setDefaultAddress(null);
+    }
+
     // dùng chung cho cả AdminUserService để 2 phía trả cùng một định dạng
     public UserProfileResponse toProfileResponse(User user) {
-        String defaultAddress = user instanceof Customer customer ? customer.getDefaultAddress() : null;
+        AddressResponse defaultShippingAddress = user instanceof Customer customer ? toAddress(customer) : null;
+        String defaultAddress = defaultShippingAddress != null ? defaultShippingAddress.fullAddress()
+                : user instanceof Customer customer ? customer.getDefaultAddress() : null;
         return new UserProfileResponse(
                 user.getId(),
                 user.getFullName(),
@@ -64,6 +97,7 @@ public class UserService {
                 user.getRole().name(),
                 user.isEnabled(),
                 defaultAddress,
+                defaultShippingAddress,
                 user.getCreatedAt()
         );
     }
@@ -73,6 +107,24 @@ public class UserService {
         Long userId = currentUserProvider.getCurrentUserId();
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    // tên tỉnh / huyện / xã lấy theo mã từ dữ liệu địa chính; mã không còn hợp lệ thì coi như chưa có địa chỉ
+    private AddressResponse toAddress(Customer customer) {
+        if (customer.getDefaultProvinceCode() == null) {
+            return null;
+        }
+        try {
+            ResolvedAddress a = locations.resolve(customer.getDefaultProvinceCode(), customer.getDefaultDistrictCode(),
+                    customer.getDefaultWardCode());
+            String wardName = a.ward() == null ? null : a.ward().name();
+            return new AddressResponse(a.province().code(), a.province().name(), a.district().code(),
+                    a.district().name(), a.ward() == null ? null : a.ward().code(), wardName,
+                    customer.getDefaultAddressDetail(), AddressUtils.format(customer.getDefaultAddressDetail(),
+                    wardName, a.district().name(), a.province().name()));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private String blankToNull(String value) {

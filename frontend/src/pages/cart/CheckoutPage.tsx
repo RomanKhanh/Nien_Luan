@@ -1,34 +1,42 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { childApi, meApi, orderApi } from '@/api/endpoints'
-import type { PaymentMethod } from '@/api/types'
+import { childApi, meApi, orderApi, shippingApi } from '@/api/endpoints'
+import type { PaymentMethod, ShippingQuote } from '@/api/types'
 import { PageHero } from '@/components/layout/PageHero'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { Field, Input, Select } from '@/components/ui/Field'
 import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
+import { addressIssues, addressShape, addressToValue, codeOrNull, type AddressValue } from '@/features/address/address'
+import { AddressFields } from '@/features/address/AddressFields'
+import { MoneySummary } from '@/features/orders/MoneySummary'
+import { shippingLabel } from '@/features/orders/shippingLabel'
 import { cartKey, useCart } from '@/features/cart/useCart'
 import { childKeys } from '@/features/children/keys'
 import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { MomoMark } from '@/features/payment/PaymentPanel'
 import { ChildBundlePreview } from '@/features/skills/ChildBundlePreview'
 import { usePayWithMomo } from '@/features/payment/usePayWithMomo'
-import { formatPrice } from '@/lib/format'
+import { formatPrice, formatWeightKg } from '@/lib/format'
 
-// khớp CreateOrderRequest ở backend
-const schema = z.object({
-  receiverName: z.string().trim().min(1, 'Vui lòng nhập tên người nhận').max(100, 'Tối đa 100 ký tự'),
-  receiverPhone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9]{9,14}$/, 'Số điện thoại gồm 9–14 chữ số'),
-  shippingAddress: z.string().trim().min(1, 'Vui lòng nhập địa chỉ giao hàng').max(255, 'Tối đa 255 ký tự'),
-})
+// khớp CreateOrderRequest ở backend: địa chỉ 3 cấp bắt buộc (trừ phường/xã ở huyện không có cấp xã)
+const schema = z
+  .object({
+    receiverName: z.string().trim().min(1, 'Vui lòng nhập tên người nhận').max(100, 'Tối đa 100 ký tự'),
+    receiverPhone: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9]{9,14}$/, 'Số điện thoại gồm 9–14 chữ số'),
+    ...addressShape,
+  })
+  .superRefine((v, ctx) => addressIssues(v).forEach((issue) => ctx.addIssue({ code: 'custom', ...issue })))
 type FormValues = z.infer<typeof schema>
+
+const ADDRESS_KEYS = ['provinceCode', 'districtCode', 'wardCode', 'wardRequired', 'addressDetail'] as const
 
 const PAYMENTS: { value: PaymentMethod; label: string; note: string }[] = [
   { value: 'COD', label: 'Thanh toán khi nhận hàng (COD)', note: 'Trả tiền mặt cho nhân viên giao hàng' },
@@ -51,18 +59,28 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (me.data && !form.formState.isDirty) {
+      // địa chỉ mặc định trong hồ sơ tự điền sẵn, khách vẫn đổi được
       form.reset({
         receiverName: me.data.fullName,
         receiverPhone: me.data.phone ?? '',
-        shippingAddress: me.data.defaultAddress ?? '',
+        ...addressToValue(me.data.defaultShippingAddress),
       })
     }
   }, [me.data, form])
 
+  // thông báo khi server báo phí ship đã đổi (409): khách xem phí mới rồi bấm đặt hàng lần nữa để xác nhận
+  const [feeNotice, setFeeNotice] = useState<string | null>(null)
+
   const placeOrder = useMutation({
-    mutationFn: (values: FormValues) =>
+    mutationFn: ({ values, expectedShippingFee }: { values: FormValues; expectedShippingFee?: number }) =>
       orderApi.create({
-        ...values,
+        expectedShippingFee,
+        receiverName: values.receiverName,
+        receiverPhone: values.receiverPhone,
+        provinceCode: Number(values.provinceCode),
+        districtCode: Number(values.districtCode),
+        wardCode: codeOrNull(values.wardCode),
+        addressDetail: values.addressDetail,
         paymentMethod,
         childAssignments: Object.entries(assignments).map(([productId, childProfileId]) => ({
           productId: Number(productId),
@@ -85,7 +103,39 @@ export default function CheckoutPage() {
         },
       })
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => {
+      if (e.status === 409) {
+        // giỏ vừa đổi so với lúc báo giá: tải lại giỏ + phí ship, chờ khách xác nhận
+        setFeeNotice(e.message)
+        queryClient.invalidateQueries({ queryKey: cartKey })
+        queryClient.invalidateQueries({ queryKey: ['shipping-quote'] })
+        return
+      }
+      toast.error(e.message)
+    },
+  })
+
+  const address = useWatch({ control: form.control, name: ADDRESS_KEYS })
+  const addressValue: AddressValue = {
+    provinceCode: address[0] ?? '',
+    districtCode: address[1] ?? '',
+    wardCode: address[2] ?? '',
+    wardRequired: address[3] ?? true,
+    addressDetail: address[4] ?? '',
+  }
+  const changeAddress = (patch: Partial<AddressValue>) => {
+    for (const [key, v] of Object.entries(patch) as [keyof AddressValue, string | boolean][]) {
+      form.setValue(key, v, { shouldDirty: true, shouldValidate: form.formState.isSubmitted })
+    }
+  }
+
+  // phí vận chuyển của giỏ hiện tại tới tỉnh đã chọn; giỏ đổi (số lượng) thì báo giá lại
+  const provinceCode = Number(addressValue.provinceCode) || 0
+  const cartSignature = cart.data?.items.map((i) => `${i.productId}x${i.quantity}`).join(',') ?? ''
+  const quote = useQuery({
+    queryKey: ['shipping-quote', provinceCode, cartSignature],
+    queryFn: () => shippingApi.quote(provinceCode),
+    enabled: provinceCode > 0 && cartSignature !== '',
   })
 
   // bé được gán món -> các món đó, để xem trước hồ sơ kỹ năng của từng bé sau khi nhận đơn
@@ -110,7 +160,11 @@ export default function CheckoutPage() {
       <div className="container-page py-8">
         <form
           noValidate
-          onSubmit={form.handleSubmit((v) => placeOrder.mutate(v))}
+          onSubmit={form.handleSubmit((values) => {
+            setFeeNotice(null)
+            // gửi phí khách đang thấy; server tự tính lại, lệch thì trả 409 kèm phí mới
+            placeOrder.mutate({ values, expectedShippingFee: provinceCode > 0 ? quote.data?.totalFee : undefined })
+          })}
           className="grid gap-6 lg:grid-cols-[1fr_380px]"
         >
           <div className="space-y-6">
@@ -134,22 +188,19 @@ export default function CheckoutPage() {
                     {...form.register('receiverPhone')}
                   />
                 </Field>
-                <Field
-                  label="Địa chỉ giao hàng"
-                  htmlFor="shippingAddress"
-                  required
-                  error={errors.shippingAddress?.message}
-                  className="sm:col-span-2"
-                >
-                  <Textarea
-                    id="shippingAddress"
-                    className="!min-h-[72px]"
-                    autoComplete="street-address"
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                    invalid={Boolean(errors.shippingAddress)}
-                    {...form.register('shippingAddress')}
-                  />
-                </Field>
+              </div>
+              <div className="mt-4">
+                <AddressFields
+                  idPrefix="checkout"
+                  value={addressValue}
+                  onChange={changeAddress}
+                  errors={{
+                    provinceCode: errors.provinceCode?.message,
+                    districtCode: errors.districtCode?.message,
+                    wardCode: errors.wardCode?.message,
+                    addressDetail: errors.addressDetail?.message,
+                  }}
+                />
               </div>
             </section>
 
@@ -253,12 +304,17 @@ export default function CheckoutPage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-4 flex items-baseline justify-between border-t-2 border-dashed border-line pt-4 text-[17px] font-bold">
-              <span>Tổng cộng</span>
-              <span className="font-display text-[26px] font-extrabold leading-none text-coral">
-                {formatPrice(cart.data.totalAmount)}
-              </span>
-            </div>
+            <CheckoutMoney
+              className="mt-4 border-t border-line pt-4"
+              subtotal={cart.data.totalAmount}
+              provinceChosen={provinceCode > 0}
+              quote={quote}
+            />
+            {feeNotice && (
+              <p role="alert" className="mt-3 rounded-md bg-warning-soft px-3 py-2.5 text-[13px] text-[#92400E]">
+                {feeNotice}
+              </p>
+            )}
             <div className="mt-5">
               <UnboxingVideoReminder compact />
             </div>
@@ -278,6 +334,45 @@ export default function CheckoutPage() {
         </form>
       </div>
     </>
+  )
+}
+
+// Tạm tính / Phí vận chuyển (Miền X, n kiện) / Tổng thanh toán, theo báo giá của tỉnh đã chọn
+function CheckoutMoney({
+  subtotal,
+  provinceChosen,
+  quote,
+  className,
+}: {
+  subtotal: number
+  provinceChosen: boolean
+  quote: { data?: ShippingQuote; isError: boolean }
+  className?: string
+}) {
+  const fee = provinceChosen ? quote.data?.totalFee : undefined
+  const shippingValue = !provinceChosen ? (
+    <span className="text-ink-muted">Chọn địa chỉ để tính</span>
+  ) : quote.isError ? (
+    <span className="text-danger">Chưa tính được</span>
+  ) : fee === undefined ? (
+    <span className="text-ink-muted">Đang tính…</span>
+  ) : (
+    formatPrice(fee)
+  )
+  return (
+    <div aria-live="polite" className={className}>
+      <MoneySummary
+        subtotal={subtotal}
+        shippingLabel={shippingLabel(fee === undefined ? null : quote.data?.zoneLabel, quote.data?.parcelCount)}
+        shippingValue={shippingValue}
+        total={subtotal + (fee ?? 0)}
+        totalNote={
+          fee === undefined || !quote.data
+            ? 'Chưa gồm phí vận chuyển'
+            : `Khối lượng tính phí ${formatWeightKg(quote.data.chargeableWeightGrams)}`
+        }
+      />
+    </div>
   )
 }
 

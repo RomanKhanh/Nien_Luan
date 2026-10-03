@@ -27,5 +27,10 @@ public class ApiResponse<T> {
         return new ApiResponse<>(false, message, null);
     }
 
+    // lỗi kèm dữ liệu để client xử lý tiếp (vd 409 phí vận chuyển đã đổi kèm phí mới)
+    public static <T> ApiResponse<T> error(String message, T data) {
+        return new ApiResponse<>(false, message, data);
+    }
+
 }
 

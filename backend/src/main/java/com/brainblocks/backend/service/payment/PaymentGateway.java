@@ -10,4 +10,6 @@ public interface PaymentGateway {
     boolean isSuccess(Map<String, String> params);
     String extractTransactionId(Map<String, String> params);
     String extractTxnRef(Map<String, String> params);
+    // số tiền cổng thanh toán báo đã thu (VND), để đối chiếu với tổng thanh toán của đơn
+    String extractAmount(Map<String, String> params);
 }

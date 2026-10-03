@@ -271,6 +271,53 @@ class CatalogAndFeedbackTest {
         assertThat(call("GET", "/api/products/" + productId, null, null).data().path("videoUrl").isNull()).isTrue();
     }
 
+    // thông số vận chuyển: bắt buộc cả 4, > 0, cân nặng <= 50.000 g, kích thước <= 200 cm; lỗi báo tiếng Việt
+    @Test
+    void shippingSpecsAreRequiredAndValidated() throws Exception {
+        long categoryId = createCategory();
+        Map<String, Object> body = productBody(categoryId, "ship", 3, 12, Map.of());
+
+        Object[][] invalid = {
+                {"weightGrams", null, "weightGrams: Vui lòng nhập cân nặng sau đóng gói"},
+                {"weightGrams", 0, "weightGrams: Cân nặng phải lớn hơn 0"},
+                {"weightGrams", 50_001, "weightGrams: Cân nặng tối đa 50.000 g (50 kg)"},
+                {"lengthCm", null, "lengthCm: Vui lòng nhập chiều dài gói hàng"},
+                {"lengthCm", -5, "lengthCm: Chiều dài phải lớn hơn 0"},
+                {"widthCm", 201, "widthCm: Chiều rộng tối đa 200 cm"},
+                {"heightCm", null, "heightCm: Vui lòng nhập chiều cao gói hàng"},
+                {"heightCm", 0, "heightCm: Chiều cao phải lớn hơn 0"},
+        };
+        for (Object[] c : invalid) {
+            Map<String, Object> broken = new HashMap<>(body);
+            broken.put((String) c[0], c[1]);
+            Res res = call("POST", "/api/admin/products", adminToken, broken);
+            assertThat(res.status()).as(c[0] + "=" + c[1]).isEqualTo(400);
+            assertThat(res.body().path("message").asString()).isEqualTo(c[2]);
+        }
+
+        // biên hợp lệ: 50.000 g, 200 cm, 1 cm; tạo xong trang chi tiết trả về đủ 4 trường
+        body.put("weightGrams", 50_000);
+        body.put("lengthCm", 200);
+        body.put("widthCm", 1);
+        body.put("heightCm", 200);
+        Res created = call("POST", "/api/admin/products", adminToken, body);
+        assertThat(created.status()).as(created.body().toString()).isEqualTo(201);
+        long productId = created.data().path("id").asLong();
+        JsonNode detail = call("GET", "/api/products/" + productId, null, null).data();
+        assertThat(detail.path("weightGrams").asInt()).isEqualTo(50_000);
+        assertThat(detail.path("lengthCm").asInt()).isEqualTo(200);
+        assertThat(detail.path("widthCm").asInt()).isEqualTo(1);
+        assertThat(detail.path("heightCm").asInt()).isEqualTo(200);
+
+        // sửa sản phẩm cũng phải gửi đủ; gửi thiếu bị từ chối, dữ liệu cũ giữ nguyên
+        body.remove("weightGrams");
+        assertThat(call("PUT", "/api/admin/products/" + productId, adminToken, body).status()).isEqualTo(400);
+        body.put("weightGrams", 1200);
+        assertThat(call("PUT", "/api/admin/products/" + productId, adminToken, body).status()).isEqualTo(200);
+        assertThat(call("GET", "/api/admin/products/" + productId, adminToken, null).data().path("weightGrams").asInt())
+                .isEqualTo(1200);
+    }
+
     // ảnh tải lên: ảnh đầu là ảnh đại diện, file giả dạng ảnh bị từ chối, sửa sản phẩm không làm mất ảnh
     @Test
     void productImagesAreUploadedAndManagedSeparately() throws Exception {
@@ -439,7 +486,8 @@ class CatalogAndFeedbackTest {
 
         call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
         Res order = call("POST", "/api/orders", token, Map.of("receiverName", "Test", "receiverPhone", "0901234567",
-                "shippingAddress", "1 Test", "paymentMethod", "COD",
+                "provinceCode", 92, "districtCode", 916, "wardCode", 31117, "addressDetail", "1 Test",
+                "paymentMethod", "COD",
                 "childAssignments", List.of(Map.of("productId", productId, "childProfileId", childId))));
         assertThat(order.status()).isEqualTo(201);
         assertThat(unread(adminToken).path("byType").path("NEW_ORDER").asLong()).isEqualTo(1);
@@ -659,7 +707,8 @@ class CatalogAndFeedbackTest {
     private long placeOrder(String token, long productId) throws Exception {
         call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
         Res order = call("POST", "/api/orders", token, Map.of("receiverName", "Test", "receiverPhone", "0901234567",
-                "shippingAddress", "1 Test", "paymentMethod", "COD"));
+                "provinceCode", 92, "districtCode", 916, "wardCode", 31117, "addressDetail", "1 Test",
+                "paymentMethod", "COD"));
         assertThat(order.status()).isEqualTo(201);
         return order.data().path("id").asLong();
     }
@@ -694,6 +743,10 @@ class CatalogAndFeedbackTest {
         body.put("name", "[TEST] " + name);
         body.put("price", 100000);
         body.put("stockQuantity", 10);
+        body.put("weightGrams", 650);
+        body.put("lengthCm", 30);
+        body.put("widthCm", 22);
+        body.put("heightCm", 8);
         body.put("minAge", minAge);
         body.put("maxAge", maxAge);
         body.put("categoryId", categoryId);

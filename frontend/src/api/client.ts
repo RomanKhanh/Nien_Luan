@@ -110,6 +110,16 @@ const EXACT: Record<string, string> = {
   'Cannot change status of an admin account': 'Không thể khoá tài khoản quản trị viên.',
   'minAge must not be greater than maxAge': 'Tuổi tối thiểu không được lớn hơn tuổi tối đa.',
   'Data conflicts with existing records': 'Dữ liệu bị trùng với bản ghi đã có.',
+  'Province code is invalid': 'Tỉnh/thành không hợp lệ, vui lòng chọn lại.',
+  'District code is invalid': 'Quận/huyện không hợp lệ, vui lòng chọn lại.',
+  'Ward code is invalid': 'Phường/xã không hợp lệ, vui lòng chọn lại.',
+  'District does not belong to the selected province': 'Quận/huyện không thuộc tỉnh/thành đã chọn.',
+  'Ward does not belong to the selected district': 'Phường/xã không thuộc quận/huyện đã chọn.',
+  'Ward is required': 'Vui lòng chọn phường/xã.',
+  'This district has no wards': 'Quận/huyện này không có cấp phường/xã.',
+  'Address detail is required': 'Vui lòng nhập địa chỉ chi tiết (số nhà, tên đường).',
+  'Province not found': 'Không tìm thấy tỉnh/thành.',
+  'District not found': 'Không tìm thấy quận/huyện.',
   'Internal server error': 'Máy chủ gặp lỗi, vui lòng thử lại sau.',
 }
 

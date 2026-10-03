@@ -14,8 +14,10 @@ public record AdminStatsResponse(
         long totalOrders,
         // số đơn theo từng trạng thái; trạng thái chưa có đơn nào = 0
         Map<String, Long> ordersByStatus,
-        // doanh thu = tổng tiền các đơn đã giao
+        // doanh thu = tổng tiền hàng các đơn đã giao, KHÔNG gồm phí vận chuyển
         BigDecimal deliveredRevenue,
+        // tổng phí vận chuyển đã thu của các đơn đã giao, tách riêng khỏi doanh thu
+        BigDecimal deliveredShippingFees,
         List<DailyOrderStat> dailyOrders,
         List<TopProductStat> topProducts,
         List<SkillInterestStat> skillInterests,

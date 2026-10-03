@@ -73,39 +73,40 @@ public class CatalogSeeder implements CommandLineRunner {
                     .orElseGet(() -> categoryRepository.save(Category.builder().name(c[0]).description(c[1]).build()));
             categories.put(c[0], category);
         }
-        // tên, danh mục, giá, tồn, tuổi min, tuổi max, Logic, Sáng tạo, GQVĐ, STEM, mô tả
+        // tên, danh mục, giá, tồn, tuổi min, tuổi max, Logic, Sáng tạo, GQVĐ, STEM,
+        // cân nặng sau đóng gói (g), dài, rộng, cao của hộp (cm), mô tả
         Object[][] products = {
-                {"Bộ lắp ráp robot dò đường 42 chi tiết", "Robot & lập trình", 459000, 24, 6, 8, 8, 5, 7, 9,
+                {"Bộ lắp ráp robot dò đường 42 chi tiết", "Robot & lập trình", 459000, 24, 6, 8, 8, 5, 7, 9, 650, 30, 22, 8,
                         "Bé tự lắp một chiếc robot có cảm biến dò theo vạch kẻ, học nguyên lý cảm biến quang và cách nối mạch cơ bản."},
-                {"Xếp hình logic khối gỗ 120 chi tiết", "Xếp hình & câu đố", 320000, 40, 4, 8, 9, 4, 9, 3,
+                {"Xếp hình logic khối gỗ 120 chi tiết", "Xếp hình & câu đố", 320000, 40, 4, 8, 9, 4, 9, 3, 1400, 32, 24, 9,
                         "120 khối gỗ nhiều hình dạng kèm 60 thẻ thử thách từ dễ đến khó."},
-                {"Bộ mạch điện sáng tạo 30 mô-đun", "Robot & lập trình", 689000, 15, 7, 12, 6, 8, 7, 9,
+                {"Bộ mạch điện sáng tạo 30 mô-đun", "Robot & lập trình", 689000, 15, 7, 12, 6, 8, 7, 9, 1100, 35, 25, 7,
                         "Mạch điện dạng khối nam châm, bé tự thiết kế đèn, còi, quạt theo ý mình."},
-                {"Bộ thử thách cơ khí bánh răng", "Bộ lắp ráp", 375000, 30, 6, 10, 7, 5, 9, 7,
+                {"Bộ thử thách cơ khí bánh răng", "Bộ lắp ráp", 375000, 30, 6, 10, 7, 5, 9, 7, 800, 30, 22, 8,
                         "24 thử thách mở với bánh răng, trục và tay quay."},
-                {"Robot lập trình không màn hình Cubetto", "Robot & lập trình", 1250000, 8, 3, 6, 8, 4, 7, 8,
+                {"Robot lập trình không màn hình Cubetto", "Robot & lập trình", 1250000, 8, 3, 6, 8, 4, 7, 8, 2200, 40, 30, 12,
                         "Lập trình bằng khối gỗ, không cần màn hình, phù hợp trẻ mầm non."},
-                {"Bộ thí nghiệm núi lửa và tinh thể", "Khoa học thí nghiệm", 289000, 50, 6, 12, 4, 5, 6, 9,
+                {"Bộ thí nghiệm núi lửa và tinh thể", "Khoa học thí nghiệm", 289000, 50, 6, 12, 4, 5, 6, 9, 900, 32, 24, 8,
                         "12 thí nghiệm hóa học an toàn tại nhà, có hướng dẫn tiếng Việt."},
-                {"Kính hiển vi trẻ em 1200x", "Khoa học thí nghiệm", 890000, 12, 8, 14, 4, 3, 5, 10,
+                {"Kính hiển vi trẻ em 1200x", "Khoa học thí nghiệm", 890000, 12, 8, 14, 4, 3, 5, 10, 1600, 36, 24, 14,
                         "Quan sát tế bào, lá cây, côn trùng; kèm 10 tiêu bản mẫu."},
-                {"Bộ đất nặn an toàn 24 màu", "Mỹ thuật sáng tạo", 199000, 80, 3, 8, 1, 10, 3, 1,
+                {"Bộ đất nặn an toàn 24 màu", "Mỹ thuật sáng tạo", 199000, 80, 3, 8, 1, 10, 3, 1, 1300, 30, 20, 10,
                         "Đất nặn từ bột mì, không dính tay, kèm khuôn và dụng cụ."},
-                {"Bảng vẽ nam châm và bộ tem hình", "Mỹ thuật sáng tạo", 159000, 60, 2, 5, 1, 9, 2, 0,
+                {"Bảng vẽ nam châm và bộ tem hình", "Mỹ thuật sáng tạo", 159000, 60, 2, 5, 1, 9, 2, 0, 600, 34, 26, 5,
                         "Vẽ và xóa không bụi, kèm tem hình khối để bé sáng tác."},
-                {"Board game Rô-bốt tìm đường", "Board game tư duy", 345000, 25, 5, 10, 9, 3, 8, 5,
+                {"Board game Rô-bốt tìm đường", "Board game tư duy", 345000, 25, 5, 10, 9, 3, 8, 5, 900, 30, 30, 7,
                         "Trò chơi lập kế hoạch đường đi, rèn tư duy thuật toán."},
-                {"Cờ tư duy 4 trong 1", "Board game tư duy", 240000, 35, 6, 12, 8, 2, 7, 2,
+                {"Cờ tư duy 4 trong 1", "Board game tư duy", 240000, 35, 6, 12, 8, 2, 7, 2, 1000, 36, 36, 5,
                         "Cờ vua, cờ caro, cờ cá ngựa, cờ tướng trong một hộp."},
-                {"Khối nam châm xây dựng 64 chi tiết", "Bộ lắp ráp", 520000, 20, 3, 8, 5, 9, 6, 6,
+                {"Khối nam châm xây dựng 64 chi tiết", "Bộ lắp ráp", 520000, 20, 3, 8, 5, 9, 6, 6, 1800, 34, 26, 10,
                         "Khối nam châm hình học để xây nhà, xe, tháp theo trí tưởng tượng."},
-                {"Bộ lắp ráp xe năng lượng mặt trời 12 in 1", "Bộ lắp ráp", 410000, 3, 8, 14, 6, 6, 7, 9,
+                {"Bộ lắp ráp xe năng lượng mặt trời 12 in 1", "Bộ lắp ráp", 410000, 3, 8, 14, 6, 6, 7, 9, 850, 32, 24, 8,
                         "12 mô hình chạy bằng pin mặt trời, học về năng lượng tái tạo."},
-                {"Puzzle bản đồ Việt Nam 63 mảnh", "Xếp hình & câu đố", 180000, 45, 5, 10, 6, 2, 5, 4,
+                {"Puzzle bản đồ Việt Nam 63 mảnh", "Xếp hình & câu đố", 180000, 45, 5, 10, 6, 2, 5, 4, 500, 30, 24, 4,
                         "Ghép bản đồ các tỉnh thành, kèm thẻ kiến thức địa lý."},
-                {"Bộ thủ công tự làm ô tô bìa cứng", "Mỹ thuật sáng tạo", 135000, 0, 5, 9, 3, 9, 6, 4,
+                {"Bộ thủ công tự làm ô tô bìa cứng", "Mỹ thuật sáng tạo", 135000, 0, 5, 9, 3, 9, 6, 4, 350, 30, 22, 5,
                         "Tự cắt, dán, trang trí ô tô bìa cứng chạy bằng dây thun."},
-                {"Bộ cảm biến lập trình Micro:bit cho bé", "Robot & lập trình", 980000, 10, 9, 15, 8, 7, 8, 10,
+                {"Bộ cảm biến lập trình Micro:bit cho bé", "Robot & lập trình", 980000, 10, 9, 15, 8, 7, 8, 10, 700, 26, 20, 8,
                         "Lập trình kéo thả với cảm biến nhiệt, ánh sáng, chuyển động."},
         };
         for (Object[] p : products) {
@@ -116,7 +117,11 @@ public class CatalogSeeder implements CommandLineRunner {
                     .stockQuantity((Integer) p[3])
                     .minAge((Integer) p[4])
                     .maxAge((Integer) p[5])
-                    .description((String) p[10])
+                    .weightGrams((Integer) p[10])
+                    .lengthCm((Integer) p[11])
+                    .widthCm((Integer) p[12])
+                    .heightCm((Integer) p[13])
+                    .description((String) p[14])
                     .build();
             String[] codes = {"LOGIC", "CREATIVE", "PROBLEM_SOLVING", "STEM"};
             for (int i = 0; i < codes.length; i++) {

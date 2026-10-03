@@ -2,6 +2,8 @@ package com.brainblocks.backend.entity;
 
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.enums.PaymentMethod;
+import com.brainblocks.backend.enums.Region;
+import com.brainblocks.backend.util.AddressUtils;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,11 +42,51 @@ public class Order {
     @Column(nullable = false, length = 20)
     private String receiverPhone;
 
-    @Column(nullable = false, length = 255)
+    // Địa chỉ dạng chuỗi tự do của đơn đặt TRƯỚC khi có địa chỉ 3 cấp; đơn mới để null.
+    // Cột cũ là NOT NULL, LegacyOrderMigration gỡ ràng buộc này khi khởi động (ddl-auto=update không tự gỡ).
+    @Column(length = 255)
     private String shippingAddress;
 
+    // Địa chỉ 3 cấp (63 tỉnh trước sáp nhập, LocationDirectory): lưu cả mã lẫn TÊN tại thời điểm đặt
+    // để đơn vẫn hiển thị đúng nếu dữ liệu địa chính đổi sau này. Null ở đơn cũ.
+    private Integer provinceCode;
+
+    @Column(length = 100)
+    private String provinceName;
+
+    private Integer districtCode;
+
+    @Column(length = 100)
+    private String districtName;
+
+    // null khi huyện không có cấp xã (huyện đảo)
+    private Integer wardCode;
+
+    @Column(length = 100)
+    private String wardName;
+
+    // số nhà, tên đường
+    @Column(length = 255)
+    private String addressDetail;
+
+    // tổng thanh toán = subtotal + shippingFee (giữ tên cột cũ để các chỗ đang dùng như MoMo không phải đổi)
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
+
+    // Tiền hàng và phí vận chuyển. Đơn đặt trước khi có phí ship: LegacyOrderMigration điền
+    // subtotal = totalAmount, shippingFee = 0 lúc khởi động; vẫn đọc qua getSubtotalOrTotal / getShippingFeeOrZero.
+    @Column(precision = 12, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal shippingFee;
+
+    // miền giao hàng và số kiện lúc đặt; null ở đơn cũ
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Region shippingZone;
+
+    private Integer parcelCount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -68,4 +110,20 @@ public class Order {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    public BigDecimal getSubtotalOrTotal() {
+        return subtotal != null ? subtotal : totalAmount;
+    }
+
+    public BigDecimal getShippingFeeOrZero() {
+        return shippingFee != null ? shippingFee : BigDecimal.ZERO;
+    }
+
+    // địa chỉ để hiển thị: "chi tiết, xã, huyện, tỉnh"; đơn cũ (chưa có địa chỉ 3 cấp) trả nguyên chuỗi cũ
+    public String fullAddress() {
+        if (provinceCode == null) {
+            return shippingAddress;
+        }
+        return AddressUtils.format(addressDetail, wardName, districtName, provinceName);
+    }
 }

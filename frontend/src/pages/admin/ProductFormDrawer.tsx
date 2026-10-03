@@ -15,6 +15,20 @@ import { skillTheme } from '@/lib/skills'
 import { youtubeId } from '@/lib/youtube'
 import { ProductImagesField } from './ProductImagesField'
 
+// ô số nguyên bắt buộc của thông số vận chuyển: trống thì báo nhập, còn lại phải là số nguyên trong (0, max]
+const shippingInt = (label: string, emptyMessage: string, max: number, maxMessage: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, emptyMessage)
+    .pipe(
+      z.coerce
+        .number<string>({ error: `${label} không hợp lệ` })
+        .int(`${label} phải là số nguyên`)
+        .positive(`${label} phải lớn hơn 0`)
+        .max(max, maxMessage),
+    )
+
 // khớp ProductRequest ở backend
 const schema = z
   .object({
@@ -33,11 +47,27 @@ const schema = z
     minAge: z.coerce.number<string>().int().min(0, '0–18').max(18, '0–18'),
     maxAge: z.coerce.number<string>().int().min(0, '0–18').max(18, '0–18'),
     categoryId: z.coerce.number<string>().min(1, 'Chọn danh mục'),
+    weightGrams: shippingInt('Cân nặng', 'Vui lòng nhập cân nặng sau đóng gói', 50_000, 'Cân nặng tối đa 50.000 g (50 kg)'),
+    lengthCm: shippingInt('Chiều dài', 'Vui lòng nhập chiều dài gói hàng', 200, 'Chiều dài tối đa 200 cm'),
+    widthCm: shippingInt('Chiều rộng', 'Vui lòng nhập chiều rộng gói hàng', 200, 'Chiều rộng tối đa 200 cm'),
+    heightCm: shippingInt('Chiều cao', 'Vui lòng nhập chiều cao gói hàng', 200, 'Chiều cao tối đa 200 cm'),
     active: z.boolean(),
   })
   .refine((v) => v.minAge <= v.maxAge, { message: 'Tuổi tối thiểu phải ≤ tuổi tối đa', path: ['maxAge'] })
 type FormInput = z.input<typeof schema>
 type FormOutput = z.output<typeof schema>
+
+const SHIPPING_FIELDS: {
+  name: 'weightGrams' | 'lengthCm' | 'widthCm' | 'heightCm'
+  label: string
+  max: number
+  placeholder: string
+}[] = [
+  { name: 'weightGrams', label: 'Cân nặng (g)', max: 50_000, placeholder: 'VD 650' },
+  { name: 'lengthCm', label: 'Dài (cm)', max: 200, placeholder: 'VD 30' },
+  { name: 'widthCm', label: 'Rộng (cm)', max: 200, placeholder: 'VD 22' },
+  { name: 'heightCm', label: 'Cao (cm)', max: 200, placeholder: 'VD 8' },
+]
 
 export function ProductFormDrawer({
   open,
@@ -102,6 +132,11 @@ function ProductForm({
       minAge: p ? String(p.minAge) : '3',
       maxAge: p ? String(p.maxAge) : '12',
       categoryId: p ? String(p.categoryId) : '',
+      // sản phẩm mới để trống, buộc admin đo và nhập
+      weightGrams: p ? String(p.weightGrams) : '',
+      lengthCm: p ? String(p.lengthCm) : '',
+      widthCm: p ? String(p.widthCm) : '',
+      heightCm: p ? String(p.heightCm) : '',
       active: p?.active ?? true,
     },
   })
@@ -118,6 +153,10 @@ function ProductForm({
         minAge: v.minAge,
         maxAge: v.maxAge,
         categoryId: v.categoryId,
+        weightGrams: v.weightGrams,
+        lengthCm: v.lengthCm,
+        widthCm: v.widthCm,
+        heightCm: v.heightCm,
         skillImpacts: Object.entries(impacts)
           .filter(([, value]) => value > 0)
           .map(([skillId, impactIndex]) => ({ skillId: Number(skillId), impactIndex })),
@@ -218,6 +257,30 @@ function ProductForm({
             </Field>
           </div>
         </div>
+
+        <fieldset className="rounded-md border border-line p-4">
+          <legend className="px-1 text-[13px] font-semibold text-ink-2">Thông tin vận chuyển</legend>
+          <p className="mb-3 text-[12.5px] text-ink-muted">
+            Đo hộp sau khi đóng gói (tính cả thùng và xốp chèn). Số liệu này sẽ dùng để tính phí giao hàng.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {SHIPPING_FIELDS.map((f) => (
+              <Field key={f.name} label={f.label} htmlFor={`p-${f.name}`} required error={errors[f.name]?.message}>
+                <Input
+                  id={`p-${f.name}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={f.max}
+                  step={1}
+                  placeholder={f.placeholder}
+                  invalid={Boolean(errors[f.name])}
+                  {...form.register(f.name)}
+                />
+              </Field>
+            ))}
+          </div>
+        </fieldset>
 
         <fieldset className="rounded-md border border-line p-4">
           <legend className="px-1 text-[13px] font-semibold text-ink-2">Chỉ số tác động kỹ năng (0 – 10)</legend>

@@ -79,7 +79,8 @@ public class AdminStatsService {
                 productRepository.countByActiveTrueAndStockQuantityLessThanEqual(LOW_STOCK_THRESHOLD),
                 totalOrders,
                 ordersByStatus,
-                orderRepository.sumTotalByStatus(OrderStatus.DELIVERED),
+                orderRepository.sumSubtotalByStatus(OrderStatus.DELIVERED),
+                orderRepository.sumShippingFeeByStatus(OrderStatus.DELIVERED),
                 dailyOrders(today),
                 topProducts,
                 skillInterests,
@@ -88,7 +89,7 @@ public class AdminStatsService {
                 chatTopics);
     }
 
-    // số đơn và giá trị đơn (không tính đơn hủy) theo từng ngày trong 14 ngày gần nhất, ngày không có đơn = 0
+    // số đơn và tiền hàng (không gồm phí ship, không tính đơn hủy) theo từng ngày trong 14 ngày gần nhất, ngày không có đơn = 0
     private List<DailyOrderStat> dailyOrders(LocalDate today) {
         LocalDate from = today.minusDays(DAILY_RANGE_DAYS - 1);
         Map<LocalDate, long[]> counts = new LinkedHashMap<>();
@@ -101,7 +102,7 @@ public class AdminStatsService {
             LocalDate day = row.getCreatedAt().toLocalDate();
             if (counts.containsKey(day)) {
                 counts.get(day)[0]++;
-                amounts.merge(day, row.getTotalAmount(), BigDecimal::add);
+                amounts.merge(day, row.getSubtotal(), BigDecimal::add);
             }
         }
         List<DailyOrderStat> result = new ArrayList<>();

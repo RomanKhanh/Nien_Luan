@@ -11,7 +11,9 @@ import type {
   ComplaintStatus,
   ComplaintType,
   CreateOrderRequest,
+  DistrictOption,
   LoginResponse,
+  LocationOption,
   NotificationType,
   Order,
   OrderStatus,
@@ -24,15 +26,18 @@ import type {
   ProductQuery,
   ProductRequest,
   ProductSummary,
+  ProvinceOption,
   Recommendation,
   Review,
   SearchSuggestion,
+  ShippingQuote,
   Skill,
   SkillBundlePreview,
   SkillPreview,
   SkillProfile,
   SkillTimeline,
   UnreadCount,
+  UpdateProfileRequest,
   UserProfile,
 } from './types'
 
@@ -49,10 +54,22 @@ export const authApi = {
 
 export const meApi = {
   get: () => request<UserProfile>(http.get('/me')),
-  update: (body: { fullName: string; phone: string; defaultAddress: string }) =>
-    request<UserProfile>(http.put('/me', body)),
+  update: (body: UpdateProfileRequest) => request<UserProfile>(http.put('/me', body)),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     request<void>(http.put('/me/password', body)),
+}
+
+// địa chính 63 tỉnh/thành trước sáp nhập; dữ liệu cố định nên cache lâu ở react-query
+export const locationApi = {
+  provinces: () => request<ProvinceOption[]>(http.get('/locations/provinces')),
+  districts: (provinceCode: number) =>
+    request<DistrictOption[]>(http.get(`/locations/provinces/${provinceCode}/districts`)),
+  wards: (districtCode: number) => request<LocationOption[]>(http.get(`/locations/districts/${districtCode}/wards`)),
+}
+
+export const shippingApi = {
+  // phí vận chuyển giỏ hàng hiện tại tới tỉnh đã chọn
+  quote: (provinceCode: number) => request<ShippingQuote>(http.post('/shipping/quote', { provinceCode })),
 }
 
 export const catalogApi = {

@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { ComplaintModal } from '@/features/complaints/ComplaintModal'
+import { OrderMoneySummary } from '@/features/orders/MoneySummary'
 import { OrderTimeline } from '@/features/orders/OrderTimeline'
 import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { PaymentPanel } from '@/features/payment/PaymentPanel'
@@ -128,12 +129,7 @@ export default function OrderDetailPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-3 flex items-baseline justify-between border-t-2 border-dashed border-line pt-3 text-[16px] font-bold">
-            <span>Tổng cộng</span>
-            <span className="font-display text-[24px] font-extrabold leading-none text-coral">
-              {formatPrice(o.totalAmount)}
-            </span>
-          </div>
+          <OrderMoneySummary order={o} className="mt-3 border-t border-line pt-3" />
         </section>
 
         <div className="space-y-5">

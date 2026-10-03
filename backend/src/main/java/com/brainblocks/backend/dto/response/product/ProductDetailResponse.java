@@ -14,6 +14,11 @@ public record ProductDetailResponse(
         int minAge,
         int maxAge,
         int stockQuantity,
+        // thông số vận chuyển của gói hàng sau đóng gói (gram, cm)
+        int weightGrams,
+        int lengthCm,
+        int widthCm,
+        int heightCm,
         boolean active,
         Long categoryId,
         String categoryName,

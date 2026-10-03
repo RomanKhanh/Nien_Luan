@@ -12,13 +12,17 @@ import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.PaymentRepository;
 import com.brainblocks.backend.service.order.OrderAccessGuard;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -60,10 +64,11 @@ public class PaymentService {
         if (payment == null) {
             payment = Payment.builder()
                     .order(order)
-                    .amount(order.getTotalAmount())
                     .status(PaymentStatus.PENDING)
                     .build();
         }
+        // số tiền thanh toán = tổng của đơn, đã gồm phí vận chuyển
+        payment.setAmount(order.getTotalAmount());
         paymentRepository.save(payment);
 
         String txnRef = order.getId() + "-" + System.currentTimeMillis();
@@ -89,6 +94,13 @@ public class PaymentService {
             return true;
         }
 
+        // cổng báo thành công nhưng số tiền khác tổng thanh toán của đơn (gồm phí ship): không ghi nhận đã trả
+        if (gateway.isSuccess(params) && !amountMatches(order, gateway.extractAmount(params))) {
+            log.warn("Payment amount mismatch for order {}: gateway {} vs order total {}", order.getOrderCode(),
+                    gateway.extractAmount(params), order.getTotalAmount());
+            return false;
+        }
+
         if (gateway.isSuccess(params)) {
             payment.setStatus(PaymentStatus.SUCCESS);
             payment.setTransactionId(gateway.extractTransactionId(params));
@@ -109,6 +121,16 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("No payment found for this order"));
         return new PaymentResponse(orderId, payment.getStatus().name(), payment.getAmount(),
                 payment.getTransactionId(), payment.getPaidAt());
+    }
+
+    // so theo VND nguyên, cùng cách làm tròn với số đã gửi cổng thanh toán
+    static boolean amountMatches(Order order, String paidAmount) {
+        try {
+            return paidAmount != null && new BigDecimal(paidAmount.trim())
+                    .compareTo(order.getTotalAmount().setScale(0, RoundingMode.HALF_UP)) == 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private Long extractOrderId(String txnRef) {

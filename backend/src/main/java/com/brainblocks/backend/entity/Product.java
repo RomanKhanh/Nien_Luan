@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -48,6 +49,25 @@ public class Product {
 
     @Column(nullable = false)
     private int maxAge;
+
+    // Thông số vận chuyển của gói hàng SAU khi đóng gói, để tính phí ship sau này.
+    // Gram và cm nguyên cho khỏi số lẻ. @ColumnDefault chỉ để ddl-auto=update thêm được cột NOT NULL
+    // vào bảng đã có dữ liệu: sản phẩm cũ nhận 500 g, 20×15×10 cm; sản phẩm mới luôn phải nhập đủ.
+    @ColumnDefault("500")
+    @Column(name = "weight_grams", nullable = false)
+    private Integer weightGrams;
+
+    @ColumnDefault("20")
+    @Column(name = "length_cm", nullable = false)
+    private Integer lengthCm;
+
+    @ColumnDefault("15")
+    @Column(name = "width_cm", nullable = false)
+    private Integer widthCm;
+
+    @ColumnDefault("10")
+    @Column(name = "height_cm", nullable = false)
+    private Integer heightCm;
 
     // false = ẩn sản phẩm thay vì xóa cứng, vì còn gắn với đơn hàng cũ
     @Builder.Default

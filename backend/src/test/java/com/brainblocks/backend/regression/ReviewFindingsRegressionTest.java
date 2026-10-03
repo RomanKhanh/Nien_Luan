@@ -51,7 +51,8 @@ class ReviewFindingsRegressionTest {
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final Map<String, Object> ORDER_BODY = Map.of(
             "receiverName", "Regression", "receiverPhone", "0901234567",
-            "shippingAddress", "123 Regression", "paymentMethod", "COD");
+            "provinceCode", 92, "districtCode", 916, "wardCode", 31117,
+            "addressDetail", "123 Regression", "paymentMethod", "COD");
 
     @Autowired
     private Environment environment;
@@ -357,7 +358,8 @@ class ReviewFindingsRegressionTest {
             em.persist(category);
             Product product = Product.builder()
                     .name("[REG] " + name).price(new BigDecimal("100000.00"))
-                    .stockQuantity(stock).minAge(3).maxAge(12).category(category).build();
+                    .stockQuantity(stock).minAge(3).maxAge(12).category(category)
+                    .weightGrams(500).lengthCm(20).widthCm(15).heightCm(10).build();
             if (impacts != null) {
                 impacts.forEach((skillId, value) -> product.getProductSkillImpacts().add(ProductSkillImpact.builder()
                         .product(product).skill(em.getReference(Skill.class, skillId)).impactIndex(value).build()));
