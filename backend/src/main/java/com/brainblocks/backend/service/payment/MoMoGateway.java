@@ -36,9 +36,37 @@ public class MoMoGateway implements PaymentGateway {
     @Value("${momo.ipn-url}")
     private String ipnUrl;
 
+    // số tiền gửi MoMo (VND, số nguyên) = tổng thanh toán của đơn, đã gồm phí vận chuyển
+    static String amountOf(Order order) {
+        return order.getTotalAmount().setScale(0, RoundingMode.HALF_UP).toBigInteger().toString();
+    }
+
     @Override
     public String createPaymentUrl(Order order, String txnRef, String clientIp) {
-        String amount = order.getTotalAmount().setScale(0, RoundingMode.HALF_UP).toBigInteger().toString();
+        Map<String, Object> body = buildCreateRequest(order, txnRef);
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+            Map<?, ?> result = objectMapper.readValue(response.body(), Map.class);
+            if (!"0".equals(String.valueOf(result.get("resultCode")))) {
+                throw new PaymentGatewayException("MoMo rejected the payment request: " + result.get("message"));
+            }
+            return (String) result.get("payUrl");
+        } catch (PaymentGatewayException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PaymentGatewayException("Cannot reach MoMo payment gateway", e);
+        }
+    }
+
+    // body gửi lên API tạo giao dịch của MoMo, đã ký
+    Map<String, Object> buildCreateRequest(Order order, String txnRef) {
+        String amount = amountOf(order);
         String orderInfo = "Thanh toan don hang " + order.getOrderCode();
         String extraData = "";
         String requestType = "captureWallet";
@@ -69,25 +97,7 @@ public class MoMoGateway implements PaymentGateway {
         body.put("extraData", extraData);
         body.put("requestType", requestType);
         body.put("signature", signature);
-
-        try {
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body), StandardCharsets.UTF_8))
-                    .build();
-            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-
-            Map<?, ?> result = objectMapper.readValue(response.body(), Map.class);
-            if (!"0".equals(String.valueOf(result.get("resultCode")))) {
-                throw new PaymentGatewayException("MoMo rejected the payment request: " + result.get("message"));
-            }
-            return (String) result.get("payUrl");
-        } catch (PaymentGatewayException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new PaymentGatewayException("Cannot reach MoMo payment gateway", e);
-        }
+        return body;
     }
 
     @Override
@@ -124,6 +134,11 @@ public class MoMoGateway implements PaymentGateway {
     @Override
     public String extractTxnRef(Map<String, String> params) {
         return params.get("orderId");
+    }
+
+    @Override
+    public String extractAmount(Map<String, String> params) {
+        return params.get("amount");
     }
 
     private String hmacSHA256(String key, String data) {
