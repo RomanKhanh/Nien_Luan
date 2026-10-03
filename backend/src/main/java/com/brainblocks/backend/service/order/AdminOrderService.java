@@ -98,7 +98,7 @@ public class AdminOrderService {
         String code = order.getOrderCode();
         String[] content = switch (status) {
             case CONFIRMED -> new String[]{"Đơn hàng đã được xác nhận",
-                    "Đơn " + code + " đã được xác nhận và đang được chuẩn bị."};
+                    "Đơn " + code + " đã được xác nhận và đang được chuẩn bị. " + OrderService.moneyLines(order) + "."};
             case SHIPPING -> new String[]{"Đơn hàng đang được giao",
                     "Đơn " + code + " đã được giao cho đơn vị vận chuyển. Nhớ quay video khi mở hàng: video mở hàng"
                             + " là bắt buộc nếu bạn cần đổi hoặc trả hàng."};
@@ -163,7 +163,8 @@ public class AdminOrderService {
     private OrderSummaryResponse toSummaryResponse(Order order) {
         Customer customer = order.getCustomer();
         return new OrderSummaryResponse(order.getId(), order.getOrderCode(),
-                customer.getFullName(), customer.getEmail(), order.getTotalAmount(),
+                customer.getFullName(), customer.getEmail(), order.getSubtotalOrTotal(), order.getShippingFeeOrZero(),
+                order.getTotalAmount(),
                 order.getStatus().name(), order.getPaymentMethod().name(), order.getCreatedAt());
     }
 

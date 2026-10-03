@@ -3,19 +3,25 @@ package com.brainblocks.backend.service.order;
 import com.brainblocks.backend.dto.request.order.CreateOrderRequest;
 import com.brainblocks.backend.dto.request.order.OrderItemChildRequest;
 import com.brainblocks.backend.dto.response.order.OrderItemResponse;
+import com.brainblocks.backend.dto.response.location.AddressResponse;
 import com.brainblocks.backend.dto.response.order.OrderResponse;
 import com.brainblocks.backend.entity.*;
 import com.brainblocks.backend.enums.NotificationType;
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.enums.PaymentMethod;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
+import com.brainblocks.backend.exception.ShippingFeeChangedException;
 import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.CustomerRepository;
 import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import com.brainblocks.backend.service.child.ChildProfileAccessGuard;
+import com.brainblocks.backend.service.location.LocationDirectory;
+import com.brainblocks.backend.service.location.LocationDirectory.ResolvedAddress;
 import com.brainblocks.backend.service.notification.NotificationService;
+import com.brainblocks.backend.service.shipping.ShippingQuote;
+import com.brainblocks.backend.service.shipping.ShippingQuoteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +48,8 @@ public class OrderService {
     private final OrderAccessGuard orderAccessGuard;
     private final ChildProfileAccessGuard childProfileAccessGuard;
     private final NotificationService notificationService;
+    private final LocationDirectory locations;
+    private final ShippingQuoteService shippingQuoteService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -57,13 +65,21 @@ public class OrderService {
         }
 
         Map<Long, ChildProfile> childByProductId = resolveChildAssignments(request.childAssignments(), cart);
+        ResolvedAddress address = locations.resolve(request.provinceCode(), request.districtCode(), request.wardCode());
 
         Order order = Order.builder()
                 .orderCode(generateOrderCode())
                 .customer(customerRepository.getReferenceById(customerId))
                 .receiverName(request.receiverName().trim())
                 .receiverPhone(request.receiverPhone().trim())
-                .shippingAddress(request.shippingAddress().trim())
+                // lưu cả tên tại thời điểm đặt; shippingAddress (địa chỉ tự do kiểu cũ) để trống
+                .provinceCode(address.province().code())
+                .provinceName(address.province().name())
+                .districtCode(address.district().code())
+                .districtName(address.district().name())
+                .wardCode(address.ward() == null ? null : address.ward().code())
+                .wardName(address.ward() == null ? null : address.ward().name())
+                .addressDetail(request.addressDetail().trim())
                 .status(OrderStatus.PENDING)
                 .paymentMethod(request.paymentMethod())
                 .build();
@@ -73,7 +89,7 @@ public class OrderService {
                 .sorted(Comparator.comparing(item -> item.getProduct().getId()))
                 .toList();
 
-        BigDecimal total = BigDecimal.ZERO;
+        BigDecimal subtotal = BigDecimal.ZERO;
         for (CartItem item : cartItems) {
             Product product = item.getProduct();
             if (!product.isActive()) {
@@ -92,16 +108,30 @@ public class OrderService {
                     .unitPrice(product.getPrice())
                     .build());
 
-            total = total.add(product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
+            subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         }
-        order.setTotalAmount(total);
+
+        // Phí vận chuyển server tự tính lại từ đúng các món của đơn + tỉnh nhận (cùng hàm với /api/shipping/quote),
+        // không nhận từ client. Lệch với phí khách đã thấy thì trả 409; exception rollback cả phần trừ kho ở trên.
+        ShippingQuote shipping = shippingQuoteService.quote(address.province(), cartItems);
+        BigDecimal shippingFee = shipping.totalFee();
+        if (request.expectedShippingFee() != null && request.expectedShippingFee().compareTo(shippingFee) != 0) {
+            throw new ShippingFeeChangedException("Phí vận chuyển đã thay đổi thành " + formatMoney(shippingFee)
+                    + " (tổng thanh toán " + formatMoney(subtotal.add(shippingFee)) + ") do giỏ hàng vừa thay đổi. "
+                    + "Vui lòng kiểm tra lại và bấm đặt hàng để xác nhận.", shippingFee, subtotal);
+        }
+        order.setSubtotal(subtotal);
+        order.setShippingFee(shippingFee);
+        order.setShippingZone(shipping.zone());
+        order.setParcelCount(shipping.parcelCount());
+        order.setTotalAmount(subtotal.add(shippingFee));
 
         Order saved = orderRepository.save(order);
         cart.getItems().clear();
 
         notificationService.notifyAdmins(NotificationType.NEW_ORDER, "Đơn hàng mới " + saved.getOrderCode(),
-                saved.getCustomer().getFullName() + " vừa đặt " + saved.getItems().size() + " sản phẩm, tổng "
-                        + formatMoney(total) + ".",
+                saved.getCustomer().getFullName() + " vừa đặt " + saved.getItems().size() + " sản phẩm. "
+                        + moneyLines(saved) + ".",
                 "/admin/orders");
         return toOrderResponse(saved);
     }
@@ -139,6 +169,12 @@ public class OrderService {
     // 459000 -> "459.000₫"
     private static String formatMoney(BigDecimal amount) {
         return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "₫";
+    }
+
+    // "Tiền hàng 459.000₫, phí vận chuyển 26.000₫, tổng 485.000₫" cho thông báo đơn hàng
+    public static String moneyLines(Order order) {
+        return "Tiền hàng " + formatMoney(order.getSubtotalOrTotal()) + ", phí vận chuyển "
+                + formatMoney(order.getShippingFeeOrZero()) + ", tổng " + formatMoney(order.getTotalAmount());
     }
 
     // hoàn kho cho mọi dòng của đơn bị hủy; dùng chung cho khách tự hủy và admin hủy
@@ -194,7 +230,19 @@ public class OrderService {
                 })
                 .toList();
         return new OrderResponse(order.getId(), order.getOrderCode(), order.getReceiverName(),
-                order.getReceiverPhone(), order.getShippingAddress(), order.getTotalAmount(),
+                order.getReceiverPhone(), order.fullAddress(), toAddressResponse(order), order.getSubtotalOrTotal(),
+                order.getShippingFeeOrZero(), order.getShippingZone() == null ? null : order.getShippingZone().name(),
+                order.getShippingZone() == null ? null : order.getShippingZone().label(), order.getParcelCount(),
+                order.getTotalAmount(),
                 order.getStatus().name(), order.getPaymentMethod().name(), items, order.getCreatedAt());
+    }
+
+    private static AddressResponse toAddressResponse(Order order) {
+        if (order.getProvinceCode() == null) {
+            return null;
+        }
+        return new AddressResponse(order.getProvinceCode(), order.getProvinceName(), order.getDistrictCode(),
+                order.getDistrictName(), order.getWardCode(), order.getWardName(), order.getAddressDetail(),
+                order.fullAddress());
     }
 }

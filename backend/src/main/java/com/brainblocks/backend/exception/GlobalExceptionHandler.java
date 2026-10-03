@@ -1,6 +1,7 @@
 package com.brainblocks.backend.exception;
 
 import com.brainblocks.backend.dto.response.ApiResponse;
+import com.brainblocks.backend.dto.response.order.ShippingFeeChangedResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -89,6 +90,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ApiResponse<Void>> handleDuplicateEmail(DuplicateEmailException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // phí vận chuyển đổi giữa lúc báo giá và lúc đặt: trả phí mới để khách xác nhận lại
+    @ExceptionHandler(ShippingFeeChangedException.class)
+    public ResponseEntity<ApiResponse<ShippingFeeChangedResponse>> handleShippingFeeChanged(
+            ShippingFeeChangedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage(),
+                new ShippingFeeChangedResponse(ex.getShippingFee(), ex.getSubtotal(),
+                        ex.getSubtotal().add(ex.getShippingFee()))));
     }
 
     // Lưới an toàn khi DB chặn ràng buộc (vd 2 request đăng ký cùng email chạy song song).

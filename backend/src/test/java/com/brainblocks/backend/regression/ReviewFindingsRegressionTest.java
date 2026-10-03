@@ -51,7 +51,8 @@ class ReviewFindingsRegressionTest {
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final Map<String, Object> ORDER_BODY = Map.of(
             "receiverName", "Regression", "receiverPhone", "0901234567",
-            "shippingAddress", "123 Regression", "paymentMethod", "COD");
+            "provinceCode", 92, "districtCode", 916, "wardCode", 31117,
+            "addressDetail", "123 Regression", "paymentMethod", "COD");
 
     @Autowired
     private Environment environment;

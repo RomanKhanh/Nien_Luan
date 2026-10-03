@@ -21,8 +21,20 @@ import java.util.List;
 @AllArgsConstructor
 public class Customer extends User {
 
+    // địa chỉ mặc định dạng chuỗi tự do của tài khoản cũ; chọn lại theo 3 cấp bên dưới thì bị xóa
     @Column(length = 255)
     private String defaultAddress;
+
+    // địa chỉ mặc định 3 cấp (mã theo LocationDirectory), tự điền ở trang thanh toán; tên lấy từ dữ liệu địa chính
+    private Integer defaultProvinceCode;
+
+    private Integer defaultDistrictCode;
+
+    // null khi huyện không có cấp xã
+    private Integer defaultWardCode;
+
+    @Column(length = 255)
+    private String defaultAddressDetail;
 
     // Giỏ hàng (quan hệ 1-1 thành phần) chỉ map ở phía Cart.customer, không map ngược ở đây:
     // phía mappedBy của @OneToOne không lazy được, mỗi lần load Customer (kể cả lúc lọc JWT) sẽ tốn thêm 1 query.

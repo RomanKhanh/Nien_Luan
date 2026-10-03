@@ -486,7 +486,8 @@ class CatalogAndFeedbackTest {
 
         call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
         Res order = call("POST", "/api/orders", token, Map.of("receiverName", "Test", "receiverPhone", "0901234567",
-                "shippingAddress", "1 Test", "paymentMethod", "COD",
+                "provinceCode", 92, "districtCode", 916, "wardCode", 31117, "addressDetail", "1 Test",
+                "paymentMethod", "COD",
                 "childAssignments", List.of(Map.of("productId", productId, "childProfileId", childId))));
         assertThat(order.status()).isEqualTo(201);
         assertThat(unread(adminToken).path("byType").path("NEW_ORDER").asLong()).isEqualTo(1);
@@ -706,7 +707,8 @@ class CatalogAndFeedbackTest {
     private long placeOrder(String token, long productId) throws Exception {
         call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
         Res order = call("POST", "/api/orders", token, Map.of("receiverName", "Test", "receiverPhone", "0901234567",
-                "shippingAddress", "1 Test", "paymentMethod", "COD"));
+                "provinceCode", 92, "districtCode", 916, "wardCode", 31117, "addressDetail", "1 Test",
+                "paymentMethod", "COD"));
         assertThat(order.status()).isEqualTo(201);
         return order.data().path("id").asLong();
     }
