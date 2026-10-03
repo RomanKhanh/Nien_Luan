@@ -1,13 +1,13 @@
 package com.brainblocks.backend.service.shipping;
 
+import com.brainblocks.backend.enums.Region;
 import java.math.BigDecimal;
 import java.util.List;
 
 /**
  * Kết quả tính phí vận chuyển một đơn.
  *
- * @param zone                    khu vực giao hàng
- * @param province                tên chuẩn của tỉnh người nhận, null khi không nhận diện được
+ * @param zone                    miền giao hàng của tỉnh người nhận
  * @param actualWeightGrams       tổng khối lượng thực của cả đơn
  * @param volumetricWeightGrams   tổng khối lượng quy đổi từ thể tích của cả đơn (làm tròn lên gram)
  * @param chargeableWeightGrams   max(thực, quy đổi) của cả đơn; phí lại tính theo từng kiện, xem parcels
@@ -15,11 +15,10 @@ import java.util.List;
  * @param baseFee                 tổng phí cơ bản của các kiện
  * @param bulkySurcharge          phụ phí hàng cồng kềnh, tối đa một lần cho cả đơn
  * @param totalFee                baseFee + bulkySurcharge
- * @param warnings                cảnh báo cho người dùng (tỉnh lạ, món quá khổ...)
+ * @param warnings                cảnh báo cho người dùng (món quá khổ...)
  */
 public record ShippingQuote(
-        ShippingZone zone,
-        String province,
+        Region zone,
         long actualWeightGrams,
         long volumetricWeightGrams,
         long chargeableWeightGrams,

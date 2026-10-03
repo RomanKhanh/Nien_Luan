@@ -1,7 +1,7 @@
 package com.brainblocks.backend.service.shipping;
 
+import com.brainblocks.backend.enums.Region;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -14,7 +14,6 @@ import java.math.BigDecimal;
  * Bảng giá vận chuyển (app.shipping.* trong application.properties). Tiền tính bằng VND,
  * khối lượng bằng gram, kích thước bằng cm.
  *
- * @param warehouseProvince  tỉnh/thành đặt kho, dùng để suy ra khu vực giao hàng
  * @param volumetricDivisor  hệ số quy đổi thể tích: khối lượng quy đổi (kg) = dài x rộng x cao (cm) / hệ số
  * @param parcelMaxGrams     sức chứa một kiện, theo khối lượng tính phí
  * @param weightStepGrams    độ dài một bậc khối lượng khi tính phí
@@ -23,7 +22,6 @@ import java.math.BigDecimal;
 @Validated
 @ConfigurationProperties(prefix = "app.shipping")
 public record ShippingProperties(
-        @NotBlank String warehouseProvince,
         @Positive int volumetricDivisor,
         @Positive int parcelMaxGrams,
         @Positive int weightStepGrams,
@@ -32,7 +30,7 @@ public record ShippingProperties(
         @NotNull @Valid BulkySurcharge bulky
 ) {
     /**
-     * Giá theo khu vực: bậc đầu (tới weightStepGrams) tính firstStepFee, mỗi bậc sau cộng additionalStepFee.
+     * Giá theo miền: bậc đầu (tới weightStepGrams) tính firstStepFee, mỗi bậc sau cộng additionalStepFee.
      */
     public record ZoneRate(
             @NotNull @PositiveOrZero BigDecimal firstStepFee,
@@ -40,16 +38,17 @@ public record ShippingProperties(
     ) {
     }
 
+    // giá của từng miền giao hàng (Region của tỉnh người nhận)
     public record ZoneRates(
-            @NotNull @Valid ZoneRate intraProvince,
-            @NotNull @Valid ZoneRate intraRegion,
-            @NotNull @Valid ZoneRate interRegion
+            @NotNull @Valid ZoneRate south,
+            @NotNull @Valid ZoneRate central,
+            @NotNull @Valid ZoneRate north
     ) {
-        public ZoneRate of(ShippingZone zone) {
-            return switch (zone) {
-                case INTRA_PROVINCE -> intraProvince;
-                case INTRA_REGION -> intraRegion;
-                case INTER_REGION -> interRegion;
+        public ZoneRate of(Region region) {
+            return switch (region) {
+                case MIEN_NAM -> south;
+                case MIEN_TRUNG -> central;
+                case MIEN_BAC -> north;
             };
         }
     }

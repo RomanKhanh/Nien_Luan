@@ -1,5 +1,6 @@
 package com.brainblocks.backend.service.shipping;
 
+import com.brainblocks.backend.enums.Region;
 import com.brainblocks.backend.service.shipping.ShippingProperties.BulkySurcharge;
 import com.brainblocks.backend.service.shipping.ShippingProperties.ZoneRate;
 import com.brainblocks.backend.service.shipping.ShippingProperties.ZoneRates;
@@ -16,11 +17,11 @@ import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Bộ tính phí vận chuyển, unit test thuần không cần Spring. Bảng giá giống application.properties:
- * kho Cần Thơ, nội tỉnh 15.000 + 2.500 / 0,5 kg, nội miền 22.000 + 4.000, liên miền 30.000 + 5.500,
+ * Miền Nam 22.000 + 4.000 / 0,5 kg, Miền Trung 30.000 + 5.500, Miền Bắc 36.000 + 6.500,
  * hệ số quy đổi 6000, kiện tối đa 20 kg, cồng kềnh 20.000 khi thể tích > 30.000 cm³ hoặc cạnh > 100 cm.
+ * Phần lớn ca tính cho Miền Nam (shop ở Cần Thơ).
  */
 class ShippingCalculatorTest {
-    private static final String WAREHOUSE = "Cần Thơ";
 
     // Đối chứng với project cũ (green-garden-ship, src/utils/__tests__/xepKien.test.js): cùng dữ liệu cây cảnh
     // trong products.js, đổi kg -> gram. Kim Tiền 25 x 25 x 40 = 25.000 cm³ -> quy đổi 4,1667 kg > thực 1,5 kg.
@@ -38,17 +39,14 @@ class ShippingCalculatorTest {
     private final ShippingCalculator calculator = new ShippingCalculator(defaults());
 
     static ShippingProperties defaults() {
-        return withRates(WAREHOUSE, rates(15000, 2500, 22000, 4000, 30000, 5500), 500);
-    }
-
-    static ShippingProperties withRates(String warehouse, ZoneRates zones, int roundingStep) {
-        return new ShippingProperties(warehouse, 6000, 20_000, 500, money(roundingStep), zones,
+        return new ShippingProperties(6000, 20_000, 500, money(500), rates(22000, 4000, 30000, 5500, 36000, 6500),
                 new BulkySurcharge(money(20000), 30_000, 100));
     }
 
-    static ZoneRates rates(int localFirst, int localNext, int regionFirst, int regionNext, int farFirst, int farNext) {
-        return new ZoneRates(new ZoneRate(money(localFirst), money(localNext)),
-                new ZoneRate(money(regionFirst), money(regionNext)), new ZoneRate(money(farFirst), money(farNext)));
+    static ZoneRates rates(int southFirst, int southNext, int centralFirst, int centralNext, int northFirst,
+                           int northNext) {
+        return new ZoneRates(new ZoneRate(money(southFirst), money(southNext)),
+                new ZoneRate(money(centralFirst), money(centralNext)), new ZoneRate(money(northFirst), money(northNext)));
     }
 
     static BigDecimal money(long value) {
@@ -69,8 +67,9 @@ class ShippingCalculatorTest {
         return item(100L, "Hộp nhỏ " + grams + " g", grams, 10, 10, 10);
     }
 
+    // Miền Nam
     private ShippingQuote quote(ShippingItem... items) {
-        return calculator.quote(WAREHOUSE, List.of(items));
+        return calculator.quote(Region.MIEN_NAM, List.of(items));
     }
 
     private static void assertMoney(BigDecimal actual, long expected) {
@@ -81,7 +80,7 @@ class ShippingCalculatorTest {
     class EmptyOrder {
         @Test
         void emptyOrderCostsNothing() {
-            ShippingQuote q = calculator.quote("Hà Nội", List.of());
+            ShippingQuote q = calculator.quote(Region.MIEN_BAC, List.of());
             assertThat(q.parcelCount()).isZero();
             assertThat(q.parcels()).isEmpty();
             assertThat(q.actualWeightGrams()).isZero();
@@ -90,13 +89,13 @@ class ShippingCalculatorTest {
             assertMoney(q.bulkySurcharge(), 0);
             assertMoney(q.totalFee(), 0);
             assertThat(q.warnings()).isEmpty();
-            assertThat(q.zone()).isEqualTo(ShippingZone.INTER_REGION);
+            assertThat(q.zone()).isEqualTo(Region.MIEN_BAC);
         }
 
         // có hàng thì dù nhẹ cỡ nào cũng thu đủ phí bậc đầu
         @Test
         void lightestItemStillPaysFirstStep() {
-            assertMoney(quote(compact(1)).totalFee(), 15000);
+            assertMoney(quote(compact(1)).totalFee(), 22000);
         }
     }
 
@@ -105,10 +104,10 @@ class ShippingCalculatorTest {
         // bậc 0,5 kg: tới 500 g là bậc đầu, 501 g sang bậc 2, 1.000 g vẫn bậc 2, 1.001 g sang bậc 3
         @Test
         void halfKilogramBoundaries() {
-            assertMoney(quote(compact(500)).baseFee(), 15000);
-            assertMoney(quote(compact(501)).baseFee(), 17500);
-            assertMoney(quote(compact(1000)).baseFee(), 17500);
-            assertMoney(quote(compact(1001)).baseFee(), 20000);
+            assertMoney(quote(compact(500)).baseFee(), 22000);
+            assertMoney(quote(compact(501)).baseFee(), 26000);
+            assertMoney(quote(compact(1000)).baseFee(), 26000);
+            assertMoney(quote(compact(1001)).baseFee(), 30000);
         }
 
         // ranh giới theo thể tích: 3.000 cm³ quy đổi đúng 500 g, 3.100 cm³ là 516,7 g
@@ -116,29 +115,30 @@ class ShippingCalculatorTest {
         void volumetricBoundaryUsesExactArithmetic() {
             ShippingQuote exact = quote(item(1L, "Hộp 3000", 100, 30, 10, 10));
             assertThat(exact.chargeableWeightGrams()).isEqualTo(500);
-            assertMoney(exact.baseFee(), 15000);
+            assertMoney(exact.baseFee(), 22000);
 
             ShippingQuote over = quote(item(2L, "Hộp 3100", 100, 31, 10, 10));
             assertThat(over.volumetricWeightGrams()).isEqualTo(517);
-            assertMoney(over.baseFee(), 17500);
+            assertMoney(over.baseFee(), 26000);
         }
 
         @Test
-        void eachZoneUsesItsOwnRates() {
+        void eachRegionUsesItsOwnRates() {
             ShippingItem kilo = compact(1000); // 2 bậc
-            assertMoney(calculator.quote("Cần Thơ", List.of(kilo)).baseFee(), 15000 + 2500);
-            assertMoney(calculator.quote("An Giang", List.of(kilo)).baseFee(), 22000 + 4000);
-            assertMoney(calculator.quote("Hà Nội", List.of(kilo)).baseFee(), 30000 + 5500);
+            assertMoney(calculator.quote(Region.MIEN_NAM, List.of(kilo)).baseFee(), 22000 + 4000);
+            assertMoney(calculator.quote(Region.MIEN_TRUNG, List.of(kilo)).baseFee(), 30000 + 5500);
+            assertMoney(calculator.quote(Region.MIEN_BAC, List.of(kilo)).baseFee(), 36000 + 6500);
+            assertThat(calculator.quote(Region.MIEN_TRUNG, List.of(kilo)).zone()).isEqualTo(Region.MIEN_TRUNG);
         }
 
         // đồ chơi 650 g, hộp 30 x 22 x 8 cm (5.280 cm³ -> 880 g quy đổi): tính theo 880 g, 2 bậc
         @Test
         void typicalToyIsChargedByVolumetricWeight() {
-            ShippingQuote q = calculator.quote("Hà Nội", List.of(item(1L, "Robot dò đường", 650, 30, 22, 8)));
+            ShippingQuote q = calculator.quote(Region.MIEN_BAC, List.of(item(1L, "Robot dò đường", 650, 30, 22, 8)));
             assertThat(q.actualWeightGrams()).isEqualTo(650);
             assertThat(q.volumetricWeightGrams()).isEqualTo(880);
             assertThat(q.chargeableWeightGrams()).isEqualTo(880);
-            assertMoney(q.totalFee(), 35500);
+            assertMoney(q.totalFee(), 36000 + 6500);
         }
     }
 
@@ -151,9 +151,9 @@ class ShippingCalculatorTest {
             assertThat(q.actualWeightGrams()).isEqualTo(200);
             assertThat(q.volumetricWeightGrams()).isEqualTo(6000);
             assertThat(q.chargeableWeightGrams()).isEqualTo(6000);
-            assertMoney(q.baseFee(), 15000 + 11 * 2500);
+            assertMoney(q.baseFee(), 22000 + 11 * 4000);
             assertMoney(q.bulkySurcharge(), 20000);
-            assertMoney(q.totalFee(), 62500);
+            assertMoney(q.totalFee(), 86000);
         }
 
         // thể tích nhỏ nhưng có cạnh dài hơn 100 cm vẫn là cồng kềnh; đúng 100 cm thì chưa
@@ -187,7 +187,7 @@ class ShippingCalculatorTest {
             assertThat(parcel.volumeCm3()).isEqualTo(25_000);
             assertThat(parcel.chargeableWeightGrams()).isEqualTo(4167); // 4,1667 kg làm tròn lên gram
             assertThat(parcel.oversized()).isFalse();
-            assertMoney(parcel.baseFee(), 15000 + 8 * 2500); // 9 bậc
+            assertMoney(parcel.baseFee(), 22000 + 8 * 4000); // 9 bậc
         }
 
         // ca 3: số lượng 3 được bung thành 3 món khi xếp
@@ -284,8 +284,8 @@ class ShippingCalculatorTest {
             assertThat(q.parcelCount()).isEqualTo(5);
             BigDecimal sum = q.parcels().stream().map(Parcel::baseFee).reduce(BigDecimal.ZERO, BigDecimal::add);
             assertThat(q.baseFee()).isEqualByComparingTo(sum);
-            // 3 kiện 24 kg (48 bậc) + 2 kiện 14,29 kg (29 bậc), nội tỉnh
-            assertMoney(q.baseFee(), 3 * (15000 + 47 * 2500) + 2 * (15000 + 28 * 2500));
+            // 3 kiện 24 kg (48 bậc) + 2 kiện 14,29 kg (29 bậc), Miền Nam
+            assertMoney(q.baseFee(), 3 * (22000 + 47 * 4000) + 2 * (22000 + 28 * 4000));
             assertThat(q.totalFee()).isEqualByComparingTo(q.baseFee().add(q.bulkySurcharge()));
         }
 
@@ -355,107 +355,17 @@ class ShippingCalculatorTest {
     }
 
     @Nested
-    class Zones {
-        @Test
-        void zoneFollowsWarehouseProvinceAndRegion() {
-            assertThat(calculator.quote("Cần Thơ", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTRA_PROVINCE);
-            assertThat(calculator.quote("Cà Mau", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTRA_REGION);
-            assertThat(calculator.quote("TP. Hồ Chí Minh", List.of(KIM_TIEN)).zone())
-                    .isEqualTo(ShippingZone.INTRA_REGION);
-            assertThat(calculator.quote("Đà Nẵng", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTER_REGION);
-            assertThat(calculator.quote("Hà Nội", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTER_REGION);
-        }
-
-        // tỉnh lạ / bỏ trống -> khu vực đắt nhất, kèm cảnh báo, không có tên tỉnh chuẩn
-        @Test
-        void unknownProvinceFallsBackToMostExpensiveZone() {
-            for (String unknown : new String[]{"Atlantis", "", "   ", null}) {
-                ShippingQuote q = calculator.quote(unknown, List.of(compact(500)));
-                assertThat(q.zone()).as(unknown).isEqualTo(ShippingZone.INTER_REGION);
-                assertThat(q.province()).isNull();
-                assertMoney(q.totalFee(), 30000);
-                assertThat(q.warnings()).singleElement().asString().contains("Liên miền");
-            }
-            assertThat(calculator.quote("Atlantis", List.of()).warnings().getFirst()).contains("\"Atlantis\"");
-        }
-
-        // "đắt nhất" đọc theo bảng giá, không cố định là liên miền
-        @Test
-        void mostExpensiveZoneFollowsConfiguredRates() {
-            ShippingCalculator odd = new ShippingCalculator(
-                    withRates(WAREHOUSE, rates(15000, 2500, 40000, 1000, 30000, 5500), 500));
-            assertThat(odd.quote("??", List.of(compact(500))).zone()).isEqualTo(ShippingZone.INTRA_REGION);
-        }
-
-        @Test
-        void aliasesResolveToCanonicalName() {
-            for (String alias : new String[]{"hcm", "HCM", "tphcm", "TP.HCM", "Tp. HCM", "Sài Gòn", "sai gon", "SG",
-                    "Thành phố Hồ Chí Minh", "ho chi minh"}) {
-                ShippingQuote q = calculator.quote(alias, List.of(KIM_TIEN));
-                assertThat(q.province()).as(alias).isEqualTo("TP. Hồ Chí Minh");
-                assertThat(q.zone()).isEqualTo(ShippingZone.INTRA_REGION);
-                assertThat(q.warnings()).isEmpty();
-            }
-            assertThat(calculator.quote("Thừa Thiên Huế", List.of()).province()).isEqualTo("Huế");
-            assertThat(calculator.quote("Buôn Ma Thuột", List.of()).province()).isEqualTo("Đắk Lắk");
-            assertThat(calculator.quote("daklak", List.of()).province()).isEqualTo("Đắk Lắk");
-            assertThat(calculator.quote("Nha Trang", List.of()).province()).isEqualTo("Khánh Hòa");
-            assertThat(calculator.quote("hn", List.of()).province()).isEqualTo("Hà Nội");
-        }
-
-        // bỏ dấu, hoa thường, khoảng trắng thừa, tiền tố "tỉnh" / "thành phố" / "TP"
-        @Test
-        void provinceNamesAreNormalized() {
-            for (String input : new String[]{"Cần Thơ", "can tho", "  CẦN   THƠ ", "Thành phố Cần Thơ", "TP Cần Thơ",
-                    "tp. can tho"}) {
-                ShippingQuote q = calculator.quote(input, List.of(KIM_TIEN));
-                assertThat(q.province()).as(input).isEqualTo("Cần Thơ");
-                assertThat(q.zone()).isEqualTo(ShippingZone.INTRA_PROVINCE);
-            }
-            assertThat(calculator.quote("Tỉnh Đắk Lắk", List.of()).province()).isEqualTo("Đắk Lắk");
-            assertThat(calculator.quote("tinh thanh hoa", List.of()).province()).isEqualTo("Thanh Hóa");
-        }
-
-        @Test
-        void thirtyFourProvincesEachResolveToThemselves() {
-            assertThat(VietnamProvinces.ALL).hasSize(34);
-            assertThat(VietnamProvinces.ALL).extracting(VietnamProvinces.Province::region)
-                    .filteredOn(r -> r == VietnamProvinces.Region.SOUTH).hasSize(8);
-            for (VietnamProvinces.Province p : VietnamProvinces.ALL) {
-                assertThat(VietnamProvinces.resolve(p.name())).as(p.name()).contains(p);
-            }
-        }
-    }
-
-    @Nested
     class Configuration {
         // phí cấu hình lẻ vẫn được làm tròn lên bội 500đ, kể cả phụ phí cồng kềnh
         @Test
         void feesAreRoundedUpToRoundingStep() {
-            ShippingProperties props = new ShippingProperties(WAREHOUSE, 6000, 20_000, 500, money(500),
-                    rates(15100, 2600, 22000, 4000, 30000, 5500), new BulkySurcharge(money(20001), 30_000, 100));
+            ShippingProperties props = new ShippingProperties(6000, 20_000, 500, money(500),
+                    rates(15100, 2600, 30000, 5500, 36000, 6500), new BulkySurcharge(money(20001), 30_000, 100));
             ShippingCalculator odd = new ShippingCalculator(props);
-            assertMoney(odd.quote("Cần Thơ", List.of(compact(500))).baseFee(), 15500);
-            assertMoney(odd.quote("Cần Thơ", List.of(compact(1000))).baseFee(), 18000); // 17.700
-            assertMoney(odd.quote("Cần Thơ", List.of(item(1L, "Gấu bông", 200, 40, 30, 30))).bulkySurcharge(),
+            assertMoney(odd.quote(Region.MIEN_NAM, List.of(compact(500))).baseFee(), 15500);
+            assertMoney(odd.quote(Region.MIEN_NAM, List.of(compact(1000))).baseFee(), 18000); // 17.700
+            assertMoney(odd.quote(Region.MIEN_NAM, List.of(item(1L, "Gấu bông", 200, 40, 30, 30))).bulkySurcharge(),
                     20500);
-        }
-
-        @Test
-        void warehouseProvinceMustBeKnown() {
-            assertThatThrownBy(() -> new ShippingCalculator(withRates("Atlantis", rates(1, 1, 1, 1, 1, 1), 500)))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Atlantis");
-        }
-
-        // kho đặt ở nơi khác thì khu vực đổi theo
-        @Test
-        void warehouseCanBeMoved() {
-            ShippingCalculator hanoi = new ShippingCalculator(
-                    withRates("hn", rates(15000, 2500, 22000, 4000, 30000, 5500), 500));
-            assertThat(hanoi.quote("Hà Nội", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTRA_PROVINCE);
-            assertThat(hanoi.quote("Hải Phòng", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTRA_REGION);
-            assertThat(hanoi.quote("Cần Thơ", List.of(KIM_TIEN)).zone()).isEqualTo(ShippingZone.INTER_REGION);
         }
 
         @Test
