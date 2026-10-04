@@ -50,6 +50,12 @@ export function PaymentPanel({ order }: { order: Order }) {
               · mã giao dịch <b>{payment.data.transactionId}</b>
             </>
           )}
+          {/* trả qua link MoMo mở từ trước khi huỷ: PaymentService báo admin hoàn tiền */}
+          {order.status === 'CANCELLED' && (
+            <span className="mt-1 block font-semibold">
+              Đơn đã huỷ nên khoản tiền này sẽ được BrainBlocks hoàn lại vào ví MoMo của bạn.
+            </span>
+          )}
         </p>
       ) : order.status === 'CANCELLED' ? (
         <p className="mt-2 text-ink-muted">Đơn đã huỷ nên không cần thanh toán.</p>

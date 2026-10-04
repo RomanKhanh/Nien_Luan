@@ -4,13 +4,16 @@ import com.brainblocks.backend.dto.response.payment.CreatePaymentUrlResponse;
 import com.brainblocks.backend.dto.response.payment.PaymentResponse;
 import com.brainblocks.backend.entity.Order;
 import com.brainblocks.backend.entity.Payment;
+import com.brainblocks.backend.enums.NotificationType;
 import com.brainblocks.backend.enums.OrderStatus;
 import com.brainblocks.backend.enums.PaymentMethod;
 import com.brainblocks.backend.enums.PaymentStatus;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.PaymentRepository;
+import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.order.OrderAccessGuard;
+import com.brainblocks.backend.service.order.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final OrderAccessGuard orderAccessGuard;
     private final MoMoGateway moMoGateway;
+    private final NotificationService notificationService;
 
     private Map<PaymentMethod, PaymentGateway> gateways() {
         Map<PaymentMethod, PaymentGateway> map = new EnumMap<>(PaymentMethod.class);
@@ -83,7 +87,9 @@ public class PaymentService {
         }
 
         Long orderId = extractOrderId(gateway.extractTxnRef(params));
-        Order order = orderRepository.findById(orderId).orElse(null);
+        // khóa đơn như OrderService.cancelOrder / AdminOrderService.updateStatus: IPN và thao tác hủy chạy lần lượt,
+        // IPN tới trước thì đơn đã sang Đã xác nhận và khách không tự hủy được nữa
+        Order order = orderRepository.findForUpdateById(orderId).orElse(null);
         Payment payment = order == null ? null : paymentRepository.findByOrderId(orderId).orElse(null);
         if (order == null || payment == null) {
             return false;
@@ -107,11 +113,32 @@ public class PaymentService {
             payment.setPaidAt(LocalDateTime.now());
             if (order.getStatus() == OrderStatus.PENDING) {
                 order.setStatus(OrderStatus.CONFIRMED);
+            } else if (order.getStatus() == OrderStatus.CANCELLED) {
+                // tiền đã bị trừ thật (khách trả qua link MoMo mở từ trước khi hủy) nên vẫn ghi nhận SUCCESS cho đúng sổ,
+                // không mở lại đơn (kho đã hoàn, hàng đã về giỏ); báo admin hoàn tiền thủ công vì chưa có API hoàn tiền
+                notifyRefundNeeded(order, payment);
             }
         } else {
             payment.setStatus(PaymentStatus.FAILED);
         }
         return true;
+    }
+
+    private void notifyRefundNeeded(Order order, Payment payment) {
+        String amount = OrderService.formatMoney(payment.getAmount());
+        log.warn("Order {} was paid after being cancelled (transaction {}, {}): refund needed",
+                order.getOrderCode(), payment.getTransactionId(), amount);
+        // dùng chung loại thông báo hủy đơn để hiện ở badge mục Đơn hàng (thêm loại mới phải sửa check constraint của DB)
+        notificationService.notifyAdmins(NotificationType.ORDER_CANCELLED_BY_CUSTOMER,
+                "Cần hoàn tiền MoMo cho đơn đã hủy " + order.getOrderCode(),
+                "MoMo vừa báo đã thu " + amount + " (mã giao dịch " + payment.getTransactionId()
+                        + ") nhưng đơn đã bị hủy trước đó. Hãy hoàn tiền cho khách trên trang quản lý MoMo.",
+                "/admin/orders");
+        notificationService.notify(order.getCustomer(), NotificationType.ORDER_STATUS,
+                "Đơn " + order.getOrderCode() + " sẽ được hoàn tiền",
+                "BrainBlocks đã nhận " + amount + " qua MoMo nhưng đơn đã hủy trước đó, "
+                        + "nên khoản tiền này sẽ được hoàn lại vào ví MoMo của bạn.",
+                "/orders/" + order.getId());
     }
 
     @Transactional(readOnly = true)

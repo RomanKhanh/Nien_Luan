@@ -207,7 +207,7 @@ public class OrderService {
     }
 
     // 459000 -> "459.000₫"
-    private static String formatMoney(BigDecimal amount) {
+    public static String formatMoney(BigDecimal amount) {
         return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "₫";
     }
 
