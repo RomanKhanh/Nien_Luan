@@ -37,6 +37,7 @@ const NAV: {
     dataKey: ['admin', 'complaints'],
   },
   { to: '/admin/reviews', label: 'Đánh giá', icon: '⭐', badge: ['NEW_REVIEW'], dataKey: ['admin', 'reviews'] },
+  { to: '/admin/vouchers', label: 'Voucher', icon: '🎟️' },
   { to: '/admin/users', label: 'Người dùng', icon: '👥' },
   { to: '/admin/chatbot', label: 'Chatbot AI', icon: '🤖' },
   { to: '/admin/knowledge', label: 'Cơ sở tri thức', icon: '📚' },

@@ -185,12 +185,15 @@ export interface Order {
   shippingAddress: string
   // null ở đơn đặt trước khi có địa chỉ 3 cấp
   address: Address | null
-  // totalAmount = subtotal (tiền hàng) + shippingFee; đơn cũ: shippingFee = 0, miền / số kiện = null
+  // subtotal: tiền hàng; đơn cũ: shippingFee = 0, miền / số kiện = null
+  // totalAmount = subtotal + shippingFee - shippingDiscount (voucher freeship) - discountAmount (voucher giảm giá)
   subtotal: number
   shippingFee: number
   shippingZone: ShippingRegion | null
   shippingZoneLabel: string | null
   parcelCount: number | null
+  shippingDiscount: number
+  discountAmount: number
   totalAmount: number
   status: OrderStatus
   paymentMethod: PaymentMethod
@@ -226,6 +229,9 @@ export interface CreateOrderRequest {
   paymentMethod: PaymentMethod
   // phí ship khách đã thấy; server tự tính lại, lệch thì trả 409 kèm phí mới
   expectedShippingFee?: number
+  // voucher đã chọn (tối đa 1 freeship + 1 giảm giá)
+  shippingVoucherId?: number
+  discountVoucherId?: number
   childAssignments: { productId: number; childProfileId: number }[]
 }
 
@@ -618,3 +624,45 @@ export type ChatbotConfigRequest = Pick<
   ChatbotConfig,
   'modelName' | 'temperature' | 'maxTokens' | 'topK' | 'systemPrompt'
 >
+
+// ===== Voucher =====
+
+export type VoucherType = 'FREESHIP' | 'PERCENT_OFF' | 'AMOUNT_OFF'
+export type VoucherReason = 'WELCOME' | 'SKILL_BEGINNER' | 'SKILL_DEVELOPING' | 'SKILL_RICH'
+export type VoucherStatus = 'AVAILABLE' | 'USED' | 'EXPIRED'
+
+export interface Voucher {
+  id: number
+  type: VoucherType
+  reason: VoucherReason
+  // vd "Giảm 10%", "Miễn phí vận chuyển"
+  label: string
+  // PERCENT_OFF: số %, AMOUNT_OFF: số tiền, FREESHIP: null
+  value: number | null
+  // tiền hàng (chưa gồm phí ship) tối thiểu
+  minSubtotal: number
+  // mức giảm tối đa, null = không giới hạn
+  maxDiscount: number | null
+  // bé đạt mốc kỹ năng (voucher SKILL_*)
+  childName: string | null
+  issuedAt: string
+  expiresAt: string
+  status: VoucherStatus
+  usedAt: string | null
+  orderId: number | null
+  orderCode: string | null
+}
+
+export interface AdminVoucher {
+  voucher: Voucher
+  customerId: number
+  customerName: string
+  customerEmail: string
+}
+
+export interface VoucherSummary {
+  issued: number
+  available: number
+  used: number
+  expired: number
+}

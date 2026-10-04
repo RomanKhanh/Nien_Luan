@@ -75,6 +75,11 @@ const EXACT: Record<string, string> = {
     'Cổng thanh toán MoMo đang không khả dụng, vui lòng thử lại sau.',
   'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
   'Cannot pay for a cancelled order': 'Không thể thanh toán đơn đã huỷ.',
+  'Voucher not found': 'Không tìm thấy voucher.',
+  'This voucher has already been used': 'Voucher này đã được dùng cho đơn khác.',
+  'This voucher has expired': 'Voucher này đã hết hạn.',
+  'This voucher is not a free-shipping voucher': 'Voucher này không phải voucher miễn phí vận chuyển.',
+  'This voucher is not a discount voucher': 'Voucher này không phải voucher giảm giá.',
   'The payment deadline for this order has passed': 'Đơn đã quá hạn thanh toán và sẽ tự huỷ.',
   'This order is not set up for online payment (COD)': 'Đơn này thanh toán khi nhận hàng, không thanh toán online.',
   'Product not found': 'Không tìm thấy sản phẩm.',
@@ -126,6 +131,7 @@ const EXACT: Record<string, string> = {
 }
 
 const PREFIX: [string, string][] = [
+  ['This voucher needs a subtotal of at least ', 'Voucher cần tiền hàng tối thiểu '],
   ['Not enough stock for: ', 'Không đủ hàng trong kho cho: '],
   ['Insufficient stock for: ', 'Không đủ hàng trong kho cho: '],
   ['Product is no longer available: ', 'Sản phẩm đã ngừng bán: '],

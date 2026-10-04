@@ -14,6 +14,7 @@ import { OrderTimeline } from '@/features/orders/OrderTimeline'
 import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { PaymentPanel } from '@/features/payment/PaymentPanel'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
+import { voucherKey } from '@/features/vouchers/vouchers'
 import { formatDateTime, formatPrice } from '@/lib/format'
 import { PAYMENT_METHOD } from '@/lib/labels'
 import { AccountShell } from '../account/AccountShell'
@@ -36,6 +37,7 @@ export default function OrderDetailPage() {
       queryClient.setQueryData(['order', id], data)
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: cartKey })
+      queryClient.invalidateQueries({ queryKey: voucherKey })
       toast.success('Đã huỷ đơn hàng, sản phẩm đã được đưa lại vào giỏ hàng')
       setConfirmCancel(false)
     },
