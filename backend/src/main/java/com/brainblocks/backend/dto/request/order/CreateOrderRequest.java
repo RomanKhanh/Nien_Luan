@@ -26,6 +26,9 @@ public record CreateOrderRequest(
         // phí vận chuyển khách đã thấy lúc báo giá (không bắt buộc). Server luôn tự tính lại; gửi kèm mà khác
         // số server tính thì trả 409 kèm phí mới để khách xác nhận, không dùng số này để tính tiền
         @PositiveOrZero BigDecimal expectedShippingFee,
+        // voucher khách chọn (không bắt buộc, xem VoucherService): tối đa 1 voucher freeship + 1 voucher giảm giá
+        Long shippingVoucherId,
+        Long discountVoucherId,
         // chọn bé cho từng sản phẩm trong giỏ ở bước checkout; bỏ trống = không gắn bé nào
         List<@NotNull @Valid OrderItemChildRequest> childAssignments
 ) {}

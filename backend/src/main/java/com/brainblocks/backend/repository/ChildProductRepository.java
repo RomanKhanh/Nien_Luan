@@ -1,6 +1,7 @@
 package com.brainblocks.backend.repository;
 
 import com.brainblocks.backend.entity.ChildProduct;
+import com.brainblocks.backend.enums.ProductSource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -51,6 +52,17 @@ public interface ChildProductRepository extends JpaRepository<ChildProduct, Long
             where cp.childProfile.id in :childProfileIds
             """)
     List<ChildSkillImpact> findSkillImpactsForChildren(@Param("childProfileIds") List<Long> childProfileIds);
+
+    // impactIndex của các sản phẩm bé có theo một nguồn (vd chỉ đồ đã mua qua đơn, để xét mốc tặng voucher)
+    @Query("""
+            select cp.childProfile.id as childProfileId, psi.skill.id as skillId, psi.impactIndex as impactIndex
+            from ChildProduct cp
+            join cp.product p
+            join p.productSkillImpacts psi
+            where cp.childProfile.id = :childProfileId and cp.source = :source
+            """)
+    List<ChildSkillImpact> findSkillImpactsBySource(@Param("childProfileId") Long childProfileId,
+                                                    @Param("source") ProductSource source);
 
     // ===== dùng khi tính lại theo lô cho nhiều hồ sơ trẻ (vd admin sửa impactIndex của một sản phẩm) =====
 

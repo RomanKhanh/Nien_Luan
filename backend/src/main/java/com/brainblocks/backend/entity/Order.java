@@ -81,6 +81,15 @@ public class Order {
     @Column(precision = 12, scale = 2)
     private BigDecimal shippingFee;
 
+    // Tiền được giảm nhờ voucher (VoucherService.applyToOrder): shippingDiscount trừ vào phí ship (freeship),
+    // discountAmount trừ vào tiền hàng. totalAmount = subtotal + shippingFee - shippingDiscount - discountAmount.
+    // null ở đơn trước khi có voucher, đọc qua getShippingDiscountOrZero / getDiscountAmountOrZero.
+    @Column(precision = 12, scale = 2)
+    private BigDecimal shippingDiscount;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal discountAmount;
+
     // miền giao hàng và số kiện lúc đặt; null ở đơn cũ
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
@@ -125,6 +134,14 @@ public class Order {
 
     public BigDecimal getShippingFeeOrZero() {
         return shippingFee != null ? shippingFee : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getShippingDiscountOrZero() {
+        return shippingDiscount != null ? shippingDiscount : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getDiscountAmountOrZero() {
+        return discountAmount != null ? discountAmount : BigDecimal.ZERO;
     }
 
     // địa chỉ để hiển thị: "chi tiết, xã, huyện, tỉnh"; đơn cũ (chưa có địa chỉ 3 cấp) trả nguyên chuỗi cũ
