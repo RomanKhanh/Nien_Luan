@@ -10,6 +10,7 @@ import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.PaymentRepository;
 import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.order.OrderAccessGuard;
+import com.brainblocks.backend.service.order.UnpaidOrderPolicy;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -86,7 +87,7 @@ class MoMoPaymentAmountTest {
         PaymentRepository payments = mock(PaymentRepository.class);
         when(payments.findByOrderId(5L)).thenReturn(Optional.of(payment));
         PaymentService service = new PaymentService(payments, orders, mock(OrderAccessGuard.class), gateway,
-                mock(NotificationService.class));
+                mock(NotificationService.class), new UnpaidOrderPolicy(24));
 
         // MoMo báo đã thu 100.000 (thiếu phí ship): không ghi nhận
         when(gateway.extractAmount(anyMap())).thenReturn("100000");
@@ -119,7 +120,7 @@ class MoMoPaymentAmountTest {
         when(payments.findByOrderId(5L)).thenReturn(Optional.of(payment));
         NotificationService notifications = mock(NotificationService.class);
         PaymentService service = new PaymentService(payments, orders, mock(OrderAccessGuard.class), gateway,
-                notifications);
+                notifications, new UnpaidOrderPolicy(24));
 
         // khách trả qua link MoMo mở trước khi hủy: tiền đã bị trừ nên ghi nhận, nhưng đơn vẫn hủy và admin được báo hoàn tiền
         assertThat(service.handleCallback(PaymentMethod.MOMO, Map.of())).isTrue();

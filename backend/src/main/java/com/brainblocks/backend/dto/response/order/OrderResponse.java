@@ -13,10 +13,11 @@ import java.util.List;
  * totalAmount = subtotal (tiền hàng) + shippingFee (phí vận chuyển). Đơn trước khi có phí ship: shippingFee = 0,
  * shippingZone / shippingZoneLabel / parcelCount = null.
  * cancelledByCustomer: khách tự hủy lúc đơn còn chờ xác nhận (khi đó không gửi phản hồi về đơn được nữa).
+ * paymentDeadline: hạn thanh toán của đơn MoMo chưa trả (quá hạn thì tự hủy, xem UnpaidOrderPolicy); null ở đơn khác.
  */
 public record OrderResponse(Long id, String orderCode, String receiverName, String receiverPhone,
                             String shippingAddress, AddressResponse address,
                             BigDecimal subtotal, BigDecimal shippingFee, String shippingZone,
                             String shippingZoneLabel, Integer parcelCount, BigDecimal totalAmount, String status,
-                            String paymentMethod, boolean cancelledByCustomer, List<OrderItemResponse> items,
-                            LocalDateTime createdAt) {}
+                            String paymentMethod, boolean cancelledByCustomer, LocalDateTime paymentDeadline,
+                            List<OrderItemResponse> items, LocalDateTime createdAt) {}

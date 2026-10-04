@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ public class OrderService {
     private final NotificationService notificationService;
     private final LocationDirectory locations;
     private final ShippingQuoteService shippingQuoteService;
+    private final UnpaidOrderPolicy unpaidOrderPolicy;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -173,6 +175,38 @@ public class OrderService {
         return toOrderResponse(order);
     }
 
+    // id các đơn MoMo đã quá hạn thanh toán lúc `now`; UnpaidOrderExpiryJob hủy từng đơn qua cancelIfUnpaidExpired
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredUnpaidOrderIds(LocalDateTime now) {
+        return orderRepository.findIdsPlacedBefore(PaymentMethod.MOMO, OrderStatus.PENDING,
+                unpaidOrderPolicy.cutoff(now));
+    }
+
+    /**
+     * Tự hủy một đơn MoMo quá hạn thanh toán: hoàn kho, đưa hàng về giỏ như khách tự hủy, báo khách.
+     * Khóa đơn rồi kiểm tra lại, vì MoMo có thể vừa báo thanh toán xong (đơn đã sang Đã xác nhận).
+     *
+     * @return true nếu đã hủy
+     */
+    @Transactional
+    public boolean cancelIfUnpaidExpired(Long orderId, LocalDateTime now) {
+        orderRepository.findForUpdateById(orderId);
+        Order order = orderRepository.findWithItemsById(orderId).orElse(null);
+        if (order == null || !unpaidOrderPolicy.isExpired(order, now)) {
+            return false;
+        }
+        // cùng thứ tự khóa với cancelOrder: đơn -> giỏ -> sản phẩm
+        returnItemsToCart(order);
+        restoreStock(order);
+        order.setStatus(OrderStatus.CANCELLED);
+        notificationService.notify(order.getCustomer(), NotificationType.ORDER_STATUS,
+                "Đơn " + order.getOrderCode() + " đã tự huỷ",
+                "Đơn chưa được thanh toán MoMo trong " + unpaidOrderPolicy.timeoutHours()
+                        + " giờ kể từ lúc đặt nên đã tự huỷ. Sản phẩm đã được đưa lại vào giỏ hàng để bạn đặt lại.",
+                "/orders/" + order.getId());
+        return true;
+    }
+
     // Cộng dồn từng dòng đơn vào giỏ của khách (giỏ mỗi sản phẩm một dòng). Bỏ qua sản phẩm đã ẩn và
     // giới hạn MAX_QUANTITY mỗi món như CartService.addItem. Không so với tồn kho ở đây: increaseStock vừa
     // cộng thẳng trong DB nên Product trong bộ nhớ có thể còn số cũ; lúc đặt lại createOrder vẫn kiểm tra kho.
@@ -274,7 +308,8 @@ public class OrderService {
                 order.getShippingFeeOrZero(), order.getShippingZone() == null ? null : order.getShippingZone().name(),
                 order.getShippingZone() == null ? null : order.getShippingZone().label(), order.getParcelCount(),
                 order.getTotalAmount(),
-                order.getStatus().name(), order.getPaymentMethod().name(), order.isCancelledByCustomer(), items,
+                order.getStatus().name(), order.getPaymentMethod().name(), order.isCancelledByCustomer(),
+                unpaidOrderPolicy.deadline(order), items,
                 order.getCreatedAt());
     }
 

@@ -14,6 +14,7 @@ import com.brainblocks.backend.repository.PaymentRepository;
 import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.order.OrderAccessGuard;
 import com.brainblocks.backend.service.order.OrderService;
+import com.brainblocks.backend.service.order.UnpaidOrderPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class PaymentService {
     private final OrderAccessGuard orderAccessGuard;
     private final MoMoGateway moMoGateway;
     private final NotificationService notificationService;
+    private final UnpaidOrderPolicy unpaidOrderPolicy;
 
     private Map<PaymentMethod, PaymentGateway> gateways() {
         Map<PaymentMethod, PaymentGateway> map = new EnumMap<>(PaymentMethod.class);
@@ -55,6 +57,10 @@ public class PaymentService {
 
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new IllegalArgumentException("Cannot pay for a cancelled order");
+        }
+        // quá hạn thanh toán mà UnpaidOrderExpiryJob chưa kịp hủy: không mở link mới nữa
+        if (unpaidOrderPolicy.isExpired(order, LocalDateTime.now())) {
+            throw new IllegalArgumentException("The payment deadline for this order has passed");
         }
         PaymentGateway gateway = gateways().get(order.getPaymentMethod());
         if (gateway == null) {
