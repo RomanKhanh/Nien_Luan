@@ -1,5 +1,6 @@
 package com.brainblocks.backend.service.order;
 
+import com.brainblocks.backend.config.LegacyOrderMigration;
 import com.brainblocks.backend.dto.request.order.CreateOrderRequest;
 import com.brainblocks.backend.dto.request.order.OrderItemChildRequest;
 import com.brainblocks.backend.dto.response.order.OrderItemResponse;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +52,7 @@ public class OrderService {
     private final NotificationService notificationService;
     private final LocationDirectory locations;
     private final ShippingQuoteService shippingQuoteService;
+    private final UnpaidOrderPolicy unpaidOrderPolicy;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -154,20 +157,91 @@ public class OrderService {
         // khóa đơn trước khi đọc trạng thái (xem OrderRepository.findForUpdateById); đơn không tồn tại thì guard trả 404
         orderRepository.findForUpdateById(orderId);
         Order order = orderAccessGuard.getOwnedOrder(orderId);
-        if (!(order.getStatus().equals(OrderStatus.PENDING) || order.getStatus().equals(OrderStatus.CONFIRMED))) {
+        // khách chỉ tự hủy được khi đơn còn chờ xác nhận; đã xác nhận thì phải gửi yêu cầu hủy (ComplaintType.CANCEL)
+        if (order.getStatus() != OrderStatus.PENDING) {
             throw new IllegalArgumentException("Can't cancel this order because it is already " + order.getStatus());
         }
+        // đơn chờ xác nhận là đơn chưa thanh toán (MoMo trả thành công thì đơn tự chuyển sang Đã xác nhận),
+        // nên khách hủy là trả hàng về giỏ để sửa lại rồi đặt tiếp, với mọi hình thức thanh toán.
+        // Làm trước restoreStock: khóa giỏ rồi mới khóa dòng sản phẩm, cùng thứ tự với createOrder để không deadlock
+        returnItemsToCart(order);
         restoreStock(order);
         order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledByCustomer(true);
         notificationService.notifyAdmins(NotificationType.ORDER_CANCELLED_BY_CUSTOMER,
-                "Khách đã hủy đơn " + order.getOrderCode(),
+                LegacyOrderMigration.SELF_CANCEL_TITLE + order.getOrderCode(),
                 order.getCustomer().getFullName() + " đã tự hủy đơn, hàng đã được hoàn về kho.",
                 "/admin/orders");
         return toOrderResponse(order);
     }
 
+    // id các đơn MoMo đã quá hạn thanh toán lúc `now`; UnpaidOrderExpiryJob hủy từng đơn qua cancelIfUnpaidExpired
+    @Transactional(readOnly = true)
+    public List<Long> findExpiredUnpaidOrderIds(LocalDateTime now) {
+        return orderRepository.findIdsPlacedBefore(PaymentMethod.MOMO, OrderStatus.PENDING,
+                unpaidOrderPolicy.cutoff(now));
+    }
+
+    /**
+     * Tự hủy một đơn MoMo quá hạn thanh toán: hoàn kho, đưa hàng về giỏ như khách tự hủy, báo khách.
+     * Khóa đơn rồi kiểm tra lại, vì MoMo có thể vừa báo thanh toán xong (đơn đã sang Đã xác nhận).
+     *
+     * @return true nếu đã hủy
+     */
+    @Transactional
+    public boolean cancelIfUnpaidExpired(Long orderId, LocalDateTime now) {
+        orderRepository.findForUpdateById(orderId);
+        Order order = orderRepository.findWithItemsById(orderId).orElse(null);
+        if (order == null || !unpaidOrderPolicy.isExpired(order, now)) {
+            return false;
+        }
+        // cùng thứ tự khóa với cancelOrder: đơn -> giỏ -> sản phẩm
+        returnItemsToCart(order);
+        restoreStock(order);
+        order.setStatus(OrderStatus.CANCELLED);
+        notificationService.notify(order.getCustomer(), NotificationType.ORDER_STATUS,
+                "Đơn " + order.getOrderCode() + " đã tự huỷ",
+                "Đơn chưa được thanh toán MoMo trong " + unpaidOrderPolicy.timeoutHours()
+                        + " giờ kể từ lúc đặt nên đã tự huỷ. Sản phẩm đã được đưa lại vào giỏ hàng để bạn đặt lại.",
+                "/orders/" + order.getId());
+        return true;
+    }
+
+    // Cộng dồn từng dòng đơn vào giỏ của khách (giỏ mỗi sản phẩm một dòng). Bỏ qua sản phẩm đã ẩn và
+    // giới hạn MAX_QUANTITY mỗi món như CartService.addItem. Không so với tồn kho ở đây: increaseStock vừa
+    // cộng thẳng trong DB nên Product trong bộ nhớ có thể còn số cũ; lúc đặt lại createOrder vẫn kiểm tra kho.
+    private void returnItemsToCart(Order order) {
+        Long customerId = order.getCustomer().getId();
+        // khóa giỏ trước khi đọc, giống createOrder
+        cartRepository.findForUpdateByCustomerId(customerId);
+        Cart cart = cartRepository.findWithItemsByCustomerId(customerId).orElse(null);
+        if (cart == null) {
+            return;
+        }
+        for (OrderItem orderItem : order.getItems()) {
+            Product product = orderItem.getProduct();
+            if (!product.isActive()) {
+                continue;
+            }
+            CartItem cartItem = cart.getItems().stream()
+                    .filter(i -> i.getProduct().getId().equals(product.getId()))
+                    .findFirst()
+                    .orElse(null);
+            int current = cartItem == null ? 0 : cartItem.getQuantity();
+            int quantity = Math.min(current + orderItem.getQuantity(), CartItem.MAX_QUANTITY);
+            if (quantity <= current) {
+                continue;
+            }
+            if (cartItem == null) {
+                cart.getItems().add(CartItem.builder().cart(cart).product(product).quantity(quantity).build());
+            } else {
+                cartItem.setQuantity(quantity);
+            }
+        }
+    }
+
     // 459000 -> "459.000₫"
-    private static String formatMoney(BigDecimal amount) {
+    public static String formatMoney(BigDecimal amount) {
         return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "₫";
     }
 
@@ -234,7 +308,9 @@ public class OrderService {
                 order.getShippingFeeOrZero(), order.getShippingZone() == null ? null : order.getShippingZone().name(),
                 order.getShippingZone() == null ? null : order.getShippingZone().label(), order.getParcelCount(),
                 order.getTotalAmount(),
-                order.getStatus().name(), order.getPaymentMethod().name(), items, order.getCreatedAt());
+                order.getStatus().name(), order.getPaymentMethod().name(), order.isCancelledByCustomer(),
+                unpaidOrderPolicy.deadline(order), items,
+                order.getCreatedAt());
     }
 
     private static AddressResponse toAddressResponse(Order order) {

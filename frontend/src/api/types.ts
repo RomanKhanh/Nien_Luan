@@ -194,6 +194,10 @@ export interface Order {
   totalAmount: number
   status: OrderStatus
   paymentMethod: PaymentMethod
+  // khách tự huỷ lúc đơn còn chờ xác nhận: không gửi phản hồi về đơn được nữa
+  cancelledByCustomer: boolean
+  // đơn MoMo chưa thanh toán: quá hạn này đơn tự huỷ (UnpaidOrderPolicy); null ở đơn khác
+  paymentDeadline: string | null
   items: OrderItem[]
   createdAt: string
 }
@@ -281,7 +285,6 @@ export interface ShippingQuote {
 }
 
 // ===== Hồ sơ bé / kỹ năng =====
-
 
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
 

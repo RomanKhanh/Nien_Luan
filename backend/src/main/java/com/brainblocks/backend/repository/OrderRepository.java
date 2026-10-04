@@ -2,6 +2,7 @@ package com.brainblocks.backend.repository;
 
 import com.brainblocks.backend.entity.Order;
 import com.brainblocks.backend.enums.OrderStatus;
+import com.brainblocks.backend.enums.PaymentMethod;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +46,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from Order o where o.id = :id")
     Optional<Order> findForUpdateById(@Param("id") Long id);
+
+    // id các đơn theo hình thức thanh toán + trạng thái, đặt trước một mốc (tìm đơn MoMo quá hạn thanh toán)
+    @Query("""
+            select o.id from Order o
+            where o.paymentMethod = :method and o.status = :status and o.createdAt < :before
+            """)
+    List<Long> findIdsPlacedBefore(@Param("method") PaymentMethod method, @Param("status") OrderStatus status,
+                                   @Param("before") LocalDateTime before);
 
     @EntityGraph(attributePaths = "customer")
     Page<Order> findAll(Pageable pageable);

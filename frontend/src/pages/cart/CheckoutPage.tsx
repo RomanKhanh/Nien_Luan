@@ -327,7 +327,7 @@ export default function CheckoutPage() {
               {paymentMethod === 'MOMO' ? 'Đặt hàng & thanh toán MoMo' : 'Đặt hàng'}
             </Button>
             <p className="mt-3 text-center text-[12.5px] text-ink-muted">
-              Bạn có thể huỷ đơn khi đơn chưa được giao đi.
+              Bạn có thể tự huỷ đơn khi đơn còn chờ xác nhận.
             </p>
           </aside>
         </form>

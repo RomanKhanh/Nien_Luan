@@ -48,8 +48,8 @@ public class ComplaintService {
             ComplaintType.RETURN, EnumSet.of(OrderStatus.DELIVERED),
             ComplaintType.EXCHANGE, EnumSet.of(OrderStatus.DELIVERED),
             ComplaintType.QUALITY, EnumSet.of(OrderStatus.DELIVERED),
-            // đơn chờ xác nhận / đã xác nhận khách tự hủy được; yêu cầu hủy chủ yếu cho đơn đang giao
-            ComplaintType.CANCEL, EnumSet.of(OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.SHIPPING),
+            // chờ xác nhận: khách tự hủy bằng nút Hủy đơn; đã xác nhận: chỉ hủy qua yêu cầu; đang giao: không hủy được nữa
+            ComplaintType.CANCEL, EnumSet.of(OrderStatus.CONFIRMED),
             ComplaintType.OTHER, EnumSet.allOf(OrderStatus.class)
     );
 
@@ -79,6 +79,10 @@ public class ComplaintService {
                                              MultipartFile unboxingVideo, List<MultipartFile> conditionFiles) {
         // đơn của người khác trả 404 như đơn không tồn tại
         Order order = orderAccessGuard.getOwnedOrder(orderId);
+        // khách tự hủy lúc chờ xác nhận: hàng đã về giỏ, đơn chưa giao gì nên không còn gì để phản hồi
+        if (order.isCancelledByCustomer()) {
+            throw new IllegalArgumentException("Cannot send feedback for an order you cancelled yourself");
+        }
         if (!ALLOWED_ORDER_STATUSES.get(request.type()).contains(order.getStatus())) {
             throw new IllegalArgumentException("Cannot send a " + request.type()
                     + " request for an order that is " + order.getStatus());

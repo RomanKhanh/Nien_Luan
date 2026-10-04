@@ -1,5 +1,6 @@
 package com.brainblocks.backend.regression;
 
+import com.brainblocks.backend.config.UnpaidOrderExpiryJob;
 import com.brainblocks.backend.entity.Category;
 import com.brainblocks.backend.entity.Customer;
 import com.brainblocks.backend.entity.Product;
@@ -26,6 +27,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,8 @@ class ReviewFindingsRegressionTest {
     private Environment environment;
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private UnpaidOrderExpiryJob unpaidOrderExpiryJob;
     @PersistenceContext
     private EntityManager em;
 
@@ -109,6 +113,72 @@ class ReviewFindingsRegressionTest {
             assertThat(call("GET", "/api/orders", token, null).data().size()).isEqualTo(1);
             assertThat(stockOf(productId)).isEqualTo(9);
         }
+    }
+
+    // 2b. khách tự hủy đơn chờ xác nhận: hàng trong đơn quay lại giỏ (cộng dồn với món đang có), kho được hoàn
+    @Test
+    void cancellingPendingOrderReturnsItemsToCart() throws Exception {
+        String token = newCustomer();
+        long p1 = createProduct("cancel-back-1", 10, null);
+        long p2 = createProduct("cancel-back-2", 10, null);
+        call("POST", "/api/cart/items", token, Map.of("productId", p1, "quantity", 2));
+        call("POST", "/api/cart/items", token, Map.of("productId", p2, "quantity", 1));
+        Res order = call("POST", "/api/orders", token, ORDER_BODY);
+        assertThat(order.status()).isEqualTo(201);
+        assertThat(call("GET", "/api/cart", token, null).data().path("items").size()).isZero();
+
+        // trong lúc chờ, khách bỏ thêm 1 món p1 vào giỏ
+        call("POST", "/api/cart/items", token, Map.of("productId", p1, "quantity", 1));
+
+        long orderId = order.data().path("id").asLong();
+        Res cancelled = call("PATCH", "/api/orders/" + orderId + "/cancel", token, null);
+        assertThat(cancelled.status()).isEqualTo(200);
+        assertThat(cancelled.data().path("status").asString()).isEqualTo("CANCELLED");
+        assertThat(cancelled.data().path("cancelledByCustomer").asBoolean()).isTrue();
+        // đơn khách tự hủy không gửi phản hồi được nữa
+        assertThat(call("POST", "/api/orders/" + orderId + "/complaints", token,
+                Map.of("type", "OTHER", "content", "phản hồi")).status()).isEqualTo(400);
+
+        JsonNode items = call("GET", "/api/cart", token, null).data().path("items");
+        Map<Long, Integer> quantityByProduct = new java.util.HashMap<>();
+        items.forEach(i -> quantityByProduct.put(i.path("productId").asLong(), i.path("quantity").asInt()));
+        assertThat(quantityByProduct).containsExactlyInAnyOrderEntriesOf(Map.of(p1, 3, p2, 1));
+        assertThat(stockOf(p1)).isEqualTo(10);
+        assertThat(stockOf(p2)).isEqualTo(10);
+    }
+
+    // 2c. đơn MoMo chưa thanh toán quá 24 giờ tự hủy: hoàn kho, hàng về giỏ; đơn còn trong hạn giữ nguyên
+    @Test
+    void unpaidMomoOrderIsCancelledAfterDeadline() throws Exception {
+        String token = newCustomer();
+        long productId = createProduct("unpaid-momo", 10, null);
+        Map<String, Object> momo = new HashMap<>(ORDER_BODY);
+        momo.put("paymentMethod", "MOMO");
+        call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 2));
+        Res stale = call("POST", "/api/orders", token, momo);
+        call("POST", "/api/cart/items", token, Map.of("productId", productId, "quantity", 1));
+        Res fresh = call("POST", "/api/orders", token, momo);
+        long staleId = stale.data().path("id").asLong();
+        long freshId = fresh.data().path("id").asLong();
+        assertThat(fresh.data().path("paymentDeadline").isNull()).isFalse();
+        assertThat(stockOf(productId)).isEqualTo(7);
+
+        // lùi giờ đặt của đơn cũ về 25 giờ trước
+        inTx(() -> em.createQuery("update Order o set o.createdAt = :at where o.id = :id")
+                .setParameter("at", LocalDateTime.now().minusHours(25)).setParameter("id", staleId).executeUpdate());
+
+        unpaidOrderExpiryJob.cancelExpiredUnpaidOrders();
+
+        assertThat(call("GET", "/api/orders/" + staleId, token, null).data().path("status").asString())
+                .isEqualTo("CANCELLED");
+        assertThat(call("GET", "/api/orders/" + freshId, token, null).data().path("status").asString())
+                .isEqualTo("PENDING");
+        assertThat(stockOf(productId)).isEqualTo(9);
+        JsonNode items = call("GET", "/api/cart", token, null).data().path("items");
+        assertThat(items.size()).isEqualTo(1);
+        assertThat(items.path(0).path("quantity").asInt()).isEqualTo(2);
+        // đơn đã hủy không mở link thanh toán được nữa
+        assertThat(call("POST", "/api/payments/" + staleId + "/create-url", token, null).status()).isEqualTo(400);
     }
 
     // 3a. load khách hàng (lọc JWT, danh sách admin) không kéo thêm query giỏ hàng

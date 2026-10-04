@@ -75,6 +75,7 @@ const EXACT: Record<string, string> = {
     'Cổng thanh toán MoMo đang không khả dụng, vui lòng thử lại sau.',
   'This order has already been paid': 'Đơn hàng này đã được thanh toán.',
   'Cannot pay for a cancelled order': 'Không thể thanh toán đơn đã huỷ.',
+  'The payment deadline for this order has passed': 'Đơn đã quá hạn thanh toán và sẽ tự huỷ.',
   'This order is not set up for online payment (COD)': 'Đơn này thanh toán khi nhận hàng, không thanh toán online.',
   'Product not found': 'Không tìm thấy sản phẩm.',
   'Order not found': 'Không tìm thấy đơn hàng.',
@@ -120,6 +121,7 @@ const EXACT: Record<string, string> = {
   'Address detail is required': 'Vui lòng nhập địa chỉ chi tiết (số nhà, tên đường).',
   'Province not found': 'Không tìm thấy tỉnh/thành.',
   'District not found': 'Không tìm thấy quận/huyện.',
+  'Cannot send feedback for an order you cancelled yourself': 'Đơn bạn đã tự huỷ nên không gửi phản hồi được.',
   'Internal server error': 'Máy chủ gặp lỗi, vui lòng thử lại sau.',
 }
 

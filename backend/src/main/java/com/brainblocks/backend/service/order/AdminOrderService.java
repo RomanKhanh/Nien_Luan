@@ -36,8 +36,8 @@ public class AdminOrderService {
 
     private static final int MAX_PAGE_SIZE = 100;
 
-    // Luồng trạng thái theo đề: Chờ xác nhận -> Đã xác nhận -> Đang giao -> Đã giao; hủy được khi chưa giao đi
-    // (giống điều kiện khách tự hủy ở OrderService.cancelOrder). DELIVERED và CANCELLED là trạng thái cuối.
+    // Luồng trạng thái theo đề: Chờ xác nhận -> Đã xác nhận -> Đang giao -> Đã giao; admin hủy được khi chưa giao đi
+    // (khách tự hủy chỉ khi còn chờ xác nhận, xem OrderService.cancelOrder). DELIVERED và CANCELLED là trạng thái cuối.
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
             OrderStatus.PENDING, EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
             OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.SHIPPING, OrderStatus.CANCELLED),
