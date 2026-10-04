@@ -111,6 +111,38 @@ class ReviewFindingsRegressionTest {
         }
     }
 
+    // 2b. khách tự hủy đơn chờ xác nhận: hàng trong đơn quay lại giỏ (cộng dồn với món đang có), kho được hoàn
+    @Test
+    void cancellingPendingOrderReturnsItemsToCart() throws Exception {
+        String token = newCustomer();
+        long p1 = createProduct("cancel-back-1", 10, null);
+        long p2 = createProduct("cancel-back-2", 10, null);
+        call("POST", "/api/cart/items", token, Map.of("productId", p1, "quantity", 2));
+        call("POST", "/api/cart/items", token, Map.of("productId", p2, "quantity", 1));
+        Res order = call("POST", "/api/orders", token, ORDER_BODY);
+        assertThat(order.status()).isEqualTo(201);
+        assertThat(call("GET", "/api/cart", token, null).data().path("items").size()).isZero();
+
+        // trong lúc chờ, khách bỏ thêm 1 món p1 vào giỏ
+        call("POST", "/api/cart/items", token, Map.of("productId", p1, "quantity", 1));
+
+        long orderId = order.data().path("id").asLong();
+        Res cancelled = call("PATCH", "/api/orders/" + orderId + "/cancel", token, null);
+        assertThat(cancelled.status()).isEqualTo(200);
+        assertThat(cancelled.data().path("status").asString()).isEqualTo("CANCELLED");
+        assertThat(cancelled.data().path("cancelledByCustomer").asBoolean()).isTrue();
+        // đơn khách tự hủy không gửi phản hồi được nữa
+        assertThat(call("POST", "/api/orders/" + orderId + "/complaints", token,
+                Map.of("type", "OTHER", "content", "phản hồi")).status()).isEqualTo(400);
+
+        JsonNode items = call("GET", "/api/cart", token, null).data().path("items");
+        Map<Long, Integer> quantityByProduct = new java.util.HashMap<>();
+        items.forEach(i -> quantityByProduct.put(i.path("productId").asLong(), i.path("quantity").asInt()));
+        assertThat(quantityByProduct).containsExactlyInAnyOrderEntriesOf(Map.of(p1, 3, p2, 1));
+        assertThat(stockOf(p1)).isEqualTo(10);
+        assertThat(stockOf(p2)).isEqualTo(10);
+    }
+
     // 3a. load khách hàng (lọc JWT, danh sách admin) không kéo thêm query giỏ hàng
     @Test
     void loadingCustomersDoesNotQueryCarts() throws Exception {

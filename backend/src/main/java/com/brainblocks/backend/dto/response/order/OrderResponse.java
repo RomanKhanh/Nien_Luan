@@ -12,9 +12,11 @@ import java.util.List;
  * address: địa chỉ 3 cấp, null ở đơn cũ.
  * totalAmount = subtotal (tiền hàng) + shippingFee (phí vận chuyển). Đơn trước khi có phí ship: shippingFee = 0,
  * shippingZone / shippingZoneLabel / parcelCount = null.
+ * cancelledByCustomer: khách tự hủy lúc đơn còn chờ xác nhận (khi đó không gửi phản hồi về đơn được nữa).
  */
 public record OrderResponse(Long id, String orderCode, String receiverName, String receiverPhone,
                             String shippingAddress, AddressResponse address,
                             BigDecimal subtotal, BigDecimal shippingFee, String shippingZone,
                             String shippingZoneLabel, Integer parcelCount, BigDecimal totalAmount, String status,
-                            String paymentMethod, List<OrderItemResponse> items, LocalDateTime createdAt) {}
+                            String paymentMethod, boolean cancelledByCustomer, List<OrderItemResponse> items,
+                            LocalDateTime createdAt) {}

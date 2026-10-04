@@ -30,8 +30,12 @@ class LegacyOrderMigrationTest {
                         shipping_address VARCHAR(255) NOT NULL,
                         total_amount NUMERIC(12, 2) NOT NULL,
                         subtotal NUMERIC(12, 2),
-                        shipping_fee NUMERIC(12, 2)
+                        shipping_fee NUMERIC(12, 2),
+                        order_code VARCHAR(30),
+                        status VARCHAR(20),
+                        cancelled_by_customer BOOLEAN
                     )""");
+            jdbc.execute("CREATE TABLE notifications (id BIGINT PRIMARY KEY, type VARCHAR(40), title VARCHAR(200))");
             jdbc.update("INSERT INTO orders (id, shipping_address, total_amount) VALUES (1, '12 Nguyễn Trãi', 459000)");
             LegacyOrderMigration migration = new LegacyOrderMigration(jdbc);
             assertThat(migration.isNotNull()).isTrue();
@@ -43,11 +47,25 @@ class LegacyOrderMigrationTest {
             assertThat(amount(legacy, "shipping_fee")).isEqualByComparingTo("0");
 
             // đơn mới (có phí ship, không có địa chỉ tự do) không bị đụng tới khi chạy lại
-            jdbc.update("INSERT INTO orders VALUES (2, NULL, 485000, 459000, 26000)");
+            jdbc.update("INSERT INTO orders (id, shipping_address, total_amount, subtotal, shipping_fee) "
+                    + "VALUES (2, NULL, 485000, 459000, 26000)");
             migration.run();
             Map<String, Object> fresh = jdbc.queryForMap("SELECT subtotal, shipping_fee FROM orders WHERE id = 2");
             assertThat(amount(fresh, "subtotal")).isEqualByComparingTo("459000");
             assertThat(amount(fresh, "shipping_fee")).isEqualByComparingTo("26000");
+
+            // đơn hủy cũ: có thông báo "Khách đã hủy đơn <mã>" là khách tự hủy, không có là admin hủy
+            jdbc.update("INSERT INTO orders (id, shipping_address, total_amount, order_code, status) "
+                    + "VALUES (3, NULL, 100, 'ORD3', 'CANCELLED'), (4, NULL, 100, 'ORD4', 'CANCELLED')");
+            jdbc.update("INSERT INTO notifications VALUES (1, 'ORDER_CANCELLED_BY_CUSTOMER', ?)",
+                    LegacyOrderMigration.SELF_CANCEL_TITLE + "ORD3");
+            jdbc.update("INSERT INTO notifications VALUES (2, 'ORDER_CANCELLED_BY_CUSTOMER', ?)",
+                    LegacyOrderMigration.SELF_CANCEL_TITLE + "ORD3");
+            migration.run();
+            assertThat(jdbc.queryForObject("SELECT cancelled_by_customer FROM orders WHERE id = 3", Boolean.class))
+                    .isTrue();
+            assertThat(jdbc.queryForObject("SELECT cancelled_by_customer FROM orders WHERE id = 4", Boolean.class))
+                    .isNull();
         } finally {
             dataSource.destroy();
         }

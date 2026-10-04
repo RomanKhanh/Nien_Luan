@@ -7,6 +7,7 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/Modal'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
+import { cartKey } from '@/features/cart/useCart'
 import { ComplaintModal } from '@/features/complaints/ComplaintModal'
 import { OrderMoneySummary } from '@/features/orders/MoneySummary'
 import { OrderTimeline } from '@/features/orders/OrderTimeline'
@@ -34,7 +35,8 @@ export default function OrderDetailPage() {
     onSuccess: (data) => {
       queryClient.setQueryData(['order', id], data)
       queryClient.invalidateQueries({ queryKey: ['orders'] })
-      toast.success('Đã huỷ đơn hàng')
+      queryClient.invalidateQueries({ queryKey: cartKey })
+      toast.success('Đã huỷ đơn hàng, sản phẩm đã được đưa lại vào giỏ hàng')
       setConfirmCancel(false)
     },
     onError: (e) => toast.error(e.message),
@@ -55,7 +57,11 @@ export default function OrderDetailPage() {
 
   const o = order.data
   const reviewed = new Set(myReviews.data?.map((r) => r.productId))
-  const canCancel = o.status === 'PENDING' || o.status === 'CONFIRMED'
+  // chờ xác nhận: khách tự huỷ bằng nút, không cần gửi yêu cầu; đã xác nhận: chỉ huỷ qua yêu cầu;
+  // đang giao: không huỷ được nữa (khớp OrderService.cancelOrder và COMPLAINT_ALLOWED.CANCEL)
+  const canCancel = o.status === 'PENDING'
+  // đơn khách tự huỷ lúc chờ xác nhận: hàng đã về giỏ, không còn gì để phản hồi (ComplaintService cũng chặn)
+  const showFeedback = !canCancel && !o.cancelledByCustomer
 
   return (
     <AccountShell>
@@ -142,28 +148,35 @@ export default function OrderDetailPage() {
             <p className="mt-3 text-ink-muted">{PAYMENT_METHOD[o.paymentMethod]}</p>
           </section>
           {o.paymentMethod === 'MOMO' && <PaymentPanel order={o} />}
-          <section className="card space-y-2.5 p-5">
-            {canCancel && (
-              <Button variant="danger-outline" block onClick={() => setConfirmCancel(true)}>
-                Huỷ đơn hàng
-              </Button>
-            )}
-            <Button variant="secondary" block onClick={() => setComplaintOpen(true)}>
-              {o.status === 'DELIVERED' ? 'Yêu cầu đổi / trả · khiếu nại' : 'Gửi phản hồi về đơn'}
-            </Button>
-            {o.status === 'SHIPPING' && (
-              <p className="text-[12.5px] text-ink-muted">
-                Đơn đang giao không tự huỷ được; hãy gửi yêu cầu huỷ để được hỗ trợ.
-              </p>
-            )}
-          </section>
+          {(canCancel || showFeedback) && (
+            <section className="card space-y-2.5 p-5">
+              {canCancel && (
+                <Button variant="danger-outline" block onClick={() => setConfirmCancel(true)}>
+                  Huỷ đơn hàng
+                </Button>
+              )}
+              {showFeedback && (
+                <Button variant="secondary" block onClick={() => setComplaintOpen(true)}>
+                  {o.status === 'DELIVERED' ? 'Yêu cầu đổi / trả · khiếu nại' : 'Gửi phản hồi về đơn'}
+                </Button>
+              )}
+              {o.status === 'CONFIRMED' && (
+                <p className="text-[12.5px] text-ink-muted">
+                  Đơn đã được xác nhận nên không tự huỷ được; muốn huỷ hãy gửi yêu cầu huỷ đơn.
+                </p>
+              )}
+              {o.status === 'SHIPPING' && (
+                <p className="text-[12.5px] text-ink-muted">Đơn đang giao nên không thể huỷ.</p>
+              )}
+            </section>
+          )}
         </div>
       </div>
 
       <ConfirmDialog
         open={confirmCancel}
         title="Huỷ đơn hàng này?"
-        message="Sản phẩm sẽ được hoàn lại kho. Thao tác không thể hoàn tác."
+        message="Sản phẩm trong đơn sẽ được đưa lại vào giỏ hàng để bạn chỉnh sửa và đặt lại. Thao tác không thể hoàn tác."
         confirmLabel="Huỷ đơn"
         loading={cancel.isPending}
         onConfirm={() => cancel.mutate()}

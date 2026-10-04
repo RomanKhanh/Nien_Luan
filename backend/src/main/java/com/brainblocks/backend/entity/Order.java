@@ -96,6 +96,10 @@ public class Order {
     @Column(nullable = false, length = 20)
     private PaymentMethod paymentMethod;
 
+    // true khi khách tự hủy (chỉ được khi đơn còn chờ xác nhận); null ở đơn chưa hủy hoặc do admin hủy.
+    // Để null được để ddl-auto=update thêm cột vào bảng đã có dữ liệu; đơn cũ điền ở LegacyOrderMigration.
+    private Boolean cancelledByCustomer;
+
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -113,6 +117,10 @@ public class Order {
 
     public BigDecimal getSubtotalOrTotal() {
         return subtotal != null ? subtotal : totalAmount;
+    }
+
+    public boolean isCancelledByCustomer() {
+        return Boolean.TRUE.equals(cancelledByCustomer);
     }
 
     public BigDecimal getShippingFeeOrZero() {

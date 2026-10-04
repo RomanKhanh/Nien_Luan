@@ -120,6 +120,7 @@ const EXACT: Record<string, string> = {
   'Address detail is required': 'Vui lòng nhập địa chỉ chi tiết (số nhà, tên đường).',
   'Province not found': 'Không tìm thấy tỉnh/thành.',
   'District not found': 'Không tìm thấy quận/huyện.',
+  'Cannot send feedback for an order you cancelled yourself': 'Đơn bạn đã tự huỷ nên không gửi phản hồi được.',
   'Internal server error': 'Máy chủ gặp lỗi, vui lòng thử lại sau.',
 }
 
