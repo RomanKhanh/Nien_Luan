@@ -48,8 +48,12 @@ function productParams(q: ProductQuery) {
 
 export const authApi = {
   login: (email: string, password: string) => request<LoginResponse>(http.post('/auth/login', { email, password })),
-  register: (body: { fullName: string; email: string; password: string }) =>
+  sendVerificationCode: (email: string) => request<unknown>(http.post('/auth/register/send-code', { email })),
+  register: (body: { fullName: string; email: string; password: string; verificationCode: string }) =>
     request<unknown>(http.post('/auth/register', body)),
+  forgotPassword: (email: string) => request<unknown>(http.post('/auth/forgot-password', { email })),
+  resetPassword: (token: string, newPassword: string) =>
+    request<unknown>(http.post('/auth/reset-password', { token, newPassword })),
 }
 
 export const meApi = {
@@ -75,8 +79,7 @@ export const shippingApi = {
 export const catalogApi = {
   products: (q: ProductQuery) => request<Page<ProductSummary>>(http.get('/products', { params: productParams(q) })),
   product: (id: number) => request<ProductDetail>(http.get(`/products/${id}`)),
-  suggestions: (q: string) =>
-    request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
+  suggestions: (q: string) => request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
   reviews: (id: number, page = 0, size = 5) =>
     request<Page<Review>>(http.get(`/products/${id}/reviews`, { params: { page, size } })),
   createReview: (id: number, body: { rating: number; comment: string }) =>
