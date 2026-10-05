@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { Bubbles, Mascot, SkillIcon } from '@/components/decor/Decor'
 import { Logo } from '@/components/layout/Logo'
 import { skillTheme } from '@/lib/skills'
@@ -11,6 +12,13 @@ const FLOATERS = [
   { code: 'CREATIVE', pos: 'right-[6%] top-[14%]', delay: '1.1s' },
   { code: 'PROBLEM_SOLVING', pos: 'left-[4%] bottom-[10%]', delay: '0.5s' },
   { code: 'STEM', pos: 'right-[10%] bottom-[4%]', delay: '1.7s' },
+]
+
+// 3 điểm nổi bật dưới form, để trên điện thoại (không có cột trái) vẫn biết tài khoản dùng để làm gì
+const PERKS = [
+  { code: 'LOGIC', text: 'Hồ sơ kỹ năng cho từng bé' },
+  { code: 'CREATIVE', text: 'Chatbot tư vấn theo độ tuổi' },
+  { code: 'STEM', text: 'Gợi ý đồ chơi kèm lý do' },
 ]
 
 // bố cục 2 cột của màn đăng nhập / đăng ký (mockup màn 07), cột trái nền trời xanh như trang chủ
@@ -50,15 +58,40 @@ export function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <p className="relative text-[13px] text-white/80">© {YEAR} BrainBlocks</p>
       </aside>
-      <main className="relative flex flex-col overflow-hidden px-4 py-8 sm:px-8">
+      <main className="relative flex flex-col overflow-hidden px-4 py-6 sm:px-8 sm:py-8">
         <span className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-soft" aria-hidden />
         <span className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-[#fff2cc]" aria-hidden />
-        <div className="relative lg:hidden">
-          <Logo />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="lg:hidden">
+            <Logo />
+          </div>
+          <Link
+            to="/"
+            className="ml-auto rounded-full px-3 py-1.5 text-[13.5px] font-semibold text-ink-2 transition hover:bg-surface hover:text-ink"
+          >
+            ← Về trang chủ
+          </Link>
         </div>
-        <div className="relative mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-8">
-          <Mascot className="mb-4 w-16 animate-float lg:hidden" />
-          {children}
+        <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-8">
+          <Mascot className="mx-auto -mb-3 w-20 animate-float lg:hidden" />
+          <div className="card relative p-6 shadow-card-hover sm:p-8">{children}</div>
+          <ul className="mt-6 grid grid-cols-3 gap-2 text-center sm:gap-3">
+            {PERKS.map((p) => {
+              const t = skillTheme(p.code)
+              return (
+                <li key={p.code} className="flex flex-col items-center gap-2">
+                  <span
+                    className="grid h-10 w-10 place-items-center rounded-full"
+                    style={{ background: t.soft, color: t.color }}
+                    aria-hidden
+                  >
+                    <SkillIcon code={p.code} className="h-5 w-5" />
+                  </span>
+                  <span className="text-balance text-[12.5px] font-medium leading-snug text-ink-2">{p.text}</span>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       </main>
     </div>

@@ -7,7 +7,8 @@ import { authApi } from '@/api/endpoints'
 import { toApiError, type ApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Field, Input } from '@/components/ui/Field'
+import { Field, PasswordInput } from '@/components/ui/Field'
+import { LockIcon } from '@/components/ui/FormIcons'
 import { useToast } from '@/components/ui/Toast'
 import { newPasswordRule } from '@/lib/password'
 import { AuthShell } from './AuthShell'
@@ -85,18 +86,18 @@ export default function ResetPasswordPage() {
           hint="Tối thiểu 8 ký tự, có cả chữ và số."
           error={errors.password?.message}
         >
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
+            leading={<LockIcon />}
             autoComplete="new-password"
             invalid={Boolean(errors.password)}
             {...form.register('password')}
           />
         </Field>
         <Field label="Nhập lại mật khẩu mới" htmlFor="confirm" error={errors.confirm?.message}>
-          <Input
+          <PasswordInput
             id="confirm"
-            type="password"
+            leading={<LockIcon />}
             autoComplete="new-password"
             invalid={Boolean(errors.confirm)}
             {...form.register('confirm')}

@@ -6,7 +6,8 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { toApiError, type ApiError } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { Field, Input } from '@/components/ui/Field'
+import { Field, Input, PasswordInput } from '@/components/ui/Field'
+import { LockIcon, MailIcon } from '@/components/ui/FormIcons'
 import { AuthShell } from './AuthShell'
 
 const schema = z.object({
@@ -89,15 +90,17 @@ export default function LoginPage() {
             type="email"
             autoComplete="email"
             placeholder="phuhuynh@email.vn"
+            leading={<MailIcon />}
             invalid={Boolean(form.formState.errors.email)}
             {...form.register('email')}
           />
         </Field>
         <Field label="Mật khẩu" htmlFor="password" error={form.formState.errors.password?.message}>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
+            placeholder="Nhập mật khẩu"
+            leading={<LockIcon />}
             invalid={Boolean(form.formState.errors.password)}
             {...form.register('password')}
           />

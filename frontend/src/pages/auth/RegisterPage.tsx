@@ -7,7 +7,8 @@ import { toApiError } from '@/api/client'
 import { authApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/Button'
-import { Field, Input } from '@/components/ui/Field'
+import { Field, Input, PasswordInput } from '@/components/ui/Field'
+import { KeyIcon, LockIcon, MailIcon, UserIcon } from '@/components/ui/FormIcons'
 import { useToast } from '@/components/ui/Toast'
 import { newPasswordRule } from '@/lib/password'
 import { AuthShell } from './AuthShell'
@@ -131,7 +132,13 @@ export default function RegisterPage() {
       )}
       <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
         <Field label="Họ và tên" htmlFor="fullName" error={errors.fullName?.message}>
-          <Input id="fullName" autoComplete="name" invalid={Boolean(errors.fullName)} {...form.register('fullName')} />
+          <Input
+            id="fullName"
+            autoComplete="name"
+            leading={<UserIcon />}
+            invalid={Boolean(errors.fullName)}
+            {...form.register('fullName')}
+          />
         </Field>
         <Field
           label="Email"
@@ -140,14 +147,16 @@ export default function RegisterPage() {
           hint="Dùng email bạn mở được: mã xác nhận và link lấy lại mật khẩu sẽ gửi tới đây."
         >
           <div className="flex gap-2">
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              className="min-w-0 flex-1"
-              invalid={Boolean(errors.email)}
-              {...form.register('email')}
-            />
+            <div className="min-w-0 flex-1">
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                leading={<MailIcon />}
+                invalid={Boolean(errors.email)}
+                {...form.register('email')}
+              />
+            </div>
             <Button
               variant="secondary"
               className="shrink-0"
@@ -175,6 +184,7 @@ export default function RegisterPage() {
             autoComplete="one-time-code"
             maxLength={6}
             placeholder="______"
+            leading={<KeyIcon />}
             className="font-mono tracking-[0.4em]"
             invalid={Boolean(errors.verificationCode)}
             {...form.register('verificationCode')}
@@ -186,18 +196,18 @@ export default function RegisterPage() {
           error={errors.password?.message}
           hint="Tối thiểu 8 ký tự, gồm chữ và số"
         >
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
+            leading={<LockIcon />}
             autoComplete="new-password"
             invalid={Boolean(errors.password)}
             {...form.register('password')}
           />
         </Field>
         <Field label="Nhập lại mật khẩu" htmlFor="confirm" error={errors.confirm?.message}>
-          <Input
+          <PasswordInput
             id="confirm"
-            type="password"
+            leading={<LockIcon />}
             autoComplete="new-password"
             invalid={Boolean(errors.confirm)}
             {...form.register('confirm')}
