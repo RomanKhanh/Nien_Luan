@@ -48,9 +48,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
               )
             })}
           </div>
-          <p className="font-display text-[36px] font-extrabold leading-[1.15]">
-            <span className="block">Cùng bé phát triển</span>
-            <span className="block text-sun">kỹ năng mỗi ngày</span>
+          <p className="sticker-text font-display text-[40px] font-extrabold leading-[1.05]">
+            <span className="block text-[#1c5fc6]">Theo dõi lộ trình kỹ năng</span>
+            <span className="block text-sun">cho từng bé trong nhà</span>
           </p>
           <p className="mt-4 max-w-md text-[15px] text-white/90">
             Một tài khoản phụ huynh, nhiều hồ sơ bé. Gợi ý đồ chơi luôn kèm lý do.
