@@ -23,6 +23,7 @@ import com.brainblocks.backend.service.location.LocationDirectory.ResolvedAddres
 import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.shipping.ShippingQuote;
 import com.brainblocks.backend.service.shipping.ShippingQuoteService;
+import com.brainblocks.backend.service.voucher.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class OrderService {
     private final LocationDirectory locations;
     private final ShippingQuoteService shippingQuoteService;
     private final UnpaidOrderPolicy unpaidOrderPolicy;
+    private final VoucherService voucherService;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -118,18 +120,26 @@ public class OrderService {
         // không nhận từ client. Lệch với phí khách đã thấy thì trả 409; exception rollback cả phần trừ kho ở trên.
         ShippingQuote shipping = shippingQuoteService.quote(address.province(), cartItems);
         BigDecimal shippingFee = shipping.totalFee();
+        // voucher khách chọn (tối đa 1 freeship + 1 giảm giá); giỏ đã khóa ở trên nên không dùng trùng voucher
+        VoucherService.Selection vouchers = voucherService.select(customerId, request.shippingVoucherId(),
+                request.discountVoucherId(), subtotal, shippingFee);
+        BigDecimal total = subtotal.add(shippingFee).subtract(vouchers.shippingDiscount())
+                .subtract(vouchers.discountAmount());
         if (request.expectedShippingFee() != null && request.expectedShippingFee().compareTo(shippingFee) != 0) {
             throw new ShippingFeeChangedException("Phí vận chuyển đã thay đổi thành " + formatMoney(shippingFee)
-                    + " (tổng thanh toán " + formatMoney(subtotal.add(shippingFee)) + ") do giỏ hàng vừa thay đổi. "
+                    + " (tổng thanh toán " + formatMoney(total) + ") do giỏ hàng vừa thay đổi. "
                     + "Vui lòng kiểm tra lại và bấm đặt hàng để xác nhận.", shippingFee, subtotal);
         }
         order.setSubtotal(subtotal);
         order.setShippingFee(shippingFee);
         order.setShippingZone(shipping.zone());
         order.setParcelCount(shipping.parcelCount());
-        order.setTotalAmount(subtotal.add(shippingFee));
+        order.setShippingDiscount(vouchers.shippingDiscount());
+        order.setDiscountAmount(vouchers.discountAmount());
+        order.setTotalAmount(total);
 
         Order saved = orderRepository.save(order);
+        voucherService.markUsed(vouchers, saved);
         cart.getItems().clear();
 
         notificationService.notifyAdmins(NotificationType.NEW_ORDER, "Đơn hàng mới " + saved.getOrderCode(),
@@ -166,6 +176,7 @@ public class OrderService {
         // Làm trước restoreStock: khóa giỏ rồi mới khóa dòng sản phẩm, cùng thứ tự với createOrder để không deadlock
         returnItemsToCart(order);
         restoreStock(order);
+        voucherService.releaseFor(order);
         order.setStatus(OrderStatus.CANCELLED);
         order.setCancelledByCustomer(true);
         notificationService.notifyAdmins(NotificationType.ORDER_CANCELLED_BY_CUSTOMER,
@@ -198,6 +209,7 @@ public class OrderService {
         // cùng thứ tự khóa với cancelOrder: đơn -> giỏ -> sản phẩm
         returnItemsToCart(order);
         restoreStock(order);
+        voucherService.releaseFor(order);
         order.setStatus(OrderStatus.CANCELLED);
         notificationService.notify(order.getCustomer(), NotificationType.ORDER_STATUS,
                 "Đơn " + order.getOrderCode() + " đã tự huỷ",
@@ -245,10 +257,17 @@ public class OrderService {
         return NumberFormat.getIntegerInstance(Locale.forLanguageTag("vi-VN")).format(amount) + "₫";
     }
 
-    // "Tiền hàng 459.000₫, phí vận chuyển 26.000₫, tổng 485.000₫" cho thông báo đơn hàng
+    // "Tiền hàng 459.000₫, phí vận chuyển 26.000₫, tổng 485.000₫" cho thông báo đơn hàng (có voucher thì thêm dòng giảm)
     public static String moneyLines(Order order) {
-        return "Tiền hàng " + formatMoney(order.getSubtotalOrTotal()) + ", phí vận chuyển "
-                + formatMoney(order.getShippingFeeOrZero()) + ", tổng " + formatMoney(order.getTotalAmount());
+        StringBuilder lines = new StringBuilder("Tiền hàng " + formatMoney(order.getSubtotalOrTotal())
+                + ", phí vận chuyển " + formatMoney(order.getShippingFeeOrZero()));
+        if (order.getShippingDiscountOrZero().signum() > 0) {
+            lines.append(", miễn phí vận chuyển -").append(formatMoney(order.getShippingDiscountOrZero()));
+        }
+        if (order.getDiscountAmountOrZero().signum() > 0) {
+            lines.append(", voucher giảm giá -").append(formatMoney(order.getDiscountAmountOrZero()));
+        }
+        return lines.append(", tổng ").append(formatMoney(order.getTotalAmount())).toString();
     }
 
     // hoàn kho cho mọi dòng của đơn bị hủy; dùng chung cho khách tự hủy và admin hủy
@@ -307,7 +326,7 @@ public class OrderService {
                 order.getReceiverPhone(), order.fullAddress(), toAddressResponse(order), order.getSubtotalOrTotal(),
                 order.getShippingFeeOrZero(), order.getShippingZone() == null ? null : order.getShippingZone().name(),
                 order.getShippingZone() == null ? null : order.getShippingZone().label(), order.getParcelCount(),
-                order.getTotalAmount(),
+                order.getShippingDiscountOrZero(), order.getDiscountAmountOrZero(), order.getTotalAmount(),
                 order.getStatus().name(), order.getPaymentMethod().name(), order.isCancelledByCustomer(),
                 unpaidOrderPolicy.deadline(order), items,
                 order.getCreatedAt());

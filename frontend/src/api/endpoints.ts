@@ -7,6 +7,7 @@ import type {
   ChildProduct,
   ChildProfile,
   ChildProfileRequest,
+  AdminVoucher,
   Complaint,
   ComplaintStatus,
   ComplaintType,
@@ -39,6 +40,9 @@ import type {
   UnreadCount,
   UpdateProfileRequest,
   UserProfile,
+  Voucher,
+  VoucherStatus,
+  VoucherSummary,
 } from './types'
 
 // axios tự bỏ tham số undefined; mảng skills gửi dạng skills=LOGIC,STEM cho khớp @RequestParam List<String>
@@ -75,8 +79,7 @@ export const shippingApi = {
 export const catalogApi = {
   products: (q: ProductQuery) => request<Page<ProductSummary>>(http.get('/products', { params: productParams(q) })),
   product: (id: number) => request<ProductDetail>(http.get(`/products/${id}`)),
-  suggestions: (q: string) =>
-    request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
+  suggestions: (q: string) => request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
   reviews: (id: number, page = 0, size = 5) =>
     request<Page<Review>>(http.get(`/products/${id}/reviews`, { params: { page, size } })),
   createReview: (id: number, body: { rating: number; comment: string }) =>
@@ -98,6 +101,10 @@ export const orderApi = {
   list: () => request<Order[]>(http.get('/orders')),
   get: (id: number) => request<Order>(http.get(`/orders/${id}`)),
   cancel: (id: number) => request<Order>(http.patch(`/orders/${id}/cancel`)),
+}
+
+export const voucherApi = {
+  list: () => request<Voucher[]>(http.get('/vouchers')),
 }
 
 // thanh toán online (MoMo): backend tạo link, khách thanh toán trên trang MoMo rồi được chuyển về /payment/momo-return
@@ -252,6 +259,10 @@ export const adminApi = {
   order: (id: number) => request<Order>(http.get(`/admin/orders/${id}`)),
   updateOrderStatus: (id: number, status: OrderStatus) =>
     request<Order>(http.patch(`/admin/orders/${id}/status`, { status })),
+
+  vouchers: (params: { status?: VoucherStatus; page?: number; size?: number }) =>
+    request<Page<AdminVoucher>>(http.get('/admin/vouchers', { params })),
+  voucherSummary: () => request<VoucherSummary>(http.get('/admin/vouchers/summary')),
 
   users: (params: { keyword?: string; page?: number; size?: number }) =>
     request<Page<UserProfile>>(http.get('/admin/users', { params })),

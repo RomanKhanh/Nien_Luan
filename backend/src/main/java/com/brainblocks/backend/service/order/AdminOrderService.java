@@ -16,6 +16,7 @@ import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import com.brainblocks.backend.service.skill.SkillScoreCalculator;
+import com.brainblocks.backend.service.voucher.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,6 +53,7 @@ public class AdminOrderService {
 
     private final OrderService orderService;
     private final NotificationService notificationService;
+    private final VoucherService voucherService;
 
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> getOrders(OrderStatus status, int page, int size) {
@@ -83,6 +85,7 @@ public class AdminOrderService {
 
         if (newStatus == OrderStatus.CANCELLED) {
             orderService.restoreStock(order);
+            voucherService.releaseFor(order);
         }
         order.setStatus(newStatus);
         notifyCustomer(order, newStatus);
@@ -142,6 +145,8 @@ public class AdminOrderService {
                     "Hồ sơ kỹ năng của bé " + child.getName() + " vừa cập nhật",
                     skillChangeMessage(order, before, after),
                     "/children/" + child.getId());
+            // đồ vừa mua có thể đưa bé qua mốc kỹ năng mới: tặng voucher (mỗi mốc một lần cho mỗi bé)
+            voucherService.grantSkillMilestones(child);
         }
     }
 

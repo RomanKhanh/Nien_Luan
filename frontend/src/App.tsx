@@ -20,6 +20,7 @@ const OrdersPage = lazy(() => import('@/pages/orders/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/orders/OrderDetailPage'))
 const FeedbackPage = lazy(() => import('@/pages/account/FeedbackPage'))
 const NotificationsPage = lazy(() => import('@/pages/account/NotificationsPage'))
+const VouchersPage = lazy(() => import('@/pages/account/VouchersPage'))
 const ChatPage = lazy(() => import('@/pages/chat/ChatPage'))
 const MomoReturnPage = lazy(() => import('@/pages/payment/MomoReturnPage'))
 
@@ -33,6 +34,7 @@ const AdminReviewsPage = lazy(() => import('@/pages/admin/ReviewsPage'))
 const AdminComplaintsPage = lazy(() => import('@/pages/admin/ComplaintsPage'))
 const AdminChatbotPage = lazy(() => import('@/pages/admin/ChatbotPage'))
 const AdminKnowledgePage = lazy(() => import('@/pages/admin/KnowledgePage'))
+const AdminVouchersPage = lazy(() => import('@/pages/admin/VouchersPage'))
 
 export default function App() {
   return (
@@ -97,6 +99,14 @@ export default function App() {
             }
           />
           <Route
+            path="vouchers"
+            element={
+              <RequireAuth role="CUSTOMER">
+                <VouchersPage />
+              </RequireAuth>
+            }
+          />
+          <Route
             path="notifications"
             element={
               <RequireAuth role="CUSTOMER">
@@ -132,6 +142,7 @@ export default function App() {
           <Route path="complaints" element={<AdminComplaintsPage />} />
           <Route path="chatbot" element={<AdminChatbotPage />} />
           <Route path="knowledge" element={<AdminKnowledgePage />} />
+          <Route path="vouchers" element={<AdminVouchersPage />} />
         </Route>
       </Routes>
     </Suspense>

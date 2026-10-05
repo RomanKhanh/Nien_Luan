@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { childApi, meApi, orderApi, shippingApi } from '@/api/endpoints'
+import { childApi, meApi, orderApi, shippingApi, voucherApi } from '@/api/endpoints'
 import type { PaymentMethod, ShippingQuote } from '@/api/types'
 import { PageHero } from '@/components/layout/PageHero'
 import { Button } from '@/components/ui/Button'
@@ -20,6 +20,8 @@ import { UnboxingVideoReminder } from '@/features/orders/UnboxingVideoReminder'
 import { MomoMark } from '@/features/payment/PaymentPanel'
 import { ChildBundlePreview } from '@/features/skills/ChildBundlePreview'
 import { usePayWithMomo } from '@/features/payment/usePayWithMomo'
+import { VoucherPicker } from '@/features/vouchers/VoucherPicker'
+import { discountFor, ineligibleReason, voucherKey } from '@/features/vouchers/vouchers'
 import { formatPrice, formatWeightKg } from '@/lib/format'
 
 // khớp CreateOrderRequest ở backend: địa chỉ 3 cấp bắt buộc (trừ phường/xã ở huyện không có cấp xã)
@@ -52,6 +54,11 @@ export default function CheckoutPage() {
   // productId -> childProfileId: món này mua cho bé nào (để tự vào hồ sơ kỹ năng khi đơn giao xong)
   const [assignments, setAssignments] = useState<Record<number, number>>({})
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD')
+  const vouchers = useQuery({ queryKey: voucherKey, queryFn: voucherApi.list })
+  const [voucherIds, setVoucherIds] = useState<{ shippingVoucherId: number | null; discountVoucherId: number | null }>({
+    shippingVoucherId: null,
+    discountVoucherId: null,
+  })
   const payWithMomo = usePayWithMomo()
   const form = useForm<FormValues>({ resolver: zodResolver(schema) })
   const errors = form.formState.errors
@@ -71,7 +78,17 @@ export default function CheckoutPage() {
   const [feeNotice, setFeeNotice] = useState<string | null>(null)
 
   const placeOrder = useMutation({
-    mutationFn: ({ values, expectedShippingFee }: { values: FormValues; expectedShippingFee?: number }) =>
+    mutationFn: ({
+      values,
+      expectedShippingFee,
+      shippingVoucherId,
+      discountVoucherId,
+    }: {
+      values: FormValues
+      expectedShippingFee?: number
+      shippingVoucherId?: number
+      discountVoucherId?: number
+    }) =>
       orderApi.create({
         expectedShippingFee,
         receiverName: values.receiverName,
@@ -81,6 +98,8 @@ export default function CheckoutPage() {
         wardCode: codeOrNull(values.wardCode),
         addressDetail: values.addressDetail,
         paymentMethod,
+        shippingVoucherId,
+        discountVoucherId,
         childAssignments: Object.entries(assignments).map(([productId, childProfileId]) => ({
           productId: Number(productId),
           childProfileId,
@@ -88,6 +107,7 @@ export default function CheckoutPage() {
       }),
     onSuccess: (order) => {
       queryClient.invalidateQueries({ queryKey: cartKey })
+      queryClient.invalidateQueries({ queryKey: voucherKey })
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       if (order.paymentMethod !== 'MOMO') {
@@ -110,6 +130,8 @@ export default function CheckoutPage() {
         queryClient.invalidateQueries({ queryKey: ['shipping-quote'] })
         return
       }
+      // voucher vừa được dùng ở nơi khác / hết hạn: tải lại ví để danh sách chọn khớp
+      queryClient.invalidateQueries({ queryKey: voucherKey })
       toast.error(e.message)
     },
   })
@@ -151,6 +173,16 @@ export default function CheckoutPage() {
   if (cart.isError) return <ErrorState message={cart.error.message} onRetry={() => cart.refetch()} />
   if (cart.data.items.length === 0 && !placeOrder.isSuccess) return <Navigate to="/cart" replace />
 
+  // voucher đã chọn mà giỏ đổi làm không còn đủ điều kiện thì tự bỏ, không gửi lên server
+  const subtotal = cart.data.totalAmount
+  const pickVoucher = (id: number | null) => {
+    const v = vouchers.data?.find((x) => x.id === id)
+    return v && !ineligibleReason(v, subtotal) ? v : undefined
+  }
+  const shippingVoucher = pickVoucher(voucherIds.shippingVoucherId)
+  const discountVoucher = pickVoucher(voucherIds.discountVoucherId)
+  const fee = provinceCode > 0 ? quote.data?.totalFee : undefined
+
   return (
     <>
       <PageHero crumbs={[{ label: 'Giỏ hàng', to: '/cart' }, { label: 'Thanh toán' }]} title="Thanh toán">
@@ -162,7 +194,12 @@ export default function CheckoutPage() {
           onSubmit={form.handleSubmit((values) => {
             setFeeNotice(null)
             // gửi phí khách đang thấy; server tự tính lại, lệch thì trả 409 kèm phí mới
-            placeOrder.mutate({ values, expectedShippingFee: provinceCode > 0 ? quote.data?.totalFee : undefined })
+            placeOrder.mutate({
+              values,
+              expectedShippingFee: provinceCode > 0 ? quote.data?.totalFee : undefined,
+              shippingVoucherId: shippingVoucher?.id,
+              discountVoucherId: discountVoucher?.id,
+            })
           })}
           className="grid gap-6 lg:grid-cols-[1fr_380px]"
         >
@@ -252,6 +289,17 @@ export default function CheckoutPage() {
               )}
             </section>
 
+            {vouchers.data && (
+              <VoucherPicker
+                vouchers={vouchers.data}
+                subtotal={subtotal}
+                shippingFee={fee}
+                shippingVoucherId={shippingVoucher?.id ?? null}
+                discountVoucherId={discountVoucher?.id ?? null}
+                onChange={(patch) => setVoucherIds((prev) => ({ ...prev, ...patch }))}
+              />
+            )}
+
             <section className="card p-5 sm:p-6">
               <h2 className="h2 mb-4">Phương thức thanh toán</h2>
               <div className="space-y-2.5" role="radiogroup">
@@ -305,9 +353,11 @@ export default function CheckoutPage() {
             </ul>
             <CheckoutMoney
               className="mt-4 border-t border-line pt-4"
-              subtotal={cart.data.totalAmount}
+              subtotal={subtotal}
               provinceChosen={provinceCode > 0}
               quote={quote}
+              freeship={Boolean(shippingVoucher)}
+              discountAmount={discountVoucher ? discountFor(discountVoucher, subtotal) : 0}
             />
             {feeNotice && (
               <p role="alert" className="mt-3 rounded-md bg-warning-soft px-3 py-2.5 text-[13px] text-[#92400E]">
@@ -341,11 +391,17 @@ function CheckoutMoney({
   subtotal,
   provinceChosen,
   quote,
+  freeship,
+  discountAmount,
   className,
 }: {
   subtotal: number
   provinceChosen: boolean
   quote: { data?: ShippingQuote; isError: boolean }
+  // đã chọn voucher freeship (giảm đúng phí ship khi đã báo giá)
+  freeship: boolean
+  // tiền giảm của voucher giảm giá
+  discountAmount: number
   className?: string
 }) {
   const fee = provinceChosen ? quote.data?.totalFee : undefined
@@ -358,12 +414,15 @@ function CheckoutMoney({
   ) : (
     formatPrice(fee)
   )
+  const shippingDiscount = freeship ? (fee ?? 0) : 0
   return (
     <div aria-live="polite" className={className}>
       <MoneySummary
         subtotal={subtotal}
         shippingValue={shippingValue}
-        total={subtotal + (fee ?? 0)}
+        shippingDiscount={shippingDiscount}
+        discountAmount={discountAmount}
+        total={subtotal + (fee ?? 0) - shippingDiscount - discountAmount}
         totalNote={
           fee === undefined || !quote.data
             ? 'Chưa gồm phí vận chuyển'

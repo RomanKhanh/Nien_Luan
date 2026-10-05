@@ -65,17 +65,22 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("select o.status as status, count(o) as total from Order o group by o.status")
     List<StatusCount> countByStatus();
 
-    // doanh thu = tiền hàng, KHÔNG gồm phí vận chuyển (đơn cũ chưa có subtotal thì tính theo totalAmount)
-    @Query("select coalesce(sum(coalesce(o.subtotal, o.totalAmount)), 0) from Order o where o.status = :status")
+    // doanh thu = tiền hàng sau khi trừ voucher giảm giá, KHÔNG gồm phí vận chuyển
+    // (đơn cũ chưa có subtotal thì tính theo totalAmount, chưa có discountAmount thì coi là 0)
+    @Query("select coalesce(sum(coalesce(o.subtotal, o.totalAmount) - coalesce(o.discountAmount, 0)), 0) "
+            + "from Order o where o.status = :status")
     BigDecimal sumSubtotalByStatus(@Param("status") OrderStatus status);
 
-    // phí vận chuyển đã thu, thống kê riêng với doanh thu
-    @Query("select coalesce(sum(o.shippingFee), 0) from Order o where o.status = :status")
+    // phí vận chuyển đã thu (trừ phần miễn phí nhờ voucher freeship), thống kê riêng với doanh thu
+    @Query("select coalesce(sum(coalesce(o.shippingFee, 0) - coalesce(o.shippingDiscount, 0)), 0) "
+            + "from Order o where o.status = :status")
     BigDecimal sumShippingFeeByStatus(@Param("status") OrderStatus status);
 
     // đơn từ một thời điểm trở đi (không tính đơn hủy), gom theo ngày ở service cho khỏi phụ thuộc hàm date của từng DB
     @Query("""
-            select o.createdAt as createdAt, coalesce(o.subtotal, o.totalAmount) as subtotal from Order o
+            select o.createdAt as createdAt,
+                   coalesce(o.subtotal, o.totalAmount) - coalesce(o.discountAmount, 0) as subtotal
+            from Order o
             where o.createdAt >= :from and o.status <> :excluded
             """)
     List<OrderAmount> findAmountsSince(@Param("from") LocalDateTime from, @Param("excluded") OrderStatus excluded);
@@ -85,7 +90,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         Long getTotal();
     }
 
-    // giá trị tiền hàng của một đơn (không gồm phí vận chuyển)
+    // giá trị tiền hàng của một đơn sau voucher giảm giá (không gồm phí vận chuyển)
     interface OrderAmount {
         LocalDateTime getCreatedAt();
         BigDecimal getSubtotal();

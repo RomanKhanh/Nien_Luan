@@ -13,6 +13,7 @@ import com.brainblocks.backend.repository.UserRepository;
 import com.brainblocks.backend.security.CustomUserDetails;
 import com.brainblocks.backend.security.JwtService;
 import com.brainblocks.backend.util.EmailUtils;
+import com.brainblocks.backend.service.voucher.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 public class AuthService {
     private final UserRepository userRepository;
     private final CartRepository cartRepository;
+    private final VoucherService voucherService;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -66,6 +68,8 @@ public class AuthService {
 
         // mỗi khách hàng có đúng một giỏ hàng, tạo cùng lúc với tài khoản (cùng transaction)
         cartRepository.save(Cart.builder().customer(saved).build());
+        // quà tạo tài khoản: 1 freeship, 1 giảm 10%, 1 giảm 50.000₫ (VoucherPolicy)
+        voucherService.grantWelcome(saved);
         return new UserResponse(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole().name());
     }
 }

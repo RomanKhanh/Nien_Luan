@@ -48,7 +48,7 @@ export default function RegisterPage() {
       await authApi.register({ fullName: values.fullName, email: values.email, password: values.password })
       // đăng ký xong đăng nhập luôn cho liền mạch
       await login(values.email, values.password)
-      toast.success('Tạo tài khoản thành công')
+      toast.success('Tạo tài khoản thành công. Bạn được tặng 3 voucher, xem trong Ví voucher.')
       navigate(from ?? '/children', { replace: true })
     } catch (e) {
       const apiError = toApiError(e)
