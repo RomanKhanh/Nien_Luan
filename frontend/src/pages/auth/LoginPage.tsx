@@ -67,7 +67,10 @@ export default function LoginPage() {
   return (
     <AuthShell>
       <h1 className="h1">Chào mừng trở lại</h1>
-      <p className="mt-1.5 text-[14px] text-ink-muted">
+      <p className="mt-2 text-[14px] text-ink-muted">
+        Tiếp tục theo dõi kỹ năng và khám phá đồ chơi phù hợp cho bé.
+      </p>
+      <p className="mt-3 text-[14px] text-ink-muted">
         Chưa có tài khoản?{' '}
         <Link to="/register" state={location.state}>
           Đăng ký

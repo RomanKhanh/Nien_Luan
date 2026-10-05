@@ -48,9 +48,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
               )
             })}
           </div>
-          <p className="sticker-text font-display text-[40px] font-extrabold leading-[1.05]">
-            <span className="block text-[#1c5fc6]">Theo dõi lộ trình kỹ năng</span>
-            <span className="block text-sun">cho từng bé trong nhà</span>
+          <p className="font-display text-[36px] font-extrabold leading-[1.15]">
+            <span className="block">Cùng bé phát triển</span>
+            <span className="block text-sun">kỹ năng mỗi ngày</span>
           </p>
           <p className="mt-4 max-w-md text-[15px] text-white/90">
             Một tài khoản phụ huynh, nhiều hồ sơ bé. Gợi ý đồ chơi luôn kèm lý do.
@@ -75,19 +75,19 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-8">
           <Mascot className="mx-auto -mb-3 w-20 animate-float lg:hidden" />
           <div className="card relative p-6 shadow-card-hover sm:p-8">{children}</div>
-          <ul className="mt-6 grid grid-cols-3 gap-2 text-center sm:gap-3">
+          <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:text-center">
             {PERKS.map((p) => {
               const t = skillTheme(p.code)
               return (
-                <li key={p.code} className="flex flex-col items-center gap-2">
+                <li key={p.code} className="flex items-center gap-3 sm:flex-col sm:gap-2">
                   <span
-                    className="grid h-10 w-10 place-items-center rounded-full"
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
                     style={{ background: t.soft, color: t.color }}
                     aria-hidden
                   >
                     <SkillIcon code={p.code} className="h-5 w-5" />
                   </span>
-                  <span className="text-balance text-[12.5px] font-medium leading-snug text-ink-2">{p.text}</span>
+                  <span className="text-balance text-[14px] font-medium leading-snug text-ink-2 sm:text-[13px]">{p.text}</span>
                 </li>
               )
             })}
