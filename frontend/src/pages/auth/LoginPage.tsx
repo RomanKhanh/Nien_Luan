@@ -102,6 +102,11 @@ export default function LoginPage() {
             {...form.register('password')}
           />
         </Field>
+        <p className="-mt-1 text-right text-[13.5px]">
+          <Link to="/forgot-password" state={{ email: form.getValues('email') }}>
+            Quên mật khẩu?
+          </Link>
+        </p>
         <Button type="submit" size="lg" block loading={form.formState.isSubmitting}>
           Đăng nhập
         </Button>

@@ -45,6 +45,9 @@ public class UserService {
 
     @Transactional
     public void changeMyPassword(ChangePasswordRequest request) {
+        // khóa dòng users trước khi đọc: 2 request đổi mật khẩu song song chạy lần lượt, request sau kiểm tra
+        // mật khẩu hiện tại theo giá trị đã được request trước cập nhật
+        userRepository.lockId(currentUserProvider.getCurrentUserId());
         User user = getCurrentUserEntity();
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {

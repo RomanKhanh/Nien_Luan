@@ -52,8 +52,12 @@ function productParams(q: ProductQuery) {
 
 export const authApi = {
   login: (email: string, password: string) => request<LoginResponse>(http.post('/auth/login', { email, password })),
-  register: (body: { fullName: string; email: string; password: string }) =>
+  sendVerificationCode: (email: string) => request<unknown>(http.post('/auth/register/send-code', { email })),
+  register: (body: { fullName: string; email: string; password: string; verificationCode: string }) =>
     request<unknown>(http.post('/auth/register', body)),
+  forgotPassword: (email: string) => request<unknown>(http.post('/auth/forgot-password', { email })),
+  resetPassword: (token: string, newPassword: string) =>
+    request<unknown>(http.post('/auth/reset-password', { token, newPassword })),
 }
 
 export const meApi = {

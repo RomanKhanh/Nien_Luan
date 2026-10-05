@@ -14,6 +14,7 @@ import com.brainblocks.backend.security.CustomUserDetails;
 import com.brainblocks.backend.security.JwtService;
 import com.brainblocks.backend.util.EmailUtils;
 import com.brainblocks.backend.service.voucher.VoucherService;
+import com.brainblocks.backend.service.auth.EmailVerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,6 +34,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
@@ -57,6 +59,8 @@ public class AuthService {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException("Email already in use");
         }
+        // email phải là hộp thư thật mà người đăng ký mở được: kiểm tra mã đã gửi tới đó
+        emailVerificationService.verify(email, request.verificationCode());
 
         Customer customer = Customer.builder()
                 .fullName(request.fullName())

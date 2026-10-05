@@ -125,6 +125,11 @@ public class GlobalExceptionHandler {
     }
 
     // ===== 503: dịch vụ AI lỗi =====
+    @ExceptionHandler(MailNotConfiguredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMailNotConfigured(MailNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(AiServiceException.class)
     public ResponseEntity<ApiResponse<Void>> handleAiService(AiServiceException ex) {
         log.error("AI service error", ex);
