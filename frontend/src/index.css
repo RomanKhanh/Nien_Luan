@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* màn thấp như laptop 1366x768: thu nhỏ trang trí để nội dung không tràn theo chiều dọc */
+@custom-variant short (@media (max-height: 800px));
+
 /* Token lấy từ design system trong mockup BrainBlocks (màn 01) */
 @theme {
   --font-sans: 'Be Vietnam Pro', system-ui, sans-serif;
@@ -118,6 +121,41 @@
   .input-error {
     @apply border-danger hover:border-danger focus:border-danger focus:shadow-[0_0_0_4px_var(--color-danger-soft)];
   }
+
+  /* Màn đăng nhập / đăng ký (AuthShell): ô nhập cao 48px, viền đậm hơn 1 bậc, focus tím.
+     Các trang khác giữ nguyên. Gờ nút gửi form nằm ở cuối file (ngoài layer). */
+  .auth-form .input {
+    height: 3rem;
+    border-color: var(--color-line-strong);
+  }
+  .auth-form .input::placeholder {
+    color: #8f8a81;
+  }
+  .auth-form .input:hover {
+    border-color: #c4bfb5;
+  }
+  .auth-form .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgb(91 61 245 / 0.14);
+  }
+  .auth-form .input-error,
+  .auth-form .input-error:hover,
+  .auth-form .input-error:focus {
+    border-color: var(--color-danger);
+  }
+  .auth-form .input-error:focus {
+    box-shadow: 0 0 0 3px var(--color-danger-soft);
+  }
+  /* autofill của Chrome/Edge tô nền xanh nhạt: phủ lại nền trắng, vẫn giữ vòng focus */
+  .auth-form .input:-webkit-autofill {
+    -webkit-text-fill-color: var(--color-ink);
+    box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  }
+  .auth-form .input:-webkit-autofill:focus {
+    box-shadow:
+      0 0 0 1000px var(--color-surface) inset,
+      0 0 0 3px rgb(91 61 245 / 0.14);
+  }
   .h1 {
     @apply font-display text-[28px] font-extrabold leading-[1.15] tracking-[-0.01em] sm:text-[34px];
   }
@@ -137,6 +175,11 @@
     -webkit-text-stroke: clamp(5px, 0.6vw, 9px) #fff;
     paint-order: stroke fill;
     text-shadow: 0 6px 0 rgb(13 27 62 / 0.18);
+  }
+  /* bản viền mỏng cho chỗ cần sticker nhưng không được giành chú ý (cột trái màn đăng nhập) */
+  .sticker-text-thin {
+    -webkit-text-stroke-width: clamp(3px, 0.35vw, 6px);
+    text-shadow: 0 4px 0 rgb(13 27 62 / 0.14);
   }
   .dots-bg {
     background-image: radial-gradient(rgb(255 255 255 / 0.18) 2px, transparent 2.5px);
@@ -194,4 +237,14 @@
 /* bóng chữ nhẹ cho tiêu đề trên nền trời xanh (bản nhỏ của .sticker-text) */
 .sticker-text-sm {
   text-shadow: 0 3px 0 rgb(13 27 62 / 0.22);
+}
+
+/* Nút gửi form ở màn auth: gờ 3px, nhạt hơn nút kẹo mặc định (4px #3a22b8) để bớt cảm giác game.
+   Đặt ngoài @layer vì bóng của Button là utility, utility luôn thắng layer components. */
+.auth-form button[type='submit'] {
+  box-shadow: 0 3px 0 rgb(58 34 184 / 0.7);
+}
+.auth-form button[type='submit']:active,
+.auth-form button[type='submit']:disabled {
+  box-shadow: none;
 }
