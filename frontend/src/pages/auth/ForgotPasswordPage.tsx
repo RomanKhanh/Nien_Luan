@@ -7,6 +7,7 @@ import { authApi } from '@/api/endpoints'
 import { toApiError } from '@/api/client'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
+import { MailIcon } from '@/components/ui/FormIcons'
 import { AuthShell } from './AuthShell'
 
 const schema = z.object({
@@ -84,6 +85,7 @@ export default function ForgotPasswordPage() {
             type="email"
             autoComplete="email"
             placeholder="phuhuynh@email.vn"
+            leading={<MailIcon />}
             invalid={Boolean(form.formState.errors.email) || notFound}
             {...form.register('email', { onChange: () => setNotFound(false) })}
           />

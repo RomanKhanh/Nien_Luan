@@ -1,10 +1,12 @@
 import {
   forwardRef,
+  useState,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
+import { EyeIcon, EyeOffIcon } from './FormIcons'
 
 interface FieldProps {
   label?: ReactNode
@@ -37,13 +39,53 @@ export function Field({ label, error, hint, required, htmlFor, className = '', c
   )
 }
 
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }
+// leading: icon trang trí ở đầu ô (MailIcon, LockIcon...); className vẫn áp vào thẻ input
+type InputProps = InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean; leading?: ReactNode }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { invalid, className = '', ...rest },
+  { invalid, leading, className = '', ...rest },
   ref,
 ) {
-  return <input ref={ref} className={`input ${invalid ? 'input-error' : ''} ${className}`} {...rest} />
+  const input = (
+    <input
+      ref={ref}
+      className={`input ${leading ? 'pl-10' : ''} ${invalid ? 'input-error' : ''} ${className}`}
+      {...rest}
+    />
+  )
+  if (!leading) return input
+  return (
+    <div className="relative">
+      <span
+        className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${invalid ? 'text-danger' : 'text-ink-faint'}`}
+      >
+        {leading}
+      </span>
+      {input}
+    </div>
+  )
+})
+
+// ô mật khẩu có nút con mắt để xem lại những gì vừa gõ (hay gõ nhầm trên điện thoại)
+export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputProps, 'type'>>(function PasswordInput(
+  { className = '', ...rest },
+  ref,
+) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="relative">
+      <Input ref={ref} type={visible ? 'text' : 'password'} className={`pr-11 ${className}`} {...rest} />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        aria-pressed={visible}
+        className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-ink-muted transition hover:bg-muted hover:text-ink"
+      >
+        {visible ? <EyeOffIcon /> : <EyeIcon />}
+      </button>
+    </div>
+  )
 })
 
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }
