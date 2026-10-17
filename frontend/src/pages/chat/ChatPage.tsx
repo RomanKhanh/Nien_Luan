@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CHAT_MOCK } from '@/api/chat'
 import { useAuth } from '@/auth/AuthContext'
 import { Bubbles, Mascot, TornEdge } from '@/components/decor/Decor'
 import { Button } from '@/components/ui/Button'
@@ -25,7 +24,7 @@ export default function ChatPage() {
           <Mascot className="w-16 shrink-0 animate-float sm:w-20" />
           <div className="min-w-0">
             <p className="inline-flex rounded-full bg-sun px-3 py-0.5 text-[12.5px] font-bold uppercase tracking-[0.06em] text-ink">
-              Chatbot AI {CHAT_MOCK && '· bản demo'}
+              Chatbot AI
             </p>
             <h1 className="sticker-text-sm font-display text-[28px] font-extrabold leading-tight sm:text-[36px]">
               Tư vấn cùng Bin

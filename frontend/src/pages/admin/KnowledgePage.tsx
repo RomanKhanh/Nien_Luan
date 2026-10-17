@@ -1,9 +1,8 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { adminChatApi, CHAT_MOCK } from '@/api/chat'
+import { adminChatApi } from '@/api/chat'
 import type { DocumentStatus, KnowledgeDocument } from '@/api/types'
 import { AdminHeader } from '@/components/admin/AdminHeader'
-import { MockNotice } from '@/components/admin/MockNotice'
 import { Pill } from '@/components/ui/Badges'
 import { Button, Spinner } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
@@ -23,6 +22,7 @@ const FILTERS: { value: DocumentStatus | undefined; label: string }[] = [
   { value: undefined, label: 'Tất cả' },
   { value: 'INDEXED', label: 'Đang dùng' },
   { value: 'PROCESSING', label: 'Đang xử lý' },
+  { value: 'UPLOADED', label: 'Lỗi xử lý' },
   { value: 'DISABLED', label: 'Đã tắt' },
 ]
 
@@ -36,6 +36,7 @@ export default function KnowledgePage() {
   const [page, setPage] = useState(0)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [renaming, setRenaming] = useState<KnowledgeDocument | null>(null)
+  const [replacing, setReplacing] = useState<KnowledgeDocument | null>(null)
   const [removing, setRemoving] = useState<KnowledgeDocument | null>(null)
   const [viewing, setViewing] = useState<KnowledgeDocument | null>(null)
   const queryClient = useQueryClient()
@@ -85,7 +86,6 @@ export default function KnowledgePage() {
         description="Tài liệu giáo dục STEM, phương pháp phát triển tư duy, hướng dẫn sử dụng sản phẩm… để chatbot truy xuất khi trả lời."
         actions={<Button onClick={() => setUploadOpen(true)}>＋ Tải tài liệu lên</Button>}
       />
-      {CHAT_MOCK && <MockNotice />}
 
       <ol className="mb-5 grid gap-3 sm:grid-cols-3">
         {[
@@ -191,6 +191,15 @@ export default function KnowledgePage() {
                     <Button size="sm" variant="secondary" onClick={() => setRenaming(d)}>
                       Đổi tên
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={d.status === 'PROCESSING'}
+                      onClick={() => setReplacing(d)}
+                      title="Tải phiên bản mới của tài liệu, giữ nguyên tên"
+                    >
+                      Thay tệp
+                    </Button>
                     {d.status !== 'PROCESSING' && (
                       <Button
                         size="sm"
@@ -230,6 +239,15 @@ export default function KnowledgePage() {
       </div>
 
       <UploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={invalidate} />
+      <UploadModal
+        open={replacing !== null}
+        replacing={replacing}
+        onClose={() => setReplacing(null)}
+        onUploaded={() => {
+          invalidate()
+          if (replacing) queryClient.invalidateQueries({ queryKey: adminChatKeys.chunks(replacing.id) })
+        }}
+      />
       {renaming && <RenameModal doc={renaming} onClose={() => setRenaming(null)} onSaved={invalidate} />}
       <ChunksDrawer doc={viewing} onClose={() => setViewing(null)} />
       <ConfirmDialog
@@ -250,7 +268,18 @@ export default function KnowledgePage() {
   )
 }
 
-function UploadModal({ open, onClose, onUploaded }: { open: boolean; onClose: () => void; onUploaded: () => void }) {
+// replacing = tài liệu đang được thay file (giữ tên, không hỏi tên); null = tải tài liệu mới
+function UploadModal({
+  open,
+  replacing = null,
+  onClose,
+  onUploaded,
+}: {
+  open: boolean
+  replacing?: KnowledgeDocument | null
+  onClose: () => void
+  onUploaded: () => void
+}) {
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -285,10 +314,15 @@ function UploadModal({ open, onClose, onUploaded }: { open: boolean; onClose: ()
   }
 
   const upload = useMutation({
-    mutationFn: () => adminChatApi.uploadDocument({ title: title.trim(), file: file! }),
+    mutationFn: () =>
+      replacing
+        ? adminChatApi.replaceDocumentFile(replacing.id, file!)
+        : adminChatApi.uploadDocument({ title: title.trim(), file: file! }),
     onSuccess: () => {
       onUploaded()
-      toast.success('Đã tải lên, hệ thống đang tách đoạn và lập chỉ mục')
+      toast.success(
+        replacing ? 'Đã thay tệp, hệ thống đang lập chỉ mục lại' : 'Đã tải lên, hệ thống đang tách đoạn và lập chỉ mục',
+      )
       close()
     },
     onError: (e) => setError(e.message),
@@ -304,19 +338,29 @@ function UploadModal({ open, onClose, onUploaded }: { open: boolean; onClose: ()
     <Modal
       open={open}
       onClose={close}
-      title="Tải tài liệu lên"
+      title={replacing ? `Thay tệp: ${replacing.title}` : 'Tải tài liệu lên'}
       footer={
         <>
           <Button variant="secondary" onClick={close}>
             Huỷ
           </Button>
-          <Button disabled={!file || !title.trim()} loading={upload.isPending} onClick={() => upload.mutate()}>
-            Tải lên
+          <Button
+            disabled={!file || (!replacing && !title.trim())}
+            loading={upload.isPending}
+            onClick={() => upload.mutate()}
+          >
+            {replacing ? 'Thay tệp' : 'Tải lên'}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
+        {replacing && (
+          <p className="rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-[#92400E]">
+            {replacing.chunkCount} đoạn của tệp hiện tại ({replacing.fileType}) sẽ bị thay bằng nội dung tệp mới. Tài
+            liệu giữ nguyên tên và được lập chỉ mục lại.
+          </p>
+        )}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -359,14 +403,16 @@ function UploadModal({ open, onClose, onUploaded }: { open: boolean; onClose: ()
             e.target.value = ''
           }}
         />
-        <Field
-          label="Tên tài liệu"
-          htmlFor="docTitle"
-          required
-          hint="Tên hiển thị trong phần “Nguồn tham khảo” của chatbot"
-        >
-          <Input id="docTitle" value={title} maxLength={255} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
+        {!replacing && (
+          <Field
+            label="Tên tài liệu"
+            htmlFor="docTitle"
+            required
+            hint="Tên hiển thị trong phần “Nguồn tham khảo” của chatbot"
+          >
+            <Input id="docTitle" value={title} maxLength={255} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+        )}
         {error && (
           <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-[13px] font-semibold text-danger">
             {error}

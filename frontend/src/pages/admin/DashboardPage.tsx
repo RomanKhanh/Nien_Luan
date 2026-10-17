@@ -91,27 +91,22 @@ function Dashboard({ s }: { s: AdminStats }) {
         </Panel>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
-        <Panel title="Sản phẩm bán chạy">
-          {s.topProducts.length === 0 ? (
-            <Empty>Chưa có đơn hàng.</Empty>
-          ) : (
-            <ol className="space-y-2.5 text-[14px]">
-              {s.topProducts.map((p, i) => (
-                <li key={p.productId} className="flex items-center gap-3">
-                  <span
-                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-display text-[14px] font-extrabold ${
-                      i === 0 ? 'bg-sun text-ink' : i === 1 ? 'bg-sky-soft text-sky-deep' : 'bg-muted text-ink-2'
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{p.productName}</span>
-                  <span className="shrink-0 text-ink-muted tabular-nums">{p.quantity} sp</span>
-                </li>
-              ))}
-            </ol>
-          )}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Panel title="Sản phẩm bán chạy" note="Không tính đơn đã huỷ">
+          <RankList
+            rows={s.topProducts.map((p) => ({ id: p.productId, name: p.productName, value: `${p.quantity} sp` }))}
+            empty="Chưa có đơn hàng."
+          />
+        </Panel>
+        <Panel title="Sản phẩm được xem nhiều" note="Lượt mở trang chi tiết">
+          <RankList
+            rows={s.topViewedProducts.map((p) => ({
+              id: p.productId,
+              name: p.productName,
+              value: `${p.views.toLocaleString('vi-VN')} lượt`,
+            }))}
+            empty="Chưa có lượt xem sản phẩm nào."
+          />
         </Panel>
         <SkillInterestPanel s={s} />
         <Panel title="Chatbot tư vấn">
@@ -140,6 +135,28 @@ function Dashboard({ s }: { s: AdminStats }) {
         </Panel>
       </div>
     </div>
+  )
+}
+
+// top 5 có số thứ tự; hạng 1, 2 tô màu riêng
+function RankList({ rows, empty }: { rows: { id: number; name: string; value: string }[]; empty: string }) {
+  if (rows.length === 0) return <Empty>{empty}</Empty>
+  return (
+    <ol className="space-y-2.5 text-[14px]">
+      {rows.map((r, i) => (
+        <li key={r.id} className="flex items-center gap-3">
+          <span
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-display text-[14px] font-extrabold ${
+              i === 0 ? 'bg-sun text-ink' : i === 1 ? 'bg-sky-soft text-sky-deep' : 'bg-muted text-ink-2'
+            }`}
+          >
+            {i + 1}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{r.name}</span>
+          <span className="shrink-0 text-ink-muted tabular-nums">{r.value}</span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

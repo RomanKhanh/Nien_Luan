@@ -1,13 +1,12 @@
 # Hợp đồng API: Chatbot AI và cơ sở tri thức (RAG)
 
-Giao diện chatbot đã làm xong và đang chạy trên **bản giả lập** (`src/api/mock/chatMock.ts`).
-Khi backend có đủ các endpoint dưới đây:
-
-1. Tạo `frontend/.env` (hoặc `.env.local`) với dòng `VITE_CHAT_MOCK=false`.
-2. Khởi động lại `npm run dev`.
-
-Không phải sửa component nào, vì mọi lời gọi đều đi qua `src/api/chat.ts`. Kiểu dữ liệu TypeScript nằm trong
+Backend đã có đủ các endpoint dưới đây (`ChatController`, `AdminChatController`, `AdminKnowledgeController`,
+`AdminChatbotConfigController`). Frontend gọi qua `src/api/chat.ts`; kiểu dữ liệu TypeScript nằm trong
 `src/api/types.ts`, mục "Chatbot AI & cơ sở tri thức".
+
+Để chatbot trả lời được, backend cần biến môi trường `GOOGLE_API_KEY` (Gemini) trong `backend/.env`. Thiếu key thì
+app vẫn chạy, chỉ API gửi câu hỏi và tạo embedding trả 503. Lần chạy đầu backend tự tạo một cấu hình chatbot active
+(model `gemini-flash-latest`), admin đổi được ở trang Chatbot.
 
 Quy ước chung giống các API khác của dự án:
 
@@ -55,21 +54,29 @@ ChatSource = { documentId, documentTitle, snippet }
 ChatReply  = { userMessage: ChatMessage, botMessage: ChatMessage }
 ```
 
-Luồng xử lý `POST /chat/sessions/{id}/messages`, theo mục C của đề:
+Luồng xử lý `POST /chat/sessions/{id}/messages`, theo mục C của đề (`ChatService.sendMessage`):
 
-1. Lưu tin USER.
-2. Phân tích yêu cầu: độ tuổi, nhóm kỹ năng, sản phẩm được nhắc tới.
-3. Nếu phiên có hồ sơ bé thì lấy thêm tuổi, `SkillProfile` và đồ chơi bé đã có.
-4. Truy xuất `topK` đoạn `DocumentChunk` từ các tài liệu `INDEXED`.
-5. Gọi mô hình AI theo `ChatbotConfig` đang active.
-6. Lưu tin BOT kèm `topic`, `responseTimeMs` và `suggestedProducts`. `productId` phải tồn tại và đang bán.
-7. Nếu phiên chưa có `title` thì lấy câu hỏi đầu tiên làm `title`.
+1. Phân tích yêu cầu: độ tuổi (từ hồ sơ bé hoặc dạng "7 tuổi" trong câu hỏi) và từ khóa để tìm sản phẩm liên quan.
+2. Nếu phiên có hồ sơ bé thì lấy thêm tuổi, `SkillProfile`, đồ chơi bé đã có và gợi ý `recommendNext`.
+3. Truy xuất tối đa `topK` đoạn `DocumentChunk` của tài liệu `INDEXED` có độ tương đồng cosine ≥
+   `app.knowledge.min-score` (mặc định 0.6). Lỗi tạo embedding câu hỏi thì vẫn trả lời, chỉ không có `sources`.
+4. Gọi Gemini theo `ChatbotConfig` đang active. Ngữ cảnh gồm mô tả, danh mục và chỉ số kỹ năng của sản phẩm.
+5. Lưu cùng lúc tin USER và tin BOT (kèm `topic`, `responseTimeMs`, `suggestedProducts`). AI lỗi thì không lưu gì.
+   `productId` phải nằm trong danh sách ứng viên đã gửi cho AI, tồn tại và đang bán.
+6. Nếu phiên chưa có `title` thì lấy câu hỏi đầu tiên làm `title`.
 
-Nên đặt timeout phía server dưới 60 giây, vì frontend chờ tối đa 60 giây.
+`topic` là một trong các giá trị cố định (để thống kê gom nhóm được): `Chào hỏi`, `Lợi ích sản phẩm`,
+`Độ tuổi phù hợp`, `Gợi ý theo kỹ năng`, `Gợi ý sản phẩm tiếp theo`, `Phân tích hồ sơ kỹ năng`,
+`Kiến thức giáo dục STEM`, `Khác`. Tin USER có `topic = null`.
 
-`reason` và `sources` hiện chưa có cột trong entity. Có thể tính lúc trả lời rồi chỉ trả trong response. Nếu muốn
-xem lại được trong lịch sử thì thêm cột: `reason` vào bảng nối `chat_message_products`, và `sources` dạng JSON vào
-`chat_messages`.
+`reason` và `sources` được lưu trong `ChatMessage.responseMetadataJson`, nên xem lại lịch sử vẫn thấy.
+`snippet` là đoạn trích tối đa 300 ký tự của đoạn tri thức.
+
+Mã lỗi riêng của API này:
+
+- 503: AI chưa sẵn sàng (thiếu `GOOGLE_API_KEY`, chưa có cấu hình active, Gemini lỗi; model quá tải 429/503 được thử lại 1 lần, mỗi lần tối đa 25 giây).
+- 409: hội thoại bị đổi (đổi bé, gửi câu khác) trong lúc chờ AI; gửi lại câu hỏi.
+- 429: khách gửi quá `app.chat.max-questions-per-minute` câu hỏi (mặc định 10) trong 1 phút.
 
 ## 2. Quản trị: giám sát chatbot
 
@@ -100,6 +107,7 @@ ChatStats = {
 | GET | `/admin/knowledge-documents` | `?keyword=&status=&page=&size=` | `Page<KnowledgeDocument>` |
 | POST | `/admin/knowledge-documents` | `multipart/form-data`: `title`, `file` | `KnowledgeDocument` (status `PROCESSING` hoặc `UPLOADED`) |
 | PUT | `/admin/knowledge-documents/{id}` | `{ title }` | `KnowledgeDocument` |
+| POST | `/admin/knowledge-documents/{id}/file` | `multipart/form-data`: `file` | `KnowledgeDocument` (status `PROCESSING`, `chunkCount` 0); xoá chunk cũ, lập chỉ mục lại từ file mới; đang `PROCESSING` trả 409 |
 | PATCH | `/admin/knowledge-documents/{id}/status` | `{ status: 'INDEXED' \| 'DISABLED' }` | `KnowledgeDocument` |
 | POST | `/admin/knowledge-documents/{id}/reindex` | | `KnowledgeDocument` (status `PROCESSING`) |
 | DELETE | `/admin/knowledge-documents/{id}` | | `null`; xoá luôn các chunk |
@@ -114,8 +122,9 @@ KnowledgeDocument = {
 DocumentChunk = { id, chunkIndex, content, embedded /* embedding != null */ }
 ```
 
-- Chỉ nhận tệp `pdf`, `docx`, `txt`, `md`, tối đa 10 MB. Frontend có kiểm tra trước, nhưng backend vẫn phải kiểm tra lại.
-- Nên tách đoạn và tạo embedding **bất đồng bộ**. Khi còn tài liệu `PROCESSING`, frontend hỏi lại danh sách mỗi 2 giây.
+- Chỉ nhận tệp `pdf`, `docx`, `txt`, `md`, tối đa 10 MB. Frontend kiểm tra trước, backend kiểm tra lại (cả nội dung tệp).
+- Tách đoạn và tạo embedding chạy **bất đồng bộ** (`KnowledgeIndexingWorker`). Khi còn tài liệu `PROCESSING`, frontend hỏi lại danh sách mỗi 2 giây.
+- Đọc tệp hoặc tạo embedding lỗi thì tài liệu về `UPLOADED` (giao diện hiện "Lỗi xử lý"); admin bấm lập chỉ mục lại.
 - Tài liệu đang `PROCESSING` thì không được đổi status: trả 409 với message `Document is still being processed`.
 - Chatbot chỉ truy xuất chunk của tài liệu `INDEXED`.
 
@@ -131,12 +140,12 @@ DocumentChunk = { id, chunkIndex, content, embedded /* embedding != null */ }
 ```ts
 ChatbotConfig = { id, modelName, temperature, maxTokens, topK, systemPrompt, active, updatedAt, adminName }
 ChatbotConfigRequest = {
-  modelName /* 1–100 ký tự */, temperature /* 0–1 */, maxTokens /* 64–8192 */,
+  modelName /* 1–100 ký tự */, temperature /* 0–1 */, maxTokens /* 1024–8192, token suy luận của model cũng tính vào đây */,
   topK /* 1–20 */, systemPrompt /* ≤ 4000 ký tự, có thể null */
 }
 ```
 
 ## 5. Thống kê ở trang Tổng quan admin
 
-`GET /admin/stats` (đã có) đang trả `chatQuestions` và `chatTopics`. Nên tính hai giá trị này từ cùng nguồn dữ liệu với
-`/admin/chat/stats`, để hai trang hiển thị cùng số liệu.
+`GET /admin/stats` trả `chatQuestions` và `chatTopics`, tính bằng cùng truy vấn của `ChatMessageRepository`
+(`countBySender(USER)`, `countByTopic`) với `/admin/chat/stats`, nên hai trang hiển thị cùng số liệu.

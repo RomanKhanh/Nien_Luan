@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { chatApi, CHAT_MOCK } from '@/api/chat'
+import { chatApi } from '@/api/chat'
 import { childApi } from '@/api/endpoints'
 import type { ChatSessionDetail } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
@@ -78,6 +78,8 @@ function Conversation({
   const [pending, setPending] = useState<string | null>(null)
   const [failed, setFailed] = useState<{ text: string; message: string } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // phiên vừa tạo cho câu hỏi đầu tiên: nếu AI lỗi thì gửi lại dùng tiếp phiên này, không tạo thêm phiên rỗng
+  const created = useRef<{ id: number; child: number | null } | null>(null)
 
   const messages = detail.data?.messages ?? []
   const suggestions = useChatSuggestions(selectedChild, messages.length === 0 && !pending)
@@ -85,10 +87,19 @@ function Conversation({
   const send = useMutation({
     mutationFn: async ({ content, child }: { content: string; child: number | null }) => {
       let id = sessionId
+      if (id === null && created.current) {
+        // phụ huynh đổi bé sau lần lỗi: cập nhật phiên đã tạo cho khớp bé đang chọn
+        if (created.current.child !== child) {
+          await chatApi.updateSession(created.current.id, { childProfileId: child })
+          created.current.child = child
+        }
+        id = created.current.id
+      }
       if (id === null) {
-        const created = await chatApi.createSession({ childProfileId: child })
-        id = created.id
-        queryClient.setQueryData(chatKeys.session(id), created)
+        const newSession = await chatApi.createSession({ childProfileId: child })
+        id = newSession.id
+        created.current = { id, child }
+        queryClient.setQueryData(chatKeys.session(id), newSession)
       }
       const reply = await chatApi.sendMessage(id, content)
       return { id, reply }
@@ -312,11 +323,6 @@ function Welcome({
       <p className="mt-1 max-w-sm text-[13.5px] text-ink-muted">
         Hỏi mình về lợi ích của đồ chơi, độ tuổi phù hợp, hoặc nên mua gì tiếp để bé phát triển kỹ năng.
       </p>
-      {CHAT_MOCK && (
-        <p className="mt-2 rounded-full bg-sun/25 px-3 py-1 text-[11.5px] font-bold text-[#8a5a00]">
-          Bản demo · câu trả lời được giả lập, sản phẩm gợi ý là dữ liệu thật
-        </p>
-      )}
       <div className={`mt-4 grid w-full gap-2 text-left ${wide ? 'sm:grid-cols-2' : ''}`}>
         {loading
           ? Array.from({ length: 3 }, (_, i) => <div key={i} className="h-11 animate-pulse rounded-2xl bg-muted" />)

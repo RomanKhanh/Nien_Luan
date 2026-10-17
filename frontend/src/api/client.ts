@@ -134,6 +134,28 @@ const EXACT: Record<string, string> = {
   'Province not found': 'Không tìm thấy tỉnh/thành.',
   'District not found': 'Không tìm thấy quận/huyện.',
   'Cannot send feedback for an order you cancelled yourself': 'Đơn bạn đã tự huỷ nên không gửi phản hồi được.',
+  'AI service is not available right now, please try again later':
+    'Chatbot đang bận hoặc chưa sẵn sàng, vui lòng thử lại sau ít phút.',
+  'Chat context changed while answering; please try again':
+    'Cuộc trò chuyện vừa thay đổi trong lúc chatbot trả lời, vui lòng gửi lại câu hỏi.',
+  'Too many questions, please wait a moment and try again': 'Bạn hỏi hơi nhanh, đợi khoảng một phút rồi hỏi tiếp nhé.',
+  'Chat session not found': 'Không tìm thấy cuộc trò chuyện.',
+  'Child profile not found': 'Không tìm thấy hồ sơ của bé.',
+  'Chatbot config not found': 'Không tìm thấy cấu hình chatbot.',
+  'Knowledge document not found': 'Không tìm thấy tài liệu.',
+  'Document is still being processed': 'Tài liệu đang được xử lý, vui lòng đợi xử lý xong.',
+  'Document must be successfully indexed first': 'Tài liệu cần lập chỉ mục thành công trước khi bật dùng.',
+  'Only INDEXED or DISABLED can be selected': 'Chỉ có thể bật dùng hoặc tắt tài liệu.',
+  'Document file is required': 'Vui lòng chọn tệp tài liệu.',
+  'Document must not exceed 10 MB': 'Tài liệu tối đa 10 MB.',
+  'Only PDF, DOCX, TXT and MD documents are supported': 'Chỉ nhận tệp PDF, DOCX, TXT hoặc MD.',
+  'Invalid PDF file': 'Tệp PDF không hợp lệ.',
+  'Invalid DOCX file': 'Tệp DOCX không hợp lệ.',
+  'Invalid document size': 'Tệp rỗng hoặc vượt quá 10 MB.',
+  'TXT and MD documents must use UTF-8': 'Tệp TXT / MD phải dùng mã hoá UTF-8.',
+  'Text document contains binary data': 'Tệp văn bản chứa dữ liệu nhị phân, không đọc được.',
+  'Order can no longer be cancelled; reject the cancel request instead':
+    'Đơn đã giao cho đơn vị vận chuyển nên không huỷ được nữa. Hãy từ chối yêu cầu huỷ.',
   'Internal server error': 'Máy chủ gặp lỗi, vui lòng thử lại sau.',
 }
 

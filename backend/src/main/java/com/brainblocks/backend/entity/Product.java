@@ -69,6 +69,13 @@ public class Product {
     @Column(name = "height_cm", nullable = false)
     private Integer heightCm;
 
+    // số lượt mở trang chi tiết sản phẩm (thống kê "sản phẩm được quan tâm"); chỉ tăng qua ProductRepository.increaseViews.
+    // updatable = false: admin sửa sản phẩm không ghi đè số lượt đã tăng trong DB bằng giá trị cũ lúc load.
+    // @ColumnDefault để ddl-auto=update thêm được cột NOT NULL vào bảng đã có dữ liệu
+    @ColumnDefault("0")
+    @Column(nullable = false, updatable = false)
+    private long viewCount;
+
     // false = ẩn sản phẩm thay vì xóa cứng, vì còn gắn với đơn hàng cũ
     @Builder.Default
     @Column(nullable = false)

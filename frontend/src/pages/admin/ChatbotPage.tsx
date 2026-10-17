@@ -5,10 +5,9 @@ import { z } from 'zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { adminChatApi, CHAT_MOCK } from '@/api/chat'
+import { adminChatApi } from '@/api/chat'
 import type { ChatbotConfig, ChatbotConfigRequest, ChatStats } from '@/api/types'
 import { AdminHeader } from '@/components/admin/AdminHeader'
-import { MockNotice } from '@/components/admin/MockNotice'
 import { Pill } from '@/components/ui/Badges'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Field'
@@ -49,7 +48,6 @@ export default function ChatbotPage() {
           </>
         }
       />
-      {CHAT_MOCK && <MockNotice />}
       <div className="-mx-1 mb-5 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist">
         {TABS.map((t) => (
           <button
@@ -345,7 +343,7 @@ const configSchema = z.object({
   maxTokens: z
     .number({ error: 'Nhập số nguyên' })
     .int('Nhập số nguyên')
-    .min(64, 'Tối thiểu 64')
+    .min(1024, 'Tối thiểu 1024')
     .max(8192, 'Tối đa 8192'),
   topK: z.number({ error: 'Nhập số nguyên' }).int('Nhập số nguyên').min(1, 'Tối thiểu 1').max(20, 'Tối đa 20'),
   systemPrompt: z.string().max(4000, 'Tối đa 4000 ký tự'),
@@ -435,7 +433,13 @@ function Config() {
   )
 }
 
-const DEFAULTS: ConfigValues = { modelName: '', temperature: 0.3, maxTokens: 1024, topK: 4, systemPrompt: '' }
+const DEFAULTS: ConfigValues = {
+  modelName: 'gemini-flash-latest',
+  temperature: 0.3,
+  maxTokens: 2048,
+  topK: 4,
+  systemPrompt: '',
+}
 
 function ConfigForm({
   config,

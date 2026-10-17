@@ -38,3 +38,6 @@ build/
 
 ### Bằng chứng khiếu nại của khách (app.complaint.evidence-dir), dữ liệu riêng tư ###
 /private-uploads/
+
+### Tài liệu tri thức chatbot (app.knowledge.dir) ###
+/knowledge-files/

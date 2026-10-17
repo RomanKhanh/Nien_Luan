@@ -4,6 +4,7 @@ import com.brainblocks.backend.dto.response.stats.AdminStatsResponse;
 import com.brainblocks.backend.dto.response.stats.AdminStatsResponse.DailyOrderStat;
 import com.brainblocks.backend.dto.response.stats.AdminStatsResponse.SkillInterestStat;
 import com.brainblocks.backend.dto.response.stats.AdminStatsResponse.TopProductStat;
+import com.brainblocks.backend.dto.response.stats.AdminStatsResponse.TopViewedStat;
 import com.brainblocks.backend.dto.response.stats.AdminStatsResponse.TopicStat;
 import com.brainblocks.backend.enums.ComplaintStatus;
 import com.brainblocks.backend.enums.OrderStatus;
@@ -63,7 +64,10 @@ public class AdminStatsService {
                         row.getQuantity(), row.getRevenue()))
                 .toList();
 
-        List<SkillInterestStat> skillInterests = skillRepository.countInterestedChildren().stream()
+        List<TopViewedStat> topViewed = productRepository.findTopViewed(PageRequest.of(0, TOP_LIMIT)).stream()
+                .map(row -> new TopViewedStat(row.getProductId(), row.getProductName(), row.getViews()))
+                .toList();
+        List<SkillInterestStat> skillInterests =skillRepository.countInterestedChildren().stream()
                 .map(row -> new SkillInterestStat(row.getSkillId(), row.getSkillName(), row.getTotal()))
                 .sorted(Comparator.comparingLong(SkillInterestStat::children).reversed())
                 .toList();
@@ -83,6 +87,7 @@ public class AdminStatsService {
                 orderRepository.sumShippingFeeByStatus(OrderStatus.DELIVERED),
                 dailyOrders(today),
                 topProducts,
+                topViewed,
                 skillInterests,
                 complaintRepository.countByStatus(ComplaintStatus.PENDING),
                 chatMessageRepository.countBySender(SenderType.USER),

@@ -250,6 +250,53 @@ class CatalogAndFeedbackTest {
                 .isEqualTo("Đã gửi bù");
     }
 
+    // duyệt yêu cầu hủy (ngay khi còn chờ) -> đơn hủy luôn và hoàn kho; đơn đã giao đi thì không duyệt được,
+    // yêu cầu giữ nguyên và admin vẫn từ chối được dù đã tiếp nhận
+    @Test
+    void approvingCancelRequestCancelsOrder() throws Exception {
+        long productId = createProduct(createCategory(), "cancel-request", 3, 12, Map.of());
+        String token = newCustomer();
+        long orderId = placeOrder(token, productId);
+        setOrderStatus(orderId, "CONFIRMED");
+        long complaintId = cancelRequest(token, orderId);
+        setComplaintStatus(complaintId, "RESOLVED", "Đã hủy đơn theo yêu cầu", 200);
+        assertThat(call("GET", "/api/admin/orders/" + orderId, adminToken, null).data().path("status").asString())
+                .isEqualTo("CANCELLED");
+        assertThat(call("GET", "/api/admin/products/" + productId, adminToken, null).data().path("stockQuantity")
+                .asInt()).isEqualTo(10);
+
+        long shippingOrderId = placeOrder(token, productId);
+        setOrderStatus(shippingOrderId, "CONFIRMED");
+        long lateComplaintId = cancelRequest(token, shippingOrderId);
+        setComplaintStatus(lateComplaintId, "PROCESSING", null, 200);
+        setOrderStatus(shippingOrderId, "SHIPPING");
+        setComplaintStatus(lateComplaintId, "RESOLVED", "Đã hủy", 400);
+        assertThat(call("GET", "/api/admin/complaints/" + lateComplaintId, adminToken, null).data().path("status")
+                .asString()).isEqualTo("PROCESSING");
+        assertThat(call("GET", "/api/admin/orders/" + shippingOrderId, adminToken, null).data().path("status")
+                .asString()).isEqualTo("SHIPPING");
+        setComplaintStatus(lateComplaintId, "REJECTED", "Đơn đã được giao đi", 200);
+    }
+
+    // lượt xem: ai mở trang chi tiết cũng tính, hiện trong thống kê; sản phẩm đã ẩn không nhận lượt xem
+    @Test
+    void productViewsAreCountedAndShownInStats() throws Exception {
+        long productId = createProduct(createCategory(), "views", 3, 12, Map.of());
+        for (int i = 0; i < 3; i++) {
+            assertThat(call("POST", "/api/products/" + productId + "/views", null, null).status()).isEqualTo(200);
+        }
+        long views = 0;
+        for (JsonNode row : call("GET", "/api/admin/stats", adminToken, null).data().path("topViewedProducts")) {
+            if (row.path("productId").asLong() == productId) {
+                views = row.path("views").asLong();
+            }
+        }
+        assertThat(views).isEqualTo(3);
+
+        call("DELETE", "/api/admin/products/" + productId, adminToken, null);
+        assertThat(call("POST", "/api/products/" + productId + "/views", null, null).status()).isEqualTo(404);
+    }
+
     // link video hướng dẫn: chỉ nhận link YouTube, để trống thì xóa video
     @Test
     void productVideoUrlIsValidatedAndClearable() throws Exception {
@@ -718,6 +765,27 @@ class CatalogAndFeedbackTest {
             assertThat(call("PATCH", "/api/admin/orders/" + orderId + "/status", adminToken, Map.of("status", status))
                     .status()).isEqualTo(200);
         }
+    }
+
+    private void setOrderStatus(long orderId, String status) throws Exception {
+        assertThat(call("PATCH", "/api/admin/orders/" + orderId + "/status", adminToken, Map.of("status", status))
+                .status()).isEqualTo(200);
+    }
+
+    // yêu cầu hủy đơn không cần file bằng chứng
+    private long cancelRequest(String token, long orderId) throws Exception {
+        Res res = multipart("/api/orders/" + orderId + "/complaints", token, List.of(new Part("request", null,
+                "application/json", JSON.writeValueAsBytes(Map.of("type", "CANCEL", "content", "Đặt nhầm")))));
+        assertThat(res.status()).as(res.body().toString()).isEqualTo(201);
+        return res.data().path("id").asLong();
+    }
+
+    private void setComplaintStatus(long complaintId, String status, String response, int expected) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", status);
+        body.put("response", response);
+        Res res = call("PATCH", "/api/admin/complaints/" + complaintId, adminToken, body);
+        assertThat(res.status()).as(res.body().toString()).isEqualTo(expected);
     }
 
     private long createCategory() throws Exception {

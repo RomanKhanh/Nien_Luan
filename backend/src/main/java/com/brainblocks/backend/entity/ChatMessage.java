@@ -36,6 +36,11 @@ public class ChatMessage {
     @Column(length = 50)
     private String topic;
 
+    // Snapshot nguồn RAG và lý do gợi ý, để xem lại lịch sử vẫn có căn cứ như lúc bot trả lời.
+    // JSON chỉ do service tạo, không nhận trực tiếp từ client.
+    @Column(columnDefinition = "TEXT")
+    private String responseMetadataJson;
+
     // sản phẩm chatbot gợi ý trong tin nhắn này.
     // chỉ tin nhắn sender = BOT mới có; productId do AI trả về phải tồn tại và active (kiểm tra ở service)
     @Builder.Default

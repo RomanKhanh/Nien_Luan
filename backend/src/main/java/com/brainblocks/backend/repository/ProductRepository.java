@@ -81,6 +81,28 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             """)
     int decreaseStock(@Param("productId") Long productId, @Param("quantity") int quantity);
 
+    // Tăng lượt xem trong DB (không mất lượt khi nhiều người xem cùng lúc); sản phẩm đã ẩn không tính. Trả 0 = không tăng
+    @Modifying
+    @Query("update Product p set p.viewCount = p.viewCount + 1 where p.id = :productId and p.active = true")
+    int increaseViews(@Param("productId") Long productId);
+
+    // sản phẩm đang bán được xem nhiều nhất (thống kê quản trị)
+    @Query("""
+            select p.id as productId, p.name as productName, p.viewCount as views
+            from Product p
+            where p.active = true and p.viewCount > 0
+            order by p.viewCount desc, p.id
+            """)
+    List<ProductViews> findTopViewed(Pageable pageable);
+
+    interface ProductViews {
+        Long getProductId();
+
+        String getProductName();
+
+        long getViews();
+    }
+
     // Hoàn kho khi hủy đơn, cộng thẳng trong DB để không mất cập nhật khi chạy song song
     @Modifying(flushAutomatically = true)
     @Query("update Product p set p.stockQuantity = p.stockQuantity + :quantity where p.id = :productId")

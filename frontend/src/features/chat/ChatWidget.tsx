@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CHAT_MOCK } from '@/api/chat'
 import { useAuth } from '@/auth/AuthContext'
 import { Bubbles, Mascot } from '@/components/decor/Decor'
 import { ChatPanel } from './ChatPanel'
@@ -100,7 +99,7 @@ export function ChatWidget() {
                 <p className="truncate font-display text-[20px] font-extrabold leading-none">Trợ lý Bin</p>
                 <p className="mt-1 flex items-center gap-1.5 text-[12px] text-white/90">
                   <span className="h-2 w-2 shrink-0 rounded-full bg-leaf" aria-hidden />
-                  <span className="truncate">{CHAT_MOCK ? 'Bản demo' : 'Trực tuyến'}</span>
+                  <span className="truncate">Trực tuyến</span>
                 </p>
               </div>
               <HeaderButton

@@ -1,5 +1,4 @@
 import { http, request } from './client'
-import { adminChatMock, chatMock } from './mock/chatMock'
 import type {
   AdminChatSessionDetail,
   AdminChatSessionSummary,
@@ -15,11 +14,7 @@ import type {
   Page,
 } from './types'
 
-// Chatbot AI chưa có backend: mặc định dùng bản giả lập (mock/chatMock.ts) chạy ngay trên trình duyệt.
-// Khi backend làm xong các endpoint trong docs/chatbot-api.md, đặt VITE_CHAT_MOCK=false trong frontend/.env
-// là toàn bộ giao diện chuyển sang gọi API thật, không phải sửa component nào.
-export const CHAT_MOCK = import.meta.env.VITE_CHAT_MOCK !== 'false'
-
+// Chatbot AI & cơ sở tri thức (RAG). Hợp đồng API: docs/chatbot-api.md
 export interface ChatApi {
   sessions: () => Promise<ChatSessionSummary[]>
   session: (id: number) => Promise<ChatSessionDetail>
@@ -42,6 +37,7 @@ export interface AdminChatApi {
     size?: number
   }) => Promise<Page<KnowledgeDocument>>
   uploadDocument: (body: { title: string; file: File }) => Promise<KnowledgeDocument>
+  replaceDocumentFile: (id: number, file: File) => Promise<KnowledgeDocument>
   updateDocument: (id: number, body: { title: string }) => Promise<KnowledgeDocument>
   setDocumentStatus: (id: number, status: 'INDEXED' | 'DISABLED') => Promise<KnowledgeDocument>
   reindexDocument: (id: number) => Promise<KnowledgeDocument>
@@ -54,7 +50,7 @@ export interface AdminChatApi {
   activateConfig: (id: number) => Promise<ChatbotConfig>
 }
 
-const httpChatApi: ChatApi = {
+export const chatApi: ChatApi = {
   sessions: () => request<ChatSessionSummary[]>(http.get('/chat/sessions')),
   session: (id) => request<ChatSessionDetail>(http.get(`/chat/sessions/${id}`)),
   createSession: (body) => request<ChatSessionDetail>(http.post('/chat/sessions', body)),
@@ -67,7 +63,7 @@ const httpChatApi: ChatApi = {
     request<string[]>(http.get('/chat/suggestions', { params: { childProfileId: childProfileId ?? undefined } })),
 }
 
-const httpAdminChatApi: AdminChatApi = {
+export const adminChatApi: AdminChatApi = {
   stats: () => request<ChatStats>(http.get('/admin/chat/stats')),
   sessions: (params) => request<Page<AdminChatSessionSummary>>(http.get('/admin/chat/sessions', { params })),
   session: (id) => request<AdminChatSessionDetail>(http.get(`/admin/chat/sessions/${id}`)),
@@ -82,6 +78,14 @@ const httpAdminChatApi: AdminChatApi = {
       http.post('/admin/knowledge-documents', form, { headers: { 'Content-Type': undefined } }),
     )
   },
+  // thay file: đoạn cũ bị xoá, tài liệu sang PROCESSING rồi được lập chỉ mục lại từ file mới
+  replaceDocumentFile: (id, file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<KnowledgeDocument>(
+      http.post(`/admin/knowledge-documents/${id}/file`, form, { headers: { 'Content-Type': undefined } }),
+    )
+  },
   updateDocument: (id, body) => request<KnowledgeDocument>(http.put(`/admin/knowledge-documents/${id}`, body)),
   setDocumentStatus: (id, status) =>
     request<KnowledgeDocument>(http.patch(`/admin/knowledge-documents/${id}/status`, { status })),
@@ -94,6 +98,3 @@ const httpAdminChatApi: AdminChatApi = {
   updateConfig: (id, body) => request<ChatbotConfig>(http.put(`/admin/chatbot-configs/${id}`, body)),
   activateConfig: (id) => request<ChatbotConfig>(http.patch(`/admin/chatbot-configs/${id}/activate`)),
 }
-
-export const chatApi: ChatApi = CHAT_MOCK ? chatMock : httpChatApi
-export const adminChatApi: AdminChatApi = CHAT_MOCK ? adminChatMock : httpAdminChatApi

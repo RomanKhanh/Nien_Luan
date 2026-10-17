@@ -83,6 +83,8 @@ export const shippingApi = {
 export const catalogApi = {
   products: (q: ProductQuery) => request<Page<ProductSummary>>(http.get('/products', { params: productParams(q) })),
   product: (id: number) => request<ProductDetail>(http.get(`/products/${id}`)),
+  // ghi nhận 1 lượt mở trang chi tiết (thống kê sản phẩm được quan tâm)
+  recordView: (id: number) => request<void>(http.post(`/products/${id}/views`)),
   suggestions: (q: string) => request<SearchSuggestion[]>(http.get('/products/suggestions', { params: { q } })),
   reviews: (id: number, page = 0, size = 5) =>
     request<Page<Review>>(http.get(`/products/${id}/reviews`, { params: { page, size } })),

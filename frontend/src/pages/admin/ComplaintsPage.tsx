@@ -98,6 +98,7 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
   const queryClient = useQueryClient()
   const now = useNow()
   const closed = complaint.status === 'RESOLVED' || complaint.status === 'REJECTED'
+  const isCancel = complaint.type === 'CANCEL'
   const returnOverdue =
     complaint.status === 'PROCESSING' &&
     complaint.returnDeadline !== null &&
@@ -107,6 +108,11 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
     onSuccess: (c) => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'complaints'] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] })
+      // duyệt yêu cầu huỷ đã huỷ đơn và hoàn kho
+      if (c.type === 'CANCEL') {
+        queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
+        queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      }
       toast.success(`Đã cập nhật: ${COMPLAINT_STATUS[c.status].label}`)
       onClose()
     },
@@ -149,9 +155,11 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
           label="Phản hồi gửi khách"
           htmlFor="response"
           hint={
-            complaint.status === 'PENDING'
-              ? 'Không bắt buộc khi tiếp nhận, bắt buộc khi từ chối.'
-              : 'Bắt buộc khi đánh dấu đã giải quyết.'
+            isCancel
+              ? 'Bắt buộc khi duyệt huỷ hoặc từ chối.'
+              : complaint.status === 'PENDING'
+                ? 'Không bắt buộc khi tiếp nhận, bắt buộc khi từ chối.'
+                : 'Bắt buộc khi đánh dấu đã giải quyết.'
           }
         >
           <Textarea
@@ -162,41 +170,51 @@ function HandleDrawer({ complaint, onClose }: { complaint: Complaint; onClose: (
             onChange={(e) => setResponse(e.target.value)}
           />
         </Field>
-        {(complaint.type === 'CANCEL' || complaint.type === 'RETURN' || complaint.type === 'EXCHANGE') && !closed && (
+        {isCancel && !closed && (
           <p className="rounded-md bg-warning-soft px-3 py-2.5 text-[12.5px] text-[#92400E]">
-            Chấp nhận yêu cầu không tự đổi trạng thái đơn. Nếu cần huỷ đơn, hãy cập nhật ở trang Đơn hàng.
+            Duyệt yêu cầu sẽ huỷ luôn đơn hàng: hoàn kho, trả voucher cho khách. Đơn đã giao cho đơn vị vận chuyển thì
+            không huỷ được nữa, hãy từ chối yêu cầu.
+          </p>
+        )}
+        {(complaint.type === 'RETURN' || complaint.type === 'EXCHANGE') && !closed && (
+          <p className="rounded-md bg-warning-soft px-3 py-2.5 text-[12.5px] text-[#92400E]">
+            Hàng trả về không tự cộng lại tồn kho: kiểm tra tình trạng hàng rồi cập nhật tồn kho ở trang Sản phẩm nếu
+            còn bán được.
           </p>
         )}
         {closed ? (
           <p className="text-ink-muted">Yêu cầu đã đóng.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {complaint.status === 'PENDING' ? (
-              <>
-                <Button
-                  loading={handle.isPending && handle.variables === 'PROCESSING'}
-                  disabled={handle.isPending}
-                  onClick={() => handle.mutate('PROCESSING')}
-                >
-                  Tiếp nhận
-                </Button>
-                <Button
-                  variant="danger-outline"
-                  loading={handle.isPending && handle.variables === 'REJECTED'}
-                  disabled={handle.isPending}
-                  onClick={() => handle.mutate('REJECTED')}
-                >
-                  Từ chối
-                </Button>
-              </>
-            ) : (
+            {complaint.status === 'PENDING' && !isCancel && (
+              <Button
+                loading={handle.isPending && handle.variables === 'PROCESSING'}
+                disabled={handle.isPending}
+                onClick={() => handle.mutate('PROCESSING')}
+              >
+                Tiếp nhận
+              </Button>
+            )}
+            {/* yêu cầu huỷ duyệt được ngay, không cần bước tiếp nhận */}
+            {(complaint.status === 'PROCESSING' || isCancel) && (
               <Button
                 loading={handle.isPending && handle.variables === 'RESOLVED'}
                 // quá hạn gửi hàng về thì backend từ chối, hệ thống sẽ tự đóng yêu cầu
-                disabled={returnOverdue}
+                disabled={handle.isPending || returnOverdue}
                 onClick={() => handle.mutate('RESOLVED')}
               >
-                Đã giải quyết
+                {isCancel ? 'Duyệt & huỷ đơn' : 'Đã giải quyết'}
+              </Button>
+            )}
+            {/* yêu cầu huỷ từ chối được cả khi đang xử lý (đơn đã kịp giao đi) */}
+            {(complaint.status === 'PENDING' || isCancel) && (
+              <Button
+                variant="danger-outline"
+                loading={handle.isPending && handle.variables === 'REJECTED'}
+                disabled={handle.isPending}
+                onClick={() => handle.mutate('REJECTED')}
+              >
+                Từ chối
               </Button>
             )}
           </div>

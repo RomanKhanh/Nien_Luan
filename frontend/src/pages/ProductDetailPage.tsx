@@ -23,6 +23,19 @@ import { ageRange, formatDecimal, formatPrice, formatRelative, formatWeightKg, i
 import { dominantSkill, skillTheme } from '@/lib/skills'
 import { youtubeEmbedUrl, youtubeId } from '@/lib/youtube'
 
+// Lượt xem cho thống kê "sản phẩm được quan tâm": mỗi sản phẩm tính 1 lần mỗi phiên trình duyệt, để tải lại
+// trang không cộng dồn. sessionStorage bị chặn thì vẫn gửi; gửi lỗi thì bỏ qua (không ảnh hưởng người xem).
+function countServerView(productId: number) {
+  const key = `brainblocks.viewed.${productId}`
+  try {
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+  } catch {
+    /* không nhớ được thì vẫn đếm */
+  }
+  catalogApi.recordView(productId).catch(() => {})
+}
+
 export default function ProductDetailPage() {
   const id = Number(useParams().id)
   const product = useQuery({ queryKey: ['product', id], queryFn: () => catalogApi.product(id), enabled: id > 0 })
@@ -46,7 +59,7 @@ export default function ProductDetailPage() {
 }
 
 function ProductView({ product }: { product: ProductDetail }) {
-  const { isCustomer, session } = useAuth()
+  const { isCustomer, isAdmin, session } = useAuth()
   const navigate = useNavigate()
   const [quantity, setQuantity] = useState(1)
   const [imageIndex, setImageIndex] = useState(0)
@@ -63,7 +76,9 @@ function ProductView({ product }: { product: ProductDetail }) {
 
   useEffect(() => {
     recordProductView(product.id)
-  }, [product.id])
+    // admin xem thử trang khách không tính là lượt quan tâm
+    if (!isAdmin) countServerView(product.id)
+  }, [product.id, isAdmin])
 
   return (
     <>

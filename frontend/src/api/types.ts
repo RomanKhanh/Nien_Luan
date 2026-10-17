@@ -505,6 +505,8 @@ export interface AdminStats {
   deliveredShippingFees: number
   dailyOrders: { date: string; orders: number; amount: number }[]
   topProducts: { productId: number; productName: string; quantity: number; revenue: number }[]
+  // sản phẩm đang bán được xem nhiều nhất (lượt mở trang chi tiết)
+  topViewedProducts: { productId: number; productName: string; views: number }[]
   skillInterests: { skillId: number; skillName: string; children: number }[]
   pendingComplaints: number
   chatQuestions: number

@@ -67,7 +67,8 @@ export const GENDER: Record<Gender, string> = {
 
 // trạng thái tài liệu trong cơ sở tri thức (enum DocumentStatus ở backend)
 export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; tone: Tone }> = {
-  UPLOADED: { label: 'Đã tải lên', tone: 'gray' },
+  // backend đưa tài liệu về UPLOADED khi đọc tệp hoặc tạo embedding lỗi: admin bấm "Lập chỉ mục lại"
+  UPLOADED: { label: 'Lỗi xử lý, cần lập chỉ mục lại', tone: 'violet' },
   PROCESSING: { label: 'Đang xử lý', tone: 'amber' },
   INDEXED: { label: 'Đang dùng', tone: 'green' },
   DISABLED: { label: 'Đã tắt', tone: 'red' },

@@ -97,6 +97,23 @@ public class AdminOrderService {
         return orderService.toOrderResponse(order);
     }
 
+    /**
+     * Hủy đơn khi admin duyệt yêu cầu hủy của khách (AdminComplaintService), cùng xử lý như admin tự hủy:
+     * hoàn kho, trả voucher, báo khách. Đơn đã hủy trước đó thì thôi; đơn đã giao đi thì không hủy được nữa.
+     */
+    @Transactional
+    public void cancelForApprovedRequest(Long orderId) {
+        Order order = orderRepository.findForUpdateById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return;
+        }
+        if (!ALLOWED_TRANSITIONS.get(order.getStatus()).contains(OrderStatus.CANCELLED)) {
+            throw new IllegalArgumentException("Order can no longer be cancelled; reject the cancel request instead");
+        }
+        updateStatus(orderId, new UpdateOrderStatusRequest(OrderStatus.CANCELLED));
+    }
+
     private void notifyCustomer(Order order, OrderStatus status) {
         String code = order.getOrderCode();
         String[] content = switch (status) {

@@ -71,6 +71,14 @@ public class ProductService {
         return toDetailResponse(product);
     }
 
+    // một lượt mở trang chi tiết (đề 2.14: sản phẩm được quan tâm); sản phẩm đã ẩn / không tồn tại trả 404
+    @Transactional
+    public void recordView(Long id) {
+        if (productRepository.increaseViews(id) == 0) {
+            throw new ResourceNotFoundException("Product not found");
+        }
+    }
+
     // ===== mapping, dùng chung với AdminProductService =====
 
     PageResponse<ProductSummaryResponse> toSummaryPage(Page<Product> products) {

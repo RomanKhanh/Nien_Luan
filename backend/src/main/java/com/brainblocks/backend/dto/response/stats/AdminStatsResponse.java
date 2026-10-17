@@ -20,6 +20,8 @@ public record AdminStatsResponse(
         BigDecimal deliveredShippingFees,
         List<DailyOrderStat> dailyOrders,
         List<TopProductStat> topProducts,
+        // sản phẩm đang bán được xem nhiều nhất (lượt mở trang chi tiết)
+        List<TopViewedStat> topViewedProducts,
         List<SkillInterestStat> skillInterests,
         long pendingComplaints,
         long chatQuestions,
@@ -29,6 +31,9 @@ public record AdminStatsResponse(
     }
 
     public record TopProductStat(Long productId, String productName, long quantity, BigDecimal revenue) {
+    }
+
+    public record TopViewedStat(Long productId, String productName, long views) {
     }
 
     public record SkillInterestStat(Long skillId, String skillName, long children) {

@@ -13,6 +13,7 @@ import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.*;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import com.brainblocks.backend.service.notification.NotificationService;
+import com.brainblocks.backend.service.order.AdminOrderService;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +38,15 @@ public class AdminComplaintService {
     private static final Map<ComplaintStatus, Set<ComplaintStatus>> ALLOWED_TRANSITIONS = Map.of(
             ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.PROCESSING, ComplaintStatus.REJECTED),
             ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.RESOLVED),
+            ComplaintStatus.RESOLVED, EnumSet.noneOf(ComplaintStatus.class),
+            ComplaintStatus.REJECTED, EnumSet.noneOf(ComplaintStatus.class)
+    );
+    // Yêu cầu hủy không có bước chờ gửi hàng về: được duyệt (hủy đơn) ngay khi còn chờ, và được từ chối cả khi
+    // đang xử lý (đơn đã kịp giao cho đơn vị vận chuyển thì không hủy được nữa)
+    private static final Map<ComplaintStatus, Set<ComplaintStatus>> CANCEL_TRANSITIONS = Map.of(
+            ComplaintStatus.PENDING, EnumSet.of(ComplaintStatus.PROCESSING, ComplaintStatus.RESOLVED,
+                    ComplaintStatus.REJECTED),
+            ComplaintStatus.PROCESSING, EnumSet.of(ComplaintStatus.RESOLVED, ComplaintStatus.REJECTED),
             ComplaintStatus.RESOLVED, EnumSet.noneOf(ComplaintStatus.class),
             ComplaintStatus.REJECTED, EnumSet.noneOf(ComplaintStatus.class)
     );
@@ -65,6 +75,7 @@ public class AdminComplaintService {
     private final OrderItemRepository orderItemRepository;
     private final ChildProductRepository childProductRepository;
     private final SkillProfileService skillProfileService;
+    private final AdminOrderService adminOrderService;
 
     @Transactional(readOnly = true)
     public PageResponse<ComplaintResponse> getComplaints(ComplaintStatus status, int page, int size) {
@@ -96,7 +107,8 @@ public class AdminComplaintService {
 
         ComplaintStatus current = complaint.getStatus();
         ComplaintStatus next = request.status();
-        if (!ALLOWED_TRANSITIONS.get(current).contains(next)) {
+        var transitions = complaint.getType() == ComplaintType.CANCEL ? CANCEL_TRANSITIONS : ALLOWED_TRANSITIONS;
+        if (!transitions.get(current).contains(next)) {
             throw new IllegalArgumentException("Cannot change complaint status from " + current + " to " + next);
         }
         boolean closing = next == ComplaintStatus.RESOLVED || next == ComplaintStatus.REJECTED;
@@ -111,6 +123,10 @@ public class AdminComplaintService {
             throw new IllegalArgumentException("The return window ended at "
                     + DEADLINE_FORMAT.format(returnPolicy.deadline(complaint))
                     + "; this request will be rejected automatically");
+        }
+        // duyệt yêu cầu hủy = hủy luôn đơn (hoàn kho, trả voucher); đơn đã giao đi thì báo lỗi, admin từ chối yêu cầu
+        if (next == ComplaintStatus.RESOLVED && complaint.getType() == ComplaintType.CANCEL) {
+            adminOrderService.cancelForApprovedRequest(complaint.getOrder().getId());
         }
         Admin admin = adminRepository.findById(currentUserProvider.getCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));

@@ -75,6 +75,13 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(productService.getActiveProduct(id)));
     }
 
+    // trang chi tiết gọi khi được mở (tách khỏi GET chi tiết vì danh sách "vừa xem" cũng gọi GET); không cần đăng nhập
+    @PostMapping("/{id}/views")
+    public ResponseEntity<ApiResponse<Void>> recordView(@PathVariable Long id) {
+        productService.recordView(id);
+        return ResponseEntity.ok(ApiResponse.success("View recorded", null));
+    }
+
     @GetMapping("/{id}/reviews")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getReviews(
             @PathVariable Long id,

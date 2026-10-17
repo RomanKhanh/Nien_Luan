@@ -44,6 +44,8 @@ public class SecurityConfig {
                                 "/api/payments/momo-return", "/api/payments/momo-ipn").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/skills/**",
                                 "/api/locations/**").permitAll()
+                        // ghi nhận lượt xem sản phẩm, khách chưa đăng nhập cũng tính
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/views").permitAll()
                         // ảnh sản phẩm do admin tải lên, WebConfig phục vụ từ app.upload.dir
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

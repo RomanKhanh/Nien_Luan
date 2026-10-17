@@ -25,6 +25,12 @@ public class ChatSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Phát hiện hồ sơ/tên phiên bị sửa trong lúc đang chờ câu trả lời AI.
+    @Version
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private long version = 0;
+
     // Tiêu đề hội thoại, thường lấy từ câu hỏi đầu tiên của người dùng
     @Column(length = 255)
     private String title;
