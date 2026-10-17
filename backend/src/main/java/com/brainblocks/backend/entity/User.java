@@ -35,8 +35,13 @@ public abstract class User {
     @Column(length = 15)
     private String phone;
 
+    // tài khoản tạo bằng Google lưu băm của chuỗi ngẫu nhiên (không ai biết), đặt mật khẩu thật qua "Quên mật khẩu"
     @Column(nullable = false)
     private String password;
+
+    // "sub" trong ID token Google, gắn khi đăng nhập Google lần đầu (GoogleLoginService); null = chưa liên kết
+    @Column(unique = true)
+    private String googleSubject;
 
     // Cột role giữ theo sơ đồ lớp, nhưng giá trị luôn suy ra từ lớp con (xem getRole/syncRoleColumn):
     // không thể có Customer mang role ADMIN do code tạo sai.

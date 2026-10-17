@@ -7,6 +7,7 @@ import com.brainblocks.backend.dto.response.user.UserResponse;
 import com.brainblocks.backend.entity.Admin;
 import com.brainblocks.backend.entity.Cart;
 import com.brainblocks.backend.entity.Customer;
+import com.brainblocks.backend.entity.User;
 import com.brainblocks.backend.exception.DuplicateEmailException;
 import com.brainblocks.backend.repository.CartRepository;
 import com.brainblocks.backend.repository.UserRepository;
@@ -17,6 +18,7 @@ import com.brainblocks.backend.service.voucher.VoucherService;
 import com.brainblocks.backend.service.auth.EmailVerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,15 +44,23 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(EmailUtils.normalize(request.email()), request.password())
         );
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        User user = userRepository.findById(userDetails.getId())
+                .orElseThrow(() -> new BadCredentialsException("Incorrect email or password"));
+        return issueToken(user);
+    }
 
+    /**
+     * Phát JWT đăng nhập cho tài khoản đã được xác thực (mật khẩu, Google hoặc mã OTP); cùng một cấu trúc
+     * LoginResponse cho mọi cách đăng nhập. Người gọi phải tự kiểm tra tài khoản chưa bị khóa.
+     */
+    @Transactional
+    public LoginResponse issueToken(User user) {
         // sơ đồ yêu cầu lưu lần đăng nhập gần nhất của admin
-        userRepository.findById(userDetails.getId())
-                .filter(Admin.class::isInstance)
-                .map(Admin.class::cast)
-                .ifPresent(admin -> admin.setLastLoginAt(LocalDateTime.now()));
-
-        String token = jwtService.generateToken(userDetails);
-        return new LoginResponse(token, userDetails.getRole().name(), userDetails.getId());
+        if (user instanceof Admin admin) {
+            admin.setLastLoginAt(LocalDateTime.now());
+        }
+        String token = jwtService.generateToken(new CustomUserDetails(user));
+        return new LoginResponse(token, user.getRole().name(), user.getId());
     }
 
     @Transactional
@@ -62,18 +72,23 @@ public class AuthService {
         // email phải là hộp thư thật mà người đăng ký mở được: kiểm tra mã đã gửi tới đó
         emailVerificationService.verify(email, request.verificationCode());
 
-        Customer customer = Customer.builder()
+        Customer saved = createCustomer(Customer.builder()
                 .fullName(request.fullName())
                 .email(email)
                 .password(passwordEncoder.encode(request.password()))
-                .build(); // role CUSTOMER suy ra từ lớp Customer, không nhận role từ client
+                .build()); // role CUSTOMER suy ra từ lớp Customer, không nhận role từ client
+        return new UserResponse(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole().name());
+    }
 
+    /** Lưu khách hàng mới kèm giỏ hàng và voucher chào mừng (dùng cho đăng ký thường và đăng nhập Google lần đầu). */
+    @Transactional
+    public Customer createCustomer(Customer customer) {
         Customer saved = userRepository.save(customer);
 
         // mỗi khách hàng có đúng một giỏ hàng, tạo cùng lúc với tài khoản (cùng transaction)
         cartRepository.save(Cart.builder().customer(saved).build());
         // quà tạo tài khoản: 1 freeship, 1 giảm 10%, 1 giảm 50.000₫ (VoucherPolicy)
         voucherService.grantWelcome(saved);
-        return new UserResponse(saved.getId(), saved.getFullName(), saved.getEmail(), saved.getRole().name());
+        return saved;
     }
 }

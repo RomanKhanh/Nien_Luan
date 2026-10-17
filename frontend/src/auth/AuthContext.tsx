@@ -10,6 +10,8 @@ interface AuthState {
   isCustomer: boolean
   isAdmin: boolean
   login: (email: string, password: string) => Promise<LoginResponse>
+  loginWithGoogle: (idToken: string) => Promise<LoginResponse>
+  loginWithOtp: (email: string, code: string) => Promise<LoginResponse>
   logout: () => void
 }
 
@@ -36,15 +38,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('auth:expired', onExpired)
   }, [queryClient])
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await authApi.login(email, password)
+  // mọi cách đăng nhập (mật khẩu, Google...) đều nhận cùng LoginResponse rồi mở phiên giống nhau
+  const startSession = useCallback(
+    async (pending: Promise<LoginResponse>) => {
+      const res = await pending
       queryClient.clear()
       tokenStorage.set(res)
       setSession(res)
       return res
     },
     [queryClient],
+  )
+
+  const login = useCallback(
+    (email: string, password: string) => startSession(authApi.login(email, password)),
+    [startSession],
+  )
+
+  const loginWithGoogle = useCallback(
+    (idToken: string) => startSession(authApi.loginWithGoogle(idToken)),
+    [startSession],
+  )
+
+  const loginWithOtp = useCallback(
+    (email: string, code: string) => startSession(authApi.verifyLoginOtp(email, code)),
+    [startSession],
   )
 
   const value = useMemo<AuthState>(
@@ -54,9 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isCustomer: session?.role === 'CUSTOMER',
       isAdmin: session?.role === 'ADMIN',
       login,
+      loginWithGoogle,
+      loginWithOtp,
       logout,
     }),
-    [session, login, logout],
+    [session, login, loginWithGoogle, loginWithOtp, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

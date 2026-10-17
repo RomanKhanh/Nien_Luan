@@ -79,6 +79,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
     }
 
+    @ExceptionHandler(GoogleSignInException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGoogleSignIn(GoogleSignInException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ApiResponse<Void>> handleDisabled(DisabledException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Account is locked"));
@@ -155,6 +160,14 @@ public class GlobalExceptionHandler {
     // ===== 503: dịch vụ AI lỗi =====
     @ExceptionHandler(MailNotConfiguredException.class)
     public ResponseEntity<ApiResponse<Void>> handleMailNotConfigured(MailNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(GoogleSignInUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGoogleSignInUnavailable(GoogleSignInUnavailableException ex) {
+        if (ex.getCause() != null) {
+            log.error("Google sign-in error", ex);
+        }
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(ex.getMessage()));
     }
 

@@ -7,13 +7,8 @@ import com.brainblocks.backend.util.EmailUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class EmailVerificationService {
     static final int MAX_ATTEMPTS = 5;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final MailService mailService;
@@ -85,8 +79,8 @@ public class EmailVerificationService {
         if (!allowed[0]) {
             throw new IllegalArgumentException("Please wait before requesting a new code");
         }
-        String code = "%06d".formatted(RANDOM.nextInt(1_000_000));
-        pending.put(email, new PendingCode(hash(email, code), now.plus(validity), 0));
+        String code = OneTimeCodes.generate();
+        pending.put(email, new PendingCode(OneTimeCodes.hash(email, code), now.plus(validity), 0));
         sendMail(email, code);
     }
 
@@ -99,7 +93,7 @@ public class EmailVerificationService {
             return;
         }
         String email = EmailUtils.normalize(rawEmail);
-        String givenHash = code == null ? null : hash(email, code.trim());
+        String givenHash = code == null ? null : OneTimeCodes.hash(email, code.trim());
         Instant now = Instant.now();
         Outcome[] outcome = {Outcome.MISSING};
         // kiểm tra + cập nhật trong cùng một compute: các request song song của cùng email chạy lần lượt
@@ -108,8 +102,7 @@ public class EmailVerificationService {
                 outcome[0] = Outcome.MISSING;
                 return null;
             }
-            if (givenHash != null && MessageDigest.isEqual(current.codeHash().getBytes(StandardCharsets.UTF_8),
-                    givenHash.getBytes(StandardCharsets.UTF_8))) {
+            if (OneTimeCodes.matches(current.codeHash(), givenHash)) {
                 outcome[0] = Outcome.MATCH;
                 return null; // dùng 1 lần
             }
@@ -145,15 +138,5 @@ public class EmailVerificationService {
                 """.formatted(code, minutes);
         // mã chỉ nằm trong nội dung, không nằm trong tiêu đề (tiêu đề hay bị ghi log, hiện ở thông báo điện thoại)
         mailService.send(email, "Mã xác nhận đăng ký BrainBlocks", html, text);
-    }
-
-    // băm kèm email để mã giống nhau ở 2 email khác nhau cho 2 giá trị khác nhau
-    private static String hash(String email, String code) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest((email + ":" + code).getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
     }
 }

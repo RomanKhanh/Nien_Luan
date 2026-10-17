@@ -12,6 +12,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
+    Optional<User> findByGoogleSubject(String googleSubject);
+
     // Khóa dòng users (SELECT ... FOR UPDATE) trước khi đổi mật khẩu: 2 request đổi mật khẩu / dùng cùng 1 link đặt
     // lại chạy song song thì request sau chờ request trước xong rồi mới đọc tokenVersion mới. SQL thuần để chỉ chạm
     // bảng users: JPQL trên User (kế thừa JOINED) kéo thêm outer join tới bảng con, Postgres không cho FOR UPDATE.

@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# biến môi trường của từng máy, chỉ commit .env.example
+.env
+.env.*
+!.env.example
