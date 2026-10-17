@@ -68,6 +68,10 @@ export function RecentlyViewed({ excludeId, limit = 4 }: { excludeId?: number; l
   if (ids.length === 0) return null
   // sản phẩm đã ngừng bán (404) thì bỏ qua
   const products = results.flatMap((r) => (r.data ? [toSummary(r.data)] : []))
+  console.log(
+  '[RecentlyViewed] products:',
+  products.map((p) => ({ id: p.id, name: p.name }))
+  )
   const loading = results.some((r) => r.isPending)
   if (!loading && products.length === 0) return null
 
