@@ -50,9 +50,29 @@ Các DTO bám theo `frontend/docs/chatbot-api.md`. Controller: `ChatController` 
 10. Worker gọi embedding theo lô 50 đoạn, ngoài transaction (lỗi 429/5xx được thử lại tối đa 4 lần), rồi thay chunk và bật INDEXED trong một transaction ngắn.
 11. Nếu đọc file hoặc AI lỗi, trạng thái trở về UPLOADED để admin thử reindex. Không thêm FAILED ngoài enum UML.
 12. Sau khi server khởi động lại, worker tiếp tục tài liệu PROCESSING còn dang dở.
-13. `retrieve()` tạo vector câu hỏi, duyệt theo trang các chunk INDEXED, bỏ đoạn có cosine dưới `app.knowledge.min-score`
-    (mặc định 0.6), giữ topK bằng priority queue. AI nhận nội dung đầy đủ; `snippet` lưu và hiển thị chỉ 300 ký tự.
-14. Vector dùng cố định `gemini-embedding-001`, 768 chiều. Đây là cosine tính bằng Java, chưa dùng pgvector/index vector.
+13. `retrieve()` tính topK ngay trong PostgreSQL bằng pgvector (`VectorSearchRepository.nearestChunks`, cài đặt ở
+    `PgVectorSearchRepository`): chỉ chunk của tài liệu INDEXED, xếp theo khoảng cách cosine `embedding <=> câu hỏi`,
+    bỏ đoạn có cosine dưới `app.knowledge.min-score` (mặc định 0.6, tức khoảng cách <= 0.4; quy đổi ở `VectorMath`).
+    AI nhận nội dung đầy đủ; `snippet` lưu và hiển thị chỉ 300 ký tự.
+14. Vector dùng cố định `gemini-embedding-001`, 768 chiều; cột `document_chunks.embedding` kiểu `vector(768)` có index
+    HNSW `vector_cosine_ops`. Câu SQL viết theo khuyến nghị của pgvector để dùng được index: CTE `AS MATERIALIZED` chỉ
+    `ORDER BY embedding <=> :q LIMIT :k`, ngưỡng lọc ở ngoài CTE; bật `hnsw.iterative_scan` để điều kiện lọc không làm
+    thiếu kết quả. Cài đặt và migration: xem `pgvector-setup.md`.
+
+## ProductEmbeddingService (tìm sản phẩm theo ngữ nghĩa)
+
+1. Mỗi sản phẩm có 1 dòng trong `product_embeddings` (vector 768 chiều, `content_hash`, `updated_at`; xóa sản phẩm thì
+   DB xóa theo). Văn bản embed (`ProductEmbeddingText`) gồm tên, danh mục, độ tuổi, mô tả (tối đa 2000 ký tự) và chỉ số
+   tác động từng kỹ năng diễn đạt thành câu ("Tư duy Logic: 8/10, tác động mạnh."). Embed bằng `RETRIEVAL_DOCUMENT`,
+   câu hỏi bằng `RETRIEVAL_QUERY`, giống tài liệu.
+2. `content_hash` = SHA-256 của văn bản (kèm model + số chiều): chỉ gọi Gemini khi hash đổi. Đổi tồn kho, giá, ảnh không
+   gọi lại; sản phẩm ngừng bán không embed.
+3. Admin tạo / sửa sản phẩm, đổi tên danh mục hoặc kỹ năng → service phát `ProductContentChangedEvent`; listener chạy
+   SAU commit trên `productEmbeddingExecutor` (1 luồng, chạy tuần tự). Lỗi Gemini hoặc hàng đợi đầy chỉ ghi log, việc lưu
+   sản phẩm không bị ảnh hưởng. Trước khi ghi, service kiểm tra lại hash để không ghi đè bằng vector của nội dung cũ.
+4. `ProductEmbeddingBackfillRunner`: lúc khởi động, chạy nền và embed các sản phẩm chưa có vector hoặc có vector cũ, theo lô
+   50 (1 request Gemini mỗi lô), log `Product embeddings: 50/312 checked, 12 refreshed`. Tắt bằng
+   `PRODUCT_EMBEDDING_BACKFILL=false`. Bị lỗi giữa chừng (hết quota) thì lần khởi động sau làm tiếp.
 
 ## ChatService
 
@@ -60,10 +80,16 @@ Các DTO bám theo `frontend/docs/chatbot-api.md`. Controller: `ChatController` 
 2. `getMySessions()` lấy thống kê tin nhắn theo lô; trang danh sách không cần tải toàn bộ lịch sử.
 3. `prepare()` lấy snapshot phiên, hồ sơ kỹ năng, đồ chơi đã có, ứng viên hợp tuổi/còn hàng và lịch sử gần đây.
 4. Khi chưa chọn bé, tuổi được nhận diện từ dạng câu hỏi `6 tuổi`; nếu chưa rõ, chatbot có thể hỏi thêm.
-5. Từ khóa câu hỏi (đã bỏ từ phổ biến) tìm sản phẩm liên quan, món khớp nhiều từ khóa xếp trước, sau đó tới gợi ý
-   `recommendNext`. Ngữ cảnh gửi AI có mô tả, danh mục, chỉ số kỹ năng của ứng viên và của đồ chơi bé đã có.
-6. `sendMessage()` giới hạn 10 câu hỏi/phút mỗi khách (`ChatRateLimiter`, trả 429), lấy topK tri thức (lỗi embedding thì
-   bỏ qua phần tri thức) rồi gọi Gemini theo cấu hình active, không giữ transaction trong lúc chờ mạng.
+5. Ứng viên sản phẩm (tối đa 20, loại trùng, theo thứ tự ưu tiên): tối đa 10 món khớp từ khóa câu hỏi (đã bỏ từ phổ
+   biến, món khớp nhiều từ khóa xếp trước) → tối đa `app.chat.semantic-products.limit` (8) món gần nghĩa câu hỏi nhất
+   (`nearestProducts`: MỘT câu SQL vừa lọc đang bán, còn hàng, hợp tuổi bé, chưa có, vừa xếp theo `<=>`; cosine >=
+   `app.chat.semantic-products.min-score`, mặc định 0.65) → gợi ý `recommendNext` → các món khớp từ khóa còn lại.
+   Nhờ bước ngữ nghĩa, câu "đồ chơi giúp bé kiên nhẫn" ra xếp hình / lắp ráp dù tên sản phẩm không có chữ "kiên nhẫn".
+   Không có vector (sản phẩm chưa embed, embedding lỗi, lỗi truy vấn) thì bỏ bước này, giữ nguyên cách lấy cũ.
+   Ngữ cảnh gửi AI có mô tả, danh mục, chỉ số kỹ năng của ứng viên và của đồ chơi bé đã có.
+6. `sendMessage()` giới hạn 10 câu hỏi/phút mỗi khách (`ChatRateLimiter`, trả 429), kiểm tra quyền với phiên, embed câu hỏi
+   MỘT lần (chỉ khi có đoạn tri thức hoặc vector sản phẩm; lỗi thì bỏ qua cả phần ngữ nghĩa lẫn tri thức) dùng cho cả tìm
+   sản phẩm và topK tri thức, rồi gọi Gemini theo cấu hình active, không giữ transaction trong lúc chờ mạng.
 7. Gemini trả JSON có content/topic/products. `topic` là enum cố định `GeminiService.TOPICS` (giá trị lạ quy về "Khác"),
    tối đa 5 sản phẩm. Service chỉ nhận ID trong tập ứng viên và kiểm tra lại active/tồn kho khi lưu.
 8. `saveReply()` khóa phiên, kiểm tra version và tin nhắn cuối. Nếu ngữ cảnh đã đổi, trả 409 để khách thử lại.
@@ -85,3 +111,6 @@ Các DTO bám theo `frontend/docs/chatbot-api.md`. Controller: `ChatController` 
 - Google Java SDK: https://github.com/googleapis/java-genai
 
 Các test dùng H2 và Gemini mock; không dùng API key thật, không kiểm tra kết nối đến tài khoản Google.
+H2 không có kiểu `vector`: test dùng `support/H2VectorTypeContributor` (lưu vector thành mảng REAL) và
+`support/InMemoryVectorSearchRepository` (tính cosine bằng Java, cùng điều kiện lọc và thứ tự như SQL thật). Câu SQL
+pgvector thật được kiểm tra ở `PgVectorSearchIntegrationTest`, chỉ chạy khi bật profile, xem `pgvector-setup.md`.

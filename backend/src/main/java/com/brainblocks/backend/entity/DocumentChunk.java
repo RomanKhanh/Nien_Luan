@@ -1,6 +1,9 @@
 package com.brainblocks.backend.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Array;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,7 +35,10 @@ public class DocumentChunk {
     @Column(name = "chunk_index", nullable = false, updatable = false)
     private int chunkIndex;
 
-    // null cho tới khi tài liệu được index xong; sẽ đổi sang kiểu vector khi dùng pgvector
+    // vector(768) của pgvector, null cho tới khi tài liệu được index xong. Cột cũ kiểu real[] đổi bằng
+    // docs/sql/pgvector-migration.sql; PgVectorSchemaCheck dừng app nếu cột chưa đúng kiểu
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Array(length = 768)
     private float[] embedding;
 
     @ManyToOne(fetch = FetchType.LAZY)

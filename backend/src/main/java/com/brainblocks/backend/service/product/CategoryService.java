@@ -6,7 +6,9 @@ import com.brainblocks.backend.entity.Category;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CategoryRepository;
 import com.brainblocks.backend.repository.CategoryRepository.CategoryProductCount;
+import com.brainblocks.backend.service.ai.ProductEmbeddingService.ProductContentChangedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CategoryService {
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> getCategories() {
@@ -52,6 +55,8 @@ public class CategoryService {
         }
         category.setName(name);
         category.setDescription(blankToNull(request.description()));
+        // tên danh mục nằm trong văn bản embed của sản phẩm: kiểm tra lại vector (chỉ món có văn bản đổi mới gọi AI)
+        events.publishEvent(ProductContentChangedEvent.all());
         long count = categoryRepository.countActiveProducts().stream()
                 .filter(row -> row.getCategoryId().equals(id))
                 .mapToLong(CategoryProductCount::getTotal)

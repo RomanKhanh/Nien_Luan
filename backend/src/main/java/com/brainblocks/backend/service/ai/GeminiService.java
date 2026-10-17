@@ -18,6 +18,8 @@ public class GeminiService {
     private static final String EMBEDDING_MODEL = "gemini-embedding-001";
     private static final int EMBEDDING_DIMENSIONS = 768;
     private static final int EMBEDDING_BATCH = 50;
+    // định danh không gian vector (model + số chiều), đưa vào content_hash của ProductEmbedding
+    public static final String EMBEDDING_SPACE = EMBEDDING_MODEL + "/" + EMBEDDING_DIMENSIONS;
     private static final int MAX_SUGGESTIONS = 5;
     // Chủ đề cố định để thống kê "chủ đề tư vấn phổ biến" (đề 2.14) gom nhóm được; câu trả lời lạc đề quy về "Khác".
     public static final String OTHER_TOPIC = "Khác";

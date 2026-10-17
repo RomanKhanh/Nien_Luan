@@ -14,8 +14,10 @@ import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CategoryRepository;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.repository.SkillRepository;
+import com.brainblocks.backend.service.ai.ProductEmbeddingService.ProductContentChangedEvent;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class AdminProductService {
     private final SkillRepository skillRepository;
     private final ProductService productService;
     private final SkillProfileService skillProfileService;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> search(ProductSearchCriteria criteria, ProductSort sort,
@@ -54,7 +57,10 @@ public class AdminProductService {
                 .active(request.active() == null || request.active())
                 .build();
         applyRequest(product, request);
-        return productService.toDetailResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        // vector ngữ nghĩa cho chatbot cập nhật nền sau commit (ProductEmbeddingService), lỗi không ảnh hưởng việc lưu
+        events.publishEvent(ProductContentChangedEvent.of(saved.getId()));
+        return productService.toDetailResponse(saved);
     }
 
     @Transactional
@@ -68,6 +74,8 @@ public class AdminProductService {
             // hồ sơ kỹ năng của các bé đang có sản phẩm này phải phản ánh chỉ số mới (đề 2.9)
             skillProfileService.recalculateForProduct(product.getId());
         }
+        // tên, mô tả, độ tuổi, danh mục hoặc chỉ số đổi: embed lại nếu văn bản embed khác (so content_hash)
+        events.publishEvent(ProductContentChangedEvent.of(product.getId()));
         // flush để chỉ số vừa thêm có id trước khi dựng response
         productRepository.flush();
         return productService.toDetailResponse(product);

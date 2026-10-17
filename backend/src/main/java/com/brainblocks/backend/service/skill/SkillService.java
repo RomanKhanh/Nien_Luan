@@ -5,7 +5,9 @@ import com.brainblocks.backend.dto.response.SkillDetailResponse;
 import com.brainblocks.backend.entity.Skill;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.SkillRepository;
+import com.brainblocks.backend.service.ai.ProductEmbeddingService.ProductContentChangedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SkillService {
     private final SkillRepository skillRepository;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<SkillDetailResponse> getSkills() {
@@ -47,6 +50,8 @@ public class SkillService {
         }
         skill.setName(request.name().trim());
         skill.setDescription(blankToNull(request.description()));
+        // tên kỹ năng nằm trong văn bản embed của sản phẩm: kiểm tra lại vector (chỉ món có văn bản đổi mới gọi AI)
+        events.publishEvent(ProductContentChangedEvent.all());
         return toResponse(skill);
     }
 

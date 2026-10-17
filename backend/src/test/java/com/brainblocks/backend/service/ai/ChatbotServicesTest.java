@@ -10,6 +10,8 @@ import com.brainblocks.backend.security.CurrentUserProvider;
 import com.brainblocks.backend.security.CustomUserDetails;
 import com.brainblocks.backend.service.child.ChildProfileAccessGuard;
 import com.brainblocks.backend.service.skill.*;
+import com.brainblocks.backend.support.InMemoryVectorSearchRepository;
+import com.brainblocks.backend.util.VectorMath;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.AfterEach;
@@ -48,7 +50,7 @@ import static org.mockito.Mockito.*;
 @Import({ChatbotConfigService.class, KnowledgeBaseService.class, KnowledgeDocumentStorage.class,
         ChatService.class, ChatRateLimiter.class, CurrentUserProvider.class, ChildProfileAccessGuard.class,
         SkillProfileService.class, SkillRecommendationService.class, SkillScoreCalculator.class,
-        ChatbotServicesTest.SecurityAndValidation.class})
+        InMemoryVectorSearchRepository.class, ChatbotServicesTest.SecurityAndValidation.class})
 class ChatbotServicesTest {
     @TestConfiguration(proxyBeanMethods = false)
     @EnableMethodSecurity
@@ -80,6 +82,7 @@ class ChatbotServicesTest {
         tx.executeWithoutResult(status -> {
             sessions.deleteAll();
             documents.deleteAll();
+            em.createQuery("delete from ProductEmbedding").executeUpdate();
             configs.deleteAll();
             em.flush();
             String suffix = java.util.UUID.randomUUID().toString();
@@ -332,15 +335,112 @@ class ChatbotServicesTest {
     }
 
     @Test
-    void chunkingAndCosineHandleBoundariesAndInvalidVectors() {
+    void chunkingAndCosineDistanceHandleBoundariesAndInvalidVectors() {
         String text = "Logic và sáng tạo. ".repeat(200);
         var split = storage.splitText(text);
         assertThat(split.size()).isGreaterThan(1);
         assertThat(split).allSatisfy(part -> assertThat(part.length()).isBetween(1, 1200));
-        assertThat(KnowledgeBaseService.cosine(new float[]{1, 0}, new float[]{1, 0})).isEqualTo(1);
-        assertThat(KnowledgeBaseService.cosine(new float[]{1, 0}, new float[]{0, 1})).isZero();
-        assertThat(KnowledgeBaseService.cosine(new float[]{1}, new float[]{1, 0})).isNaN();
-        assertThat(KnowledgeBaseService.cosine(new float[]{1}, new float[]{Float.NaN})).isNaN();
+        assertThat(InMemoryVectorSearchRepository.distance(new float[]{1, 0}, new float[]{1, 0})).isZero();
+        assertThat(InMemoryVectorSearchRepository.distance(new float[]{1, 0}, new float[]{0, 1})).isEqualTo(1);
+        assertThat(InMemoryVectorSearchRepository.distance(new float[]{1}, new float[]{1, 0})).isNaN();
+        assertThat(InMemoryVectorSearchRepository.distance(new float[]{1}, new float[]{Float.NaN})).isNaN();
+    }
+
+    @Test
+    void similarityThresholdConvertsToPgvectorCosineDistance() {
+        // min-score 0.6 của cấu hình tương ứng điều kiện "embedding <=> q <= 0.4" trong SQL
+        assertThat(VectorMath.toDistance(0.6)).isCloseTo(0.4, within(1e-12));
+        assertThat(VectorMath.toSimilarity(0.4)).isCloseTo(0.6, within(1e-12));
+        assertThat(VectorMath.toSimilarity(VectorMath.toDistance(0.83))).isCloseTo(0.83, within(1e-12));
+        assertThat(VectorMath.toDistance(1)).isZero();
+        assertThat(VectorMath.toLiteral(new float[]{1, -0.5f, 0.25f})).isEqualTo("[1.0,-0.5,0.25]");
+        assertThatThrownBy(() -> VectorMath.toLiteral(new float[]{Float.NaN})).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> VectorMath.toLiteral(new float[0])).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void retrievalKeepsTopKAboveThresholdOrderedBySimilarity() {
+        login(admin);
+        var uploaded = knowledge.uploadDocument(new KnowledgeDocumentRequest("Nhiều đoạn"), textFile());
+        // 4 đoạn: giống hệt câu hỏi, cosine 0.8, cosine 0.6 (đúng ngưỡng), vuông góc (bị loại)
+        List<float[]> vectors = List.of(new float[]{1, 0}, new float[]{0.8f, 0.6f}, new float[]{0.6f, 0.8f}, new float[]{0, 1});
+        when(gemini.embedDocuments(anyList())).thenReturn(vectors);
+        KnowledgeDocumentStorage splitter = spy(storage);
+        doReturn(List.of("a", "b", "c", "d")).when(splitter).splitText(anyString());
+        new KnowledgeIndexingWorker(documents, splitter, gemini, manager).process(uploaded.id());
+        var top = knowledge.retrieve(new float[]{1, 0}, 2);
+        assertThat(top).extracting(KnowledgeBaseService.RetrievedChunk::content).containsExactly("a", "b");
+        assertThat(top.getFirst().score()).isCloseTo(1, within(1e-6));
+        assertThat(knowledge.retrieve(new float[]{1, 0}, 10)).extracting(KnowledgeBaseService.RetrievedChunk::content)
+                .containsExactly("a", "b", "c");
+        assertThat(knowledge.retrieve((float[]) null, 10)).isEmpty();
+    }
+
+    @Test
+    void semanticSearchFindsProductsWhoseTextDoesNotContainTheQuestionWords() {
+        activateConfig();
+        Long patience = product("Tháp gỗ cân bằng", "Xếp từng khối thật chậm", true);
+        Long unrelated = product("Bộ nam châm khám phá", "Thí nghiệm từ trường", true);
+        Long hidden = product("Tháp ngừng bán", "Xếp chậm", false);
+        embed(patience, 1, 0);
+        embed(unrelated, 0, 1); // vuông góc với câu hỏi: dưới ngưỡng, không được thêm
+        embed(hidden, 1, 0);    // gần nghĩa nhưng ngừng bán: bị lọc
+        login(customer);
+        var session = chat.createSession(new ChatSessionRequest(null));
+        when(gemini.embedQuery(anyString())).thenReturn(new float[]{1, 0});
+        var context = org.mockito.ArgumentCaptor.forClass(String.class);
+        when(gemini.generateAnswer(any(), context.capture())).thenReturn(new GeminiService.Answer("Gợi ý tháp gỗ.",
+                "Gợi ý theo kỹ năng", List.of(new GeminiService.Suggestion(patience, "Rèn kiên nhẫn"),
+                        new GeminiService.Suggestion(hidden, "Không được phép"))));
+
+        // "kien", "nhan" không có trong tên / mô tả sản phẩm nào: tìm theo từ khóa không ra
+        var reply = chat.sendMessage(session.id(), new SendChatMessageRequest("Đồ chơi giúp bé kiên nhẫn"));
+
+        // embed câu hỏi đúng 1 lần dù dùng cho cả sản phẩm và kho tri thức
+        verify(gemini, times(1)).embedQuery(anyString());
+        assertThat(context.getValue()).contains("Tháp gỗ cân bằng")
+                .doesNotContain("Bộ nam châm khám phá").doesNotContain("Tháp ngừng bán");
+        assertThat(reply.botMessage().suggestedProducts()).extracting(p -> p.productId()).containsExactly(patience);
+    }
+
+    @Test
+    void productSearchFallsBackToKeywordsWhenEmbeddingIsMissingOrFails() {
+        activateConfig();
+        Long withoutVector = product("Tháp gỗ không vector", "Xếp khối", true);
+        Long withVector = product("Bộ nam châm có vector", "Thí nghiệm", true);
+        embed(withVector, 1, 0);
+        login(customer);
+        var session = chat.createSession(new ChatSessionRequest(null));
+        var context = org.mockito.ArgumentCaptor.forClass(String.class);
+        when(gemini.generateAnswer(any(), context.capture())).thenReturn(new GeminiService.Answer("Ok", "Khác", List.of()));
+        when(gemini.embedQuery(anyString())).thenThrow(new AiServiceException("quota"));
+
+        // embedding lỗi: không có ứng viên ngữ nghĩa, vẫn trả lời và vẫn tìm theo từ khóa như cũ
+        chat.sendMessage(session.id(), new SendChatMessageRequest("Tháp gỗ cho bé kiên nhẫn"));
+        assertThat(context.getValue()).contains("Tháp gỗ không vector");
+
+        // sản phẩm chưa có vector vẫn được tìm theo từ khóa khi những món khác đã có vector
+        reset(gemini);
+        when(gemini.embedQuery(anyString())).thenReturn(new float[]{0, 1});
+        when(gemini.generateAnswer(any(), context.capture())).thenReturn(new GeminiService.Answer("Ok", "Khác", List.of()));
+        chat.sendMessage(session.id(), new SendChatMessageRequest("Tháp gỗ cho bé kiên nhẫn"));
+        assertThat(context.getValue()).contains("Tháp gỗ không vector").doesNotContain("Bộ nam châm có vector");
+    }
+
+    private Long product(String name, String description, boolean active) {
+        return tx.execute(status -> {
+            Category category = Category.builder().name(java.util.UUID.randomUUID().toString()).build();
+            em.persist(category);
+            Product product = Product.builder().name(name).description(description).price(BigDecimal.TEN)
+                    .stockQuantity(10).minAge(4).maxAge(12).category(category).active(active)
+                    .weightGrams(500).lengthCm(20).widthCm(15).heightCm(10).build();
+            em.persist(product); return product.getId();
+        });
+    }
+
+    private void embed(Long productId, float x, float y) {
+        tx.executeWithoutResult(status -> em.persist(ProductEmbedding.builder().product(em.getReference(Product.class, productId))
+                .embedding(new float[]{x, y}).contentHash("test").build()));
     }
 
     private void activateConfig() {

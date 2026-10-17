@@ -34,6 +34,17 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     long countByActiveTrue();
     long countByActiveTrueAndStockQuantityLessThanEqual(int threshold);
 
+    // dựng văn bản embed (ProductEmbeddingService): kèm danh mục, chỉ số và tên kỹ năng trong 1 câu
+    @Query("""
+            select distinct p from Product p join fetch p.category
+            left join fetch p.productSkillImpacts i left join fetch i.skill
+            where p.id in :ids""")
+    List<Product> findForEmbedding(@Param("ids") java.util.Collection<Long> ids);
+
+    // duyệt sản phẩm đang bán theo lô, id tăng dần (backfill embedding)
+    @Query("select p.id from Product p where p.active = true and p.id > :afterId order by p.id")
+    List<Long> findActiveIdsAfter(@Param("afterId") long afterId, Pageable pageable);
+
 
     // Ứng viên gợi ý cho một bé: đang bán, còn hàng, hợp tuổi, bé chưa có.
     // Lấy kèm chỉ số tác động kỹ năng trong 1 câu để chấm điểm không phát sinh N+1.

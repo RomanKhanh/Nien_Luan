@@ -109,8 +109,11 @@ class ChatbotRepositoriesTest {
 
         assertThat(chunks.findAllByKnowledgeDocumentIdOrderByChunkIndexAsc(indexed.getId()))
                 .extracting(DocumentChunk::getChunkIndex).containsExactly(0, 1);
-        assertThat(chunks.findByKnowledgeDocumentStatusOrderByIdAsc(DocumentStatus.INDEXED,
-                PageRequest.of(0, 1)).getTotalElements()).isEqualTo(2);
+        assertThat(chunks.existsByKnowledgeDocumentStatusAndEmbeddingIsNotNull(DocumentStatus.INDEXED)).isTrue();
+        assertThat(chunks.existsByKnowledgeDocumentStatusAndEmbeddingIsNotNull(DocumentStatus.UPLOADED)).isFalse();
+        // vector lưu được và đọc lại đúng (H2 lưu dạng mảng REAL thay cho vector(768))
+        assertThat(chunks.findAllByKnowledgeDocumentIdOrderByChunkIndexAsc(indexed.getId()).getFirst().getEmbedding())
+                .containsExactly(0.1f, 0.2f);
         assertThat(documents.findByStatusOrderByUploadedAtDescIdDesc(DocumentStatus.DISABLED,
                 PageRequest.of(0, 10)).getContent()).extracting(KnowledgeDocument::getId)
                 .containsExactly(disabled.getId());

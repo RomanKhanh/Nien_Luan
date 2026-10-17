@@ -11,6 +11,7 @@ import com.brainblocks.backend.exception.ChatbotConflictException;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.*;
 import com.brainblocks.backend.security.CurrentUserProvider;
+import com.brainblocks.backend.util.VectorMath;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class KnowledgeBaseService {
     private final KnowledgeDocumentStorage storage;
     private final KnowledgeIndexingWorker worker;
     private final GeminiService gemini;
+    private final VectorSearchRepository vectorSearch;
 
     static final int SNIPPET_LENGTH = 300;
     // Cosine tối thiểu để một đoạn được coi là liên quan; embedding Gemini cho văn bản lạc đề vẫn thường > 0.
@@ -163,25 +165,22 @@ public class KnowledgeBaseService {
     // Truy xuất nội bộ cho ChatService; chỉ xét tài liệu INDEXED, không cần quyền admin.
     // Đoạn dưới ngưỡng tương đồng bị bỏ, nên câu chào hỏi không kéo theo "nguồn" không liên quan.
     public List<RetrievedChunk> retrieve(String question, int topK) {
-        if (!chunks.existsByKnowledgeDocumentStatusAndEmbeddingIsNotNull(DocumentStatus.INDEXED)) return List.of();
-        float[] queryVector = gemini.embedQuery(question);
-        int limit = Math.clamp(topK, 1, 20);
-        PriorityQueue<RetrievedChunk> best = new PriorityQueue<>(Comparator.comparingDouble(RetrievedChunk::score)
-                .thenComparing(RetrievedChunk::chunkId, Comparator.reverseOrder()));
-        int page = 0;
-        Page<DocumentChunk> batch;
-        do {
-            batch = chunks.findByKnowledgeDocumentStatusOrderByIdAsc(DocumentStatus.INDEXED, PageRequest.of(page++, 100));
-            for (var chunk : batch) {
-                double score = cosine(queryVector, chunk.getEmbedding());
-                if (!Double.isFinite(score) || score < minScore) continue;
-                best.add(new RetrievedChunk(chunk.getId(), chunk.getKnowledgeDocument().getId(),
-                        chunk.getKnowledgeDocument().getTitle(), chunk.getContent(), score));
-                if (best.size() > limit) best.poll();
-            }
-        } while (batch.hasNext());
-        return best.stream().sorted(Comparator.comparingDouble(RetrievedChunk::score).reversed()
-                .thenComparing(RetrievedChunk::chunkId)).toList();
+        if (!hasIndexedChunks()) return List.of();
+        return retrieve(gemini.embedQuery(question), topK);
+    }
+
+    // Kho tri thức có đoạn dùng được chưa; chưa có thì không cần tốn một lần embed câu hỏi.
+    public boolean hasIndexedChunks() {
+        return chunks.existsByKnowledgeDocumentStatusAndEmbeddingIsNotNull(DocumentStatus.INDEXED);
+    }
+
+    // Top-K tính ngay trong PostgreSQL bằng pgvector; ngưỡng cosine min-score đổi thành khoảng cách 1 - min-score.
+    public List<RetrievedChunk> retrieve(float[] queryVector, int topK) {
+        if (queryVector == null) return List.of();
+        return vectorSearch.nearestChunks(queryVector, Math.clamp(topK, 1, 20), VectorMath.toDistance(minScore)).stream()
+                .map(m -> new RetrievedChunk(m.chunkId(), m.documentId(), m.documentTitle(), m.content(),
+                        VectorMath.toSimilarity(m.distance())))
+                .toList();
     }
 
     // content đầy đủ để đưa vào ngữ cảnh AI; toSource() chỉ giữ đoạn trích ngắn để hiển thị và lưu lịch sử.
@@ -190,16 +189,6 @@ public class KnowledgeBaseService {
             String snippet = content.length() <= SNIPPET_LENGTH ? content : content.substring(0, SNIPPET_LENGTH).strip() + "…";
             return new ChatSourceResponse(documentId, documentTitle, snippet);
         }
-    }
-
-    static double cosine(float[] a, float[] b) {
-        if (a == null || b == null || a.length == 0 || a.length != b.length) return Double.NaN;
-        double dot = 0, aa = 0, bb = 0;
-        for (int i = 0; i < a.length; i++) {
-            if (!Float.isFinite(a[i]) || !Float.isFinite(b[i])) return Double.NaN;
-            dot += a[i] * (double) b[i]; aa += a[i] * (double) a[i]; bb += b[i] * (double) b[i];
-        }
-        return aa == 0 || bb == 0 ? Double.NaN : dot / Math.sqrt(aa * bb);
     }
 
     private KnowledgeDocument locked(Long id) {

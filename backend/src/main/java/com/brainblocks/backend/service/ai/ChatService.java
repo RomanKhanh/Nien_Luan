@@ -15,12 +15,15 @@ import com.brainblocks.backend.service.child.ChildProfileAccessGuard;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import com.brainblocks.backend.service.skill.SkillRecommendationService;
 import com.brainblocks.backend.util.SearchTextUtils;
+import com.brainblocks.backend.util.VectorMath;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -67,6 +70,10 @@ public class ChatService {
     private final KnowledgeBaseService knowledge;
     private final GeminiService gemini;
     private final ChatRateLimiter rateLimiter;
+    private final VectorSearchRepository vectorSearch;
+    private final ProductEmbeddingRepository productEmbeddings;
+    private final int semanticLimit;
+    private final double semanticMinScore;
     private final TransactionTemplate tx;
 
     // Constructor injection: Spring cung cấp repository/service; không tự tạo bằng new.
@@ -74,12 +81,17 @@ public class ChatService {
             ProductRepository products, ProductSkillImpactRepository impacts, ChildProductRepository childProducts,
             CurrentUserProvider currentUser, ChildProfileAccessGuard childGuard, SkillProfileService skills,
             SkillRecommendationService recommendations, ChatbotConfigService configs, KnowledgeBaseService knowledge,
-            GeminiService gemini, ChatRateLimiter rateLimiter, PlatformTransactionManager manager) {
+            GeminiService gemini, ChatRateLimiter rateLimiter, VectorSearchRepository vectorSearch,
+            ProductEmbeddingRepository productEmbeddings,
+            @Value("${app.chat.semantic-products.limit:8}") int semanticLimit,
+            @Value("${app.chat.semantic-products.min-score:0.65}") double semanticMinScore,
+            PlatformTransactionManager manager) {
         this.sessions = sessions; this.messages = messages; this.customers = customers;
         this.products = products; this.impacts = impacts; this.childProducts = childProducts;
         this.currentUser = currentUser; this.childGuard = childGuard; this.skills = skills;
         this.recommendations = recommendations; this.configs = configs; this.knowledge = knowledge; this.gemini = gemini;
-        this.rateLimiter = rateLimiter;
+        this.rateLimiter = rateLimiter; this.vectorSearch = vectorSearch; this.productEmbeddings = productEmbeddings;
+        this.semanticLimit = Math.clamp(semanticLimit, 1, MAX_CANDIDATES); this.semanticMinScore = semanticMinScore;
         this.tx = new TransactionTemplate(manager);
         this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -137,8 +149,12 @@ public class ChatService {
         Long customerId = currentUser.getCurrentUserId();
         rateLimiter.acquire(customerId);
         String question = request.content().trim();
-        Snapshot snapshot = tx.execute(status -> prepare(id, question));
-        List<KnowledgeBaseService.RetrievedChunk> retrieved = retrieve(question, snapshot.settings().topK());
+        // kiểm tra quyền trước khi tốn lượt gọi AI để embed câu hỏi
+        if (sessions.findByIdAndCustomerId(id, customerId).isEmpty()) throw new ResourceNotFoundException("Chat session not found");
+        // Embed câu hỏi 1 lần, ngoài transaction; dùng cho cả tìm sản phẩm theo ngữ nghĩa và kho tri thức (RAG).
+        float[] queryVector = embedQuestion(question);
+        Snapshot snapshot = tx.execute(status -> prepare(id, question, queryVector));
+        List<KnowledgeBaseService.RetrievedChunk> retrieved = retrieve(queryVector, snapshot.settings().topK());
         String context = snapshot.context() + "\nNguồn tri thức (JSON):\n"
                 + JSON.writeValueAsString(retrieved.stream().map(r -> new KnowledgeContext(r.documentTitle(), r.content())).toList())
                 + "\nCâu hỏi hiện tại:\n" + question;
@@ -150,17 +166,41 @@ public class ChatService {
         return tx.execute(status -> saveReply(id, customerId, question, answer, sources, snapshot, elapsed));
     }
 
-    // Không truy xuất được kho tri thức (ví dụ hết quota embedding) thì vẫn trả lời bằng dữ liệu sản phẩm.
-    private List<KnowledgeBaseService.RetrievedChunk> retrieve(String question, int topK) {
+    // null khi không có gì để so (chưa có đoạn tri thức lẫn vector sản phẩm) hoặc embedding lỗi (ví dụ hết quota):
+    // khi đó vẫn trả lời bằng dữ liệu sản phẩm theo cách lấy cũ (từ khóa + gợi ý theo hồ sơ kỹ năng).
+    private float[] embedQuestion(String question) {
+        if (!knowledge.hasIndexedChunks() && !productEmbeddings.existsForActiveProducts()) return null;
         try {
-            return knowledge.retrieve(question, topK);
+            return gemini.embedQuery(question);
         } catch (AiServiceException ex) {
+            log.warn("Question embedding skipped: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private List<KnowledgeBaseService.RetrievedChunk> retrieve(float[] queryVector, int topK) {
+        try {
+            return knowledge.retrieve(queryVector, topK);
+        } catch (DataAccessException ex) {
             log.warn("Knowledge retrieval skipped: {}", ex.getMessage());
             return List.of();
         }
     }
 
-    private Snapshot prepare(Long id, String question) {
+    // Sản phẩm gần nghĩa câu hỏi nhất (pgvector), cùng điều kiện cứng như available() và loại món bé đã có.
+    // Không có vector câu hỏi / sản phẩm chưa có vector / lỗi truy vấn thì rỗng: ứng viên lấy theo cách cũ.
+    private List<Long> semanticProducts(float[] queryVector, Integer age, Set<Long> owned) {
+        if (queryVector == null) return List.of();
+        try {
+            return vectorSearch.nearestProducts(queryVector, age, owned, semanticLimit, VectorMath.toDistance(semanticMinScore))
+                    .stream().map(VectorSearchRepository.ProductMatch::productId).toList();
+        } catch (DataAccessException ex) {
+            log.warn("Semantic product search skipped: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private Snapshot prepare(Long id, String question, float[] queryVector) {
         ChatSession session = owned(id);
         ChildProfile child = session.getChildProfile();
         String normalized = SearchTextUtils.normalize(question);
@@ -187,8 +227,11 @@ public class ChatService {
         }
         Set<Long> alreadyOwned = ownedProducts;
         List<Long> matched = matchProducts(normalized, age).stream().filter(p -> !alreadyOwned.contains(p)).toList();
-        // Sản phẩm khớp câu hỏi đứng trước (phụ huynh hỏi đúng món đó), rồi tới gợi ý theo hồ sơ kỹ năng.
+        List<Long> semantic = semanticProducts(queryVector, age, alreadyOwned);
+        // Sản phẩm khớp từ khóa đứng trước (phụ huynh hỏi đúng món đó), rồi tới món gần nghĩa câu hỏi,
+        // rồi tới gợi ý theo hồ sơ kỹ năng; LinkedHashSet loại trùng và giữ thứ tự ưu tiên.
         LinkedHashSet<Long> candidateIds = new LinkedHashSet<>(matched.subList(0, Math.min(10, matched.size())));
+        candidateIds.addAll(semantic);
         candidateIds.addAll(recommended);
         candidateIds.addAll(matched);
         if (candidateIds.isEmpty()) {

@@ -2,9 +2,6 @@ package com.brainblocks.backend.repository;
 
 import com.brainblocks.backend.entity.DocumentChunk;
 import com.brainblocks.backend.enums.DocumentStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,8 +26,5 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
     // Các đoạn của một tài liệu theo đúng thứ tự tách trong tài liệu gốc.
     List<DocumentChunk> findAllByKnowledgeDocumentIdOrderByChunkIndexAsc(Long knowledgeDocumentId);
 
-    // Lấy theo trạng thái tài liệu, thường truyền INDEXED cho RAG; đây chưa phải tìm kiếm vector.
-    // Phân trang để không tải toàn bộ kho tri thức vào bộ nhớ một lần.
-    @EntityGraph(attributePaths = "knowledgeDocument")
-    Page<DocumentChunk> findByKnowledgeDocumentStatusOrderByIdAsc(DocumentStatus status, Pageable pageable);
+    // Tìm đoạn gần câu hỏi nhất (RAG) dùng pgvector, xem VectorSearchRepository.
 }
