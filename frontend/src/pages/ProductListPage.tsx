@@ -8,7 +8,7 @@ import { SkillIcon } from '@/components/decor/Decor'
 import { PageHero } from '@/components/layout/PageHero'
 import { ProductCard, ProductCardSkeleton } from '@/components/product/ProductCard'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
 import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState } from '@/components/ui/States'
@@ -158,20 +158,20 @@ export default function ProductListPage() {
                 <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => setFilterOpen(true)}>
                   Bộ lọc{activeCount > 0 && ` · ${activeCount}`}
                 </Button>
-                <label className="flex items-center gap-2 text-[13px] text-ink-muted">
-                  <span className="hidden sm:inline">Sắp xếp</span>
-                  <Select
-                    value={query.sort}
-                    onChange={(e) => update({ sort: e.target.value === defaultSort ? undefined : e.target.value })}
-                    className="!w-auto !py-2 text-[13px]"
-                  >
-                    {(child ? [FIT_SORT, ...SORTS] : SORTS).map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
+                <div className="flex items-center gap-2 text-[13px] text-ink-muted">
+                  <span className="hidden sm:inline" aria-hidden>
+                    Sắp xếp
+                  </span>
+                  <DropdownSelect
+                    label="Sắp xếp"
+                    value={query.sort ?? defaultSort}
+                    options={child ? [FIT_SORT, ...SORTS] : SORTS}
+                    onChange={(sort) => update({ sort: sort === defaultSort ? undefined : sort })}
+                    size="sm"
+                    align="right"
+                    className="text-ink"
+                  />
+                </div>
               </div>
             </div>
 

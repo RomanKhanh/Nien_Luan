@@ -3,7 +3,6 @@ import {
   useState,
   type InputHTMLAttributes,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
 import { EyeIcon, EyeOffIcon } from './FormIcons'
@@ -85,27 +84,6 @@ export const PasswordInput = forwardRef<HTMLInputElement, Omit<InputProps, 'type
         {visible ? <EyeOffIcon /> : <EyeIcon />}
       </button>
     </div>
-  )
-})
-
-type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }
-
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { invalid, className = '', children, ...rest },
-  ref,
-) {
-  return (
-    <select
-      ref={ref}
-      className={`input appearance-none bg-[length:10px] bg-[right_14px_center] bg-no-repeat pr-9 ${invalid ? 'input-error' : ''} ${className}`}
-      style={{
-        backgroundImage:
-          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B6862' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\")",
-      }}
-      {...rest}
-    >
-      {children}
-    </select>
   )
 })
 

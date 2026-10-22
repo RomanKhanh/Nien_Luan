@@ -2,7 +2,9 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { locationApi } from '@/api/endpoints'
 import type { ProvinceOption } from '@/api/types'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
+import { Field, Input } from '@/components/ui/Field'
+import { MENU_ITEM, MENU_PANEL } from '@/components/ui/menuStyles'
 import { normalizeSearch } from '@/lib/search'
 import type { AddressValue } from './address'
 
@@ -58,40 +60,30 @@ export function AddressFields({
         />
       </Field>
       <Field label="Quận / huyện" htmlFor={`${idPrefix}-district`} required error={errors.districtCode}>
-        <Select
+        <DropdownSelect
           id={`${idPrefix}-district`}
           value={value.districtCode}
+          placeholder="Chọn quận/huyện"
           disabled={!provinceCode || districts.isPending}
           invalid={Boolean(errors.districtCode)}
-          onChange={(e) => {
-            const district = districts.data?.find((d) => d.code === Number(e.target.value))
-            onChange({ districtCode: e.target.value, wardCode: '', wardRequired: district?.hasWards ?? true })
+          options={(districts.data ?? []).map((d) => ({ value: String(d.code), label: d.name }))}
+          onChange={(code) => {
+            const district = districts.data?.find((d) => d.code === Number(code))
+            onChange({ districtCode: code, wardCode: '', wardRequired: district?.hasWards ?? true })
           }}
-        >
-          <option value="">Chọn quận/huyện</option>
-          {districts.data?.map((d) => (
-            <option key={d.code} value={d.code}>
-              {d.name}
-            </option>
-          ))}
-        </Select>
+        />
       </Field>
       <Field label="Phường / xã" htmlFor={`${idPrefix}-ward`} required={value.wardRequired} error={errors.wardCode}>
-        <Select
+        <DropdownSelect
           id={`${idPrefix}-ward`}
           value={value.wardCode}
+          // huyện đảo (Côn Đảo, Lý Sơn...) không có cấp xã nên không cần chọn
+          placeholder={districtCode && !value.wardRequired ? 'Không có phường/xã' : 'Chọn phường/xã'}
           disabled={!districtCode || !value.wardRequired || wards.isPending}
           invalid={Boolean(errors.wardCode)}
-          onChange={(e) => onChange({ wardCode: e.target.value })}
-        >
-          {/* huyện đảo (Côn Đảo, Lý Sơn...) không có cấp xã nên không cần chọn */}
-          <option value="">{districtCode && !value.wardRequired ? 'Không có phường/xã' : 'Chọn phường/xã'}</option>
-          {wards.data?.map((w) => (
-            <option key={w.code} value={w.code}>
-              {w.name}
-            </option>
-          ))}
-        </Select>
+          options={(wards.data ?? []).map((w) => ({ value: String(w.code), label: w.name }))}
+          onChange={(code) => onChange({ wardCode: code })}
+        />
       </Field>
       <Field
         label="Địa chỉ chi tiết (số nhà, tên đường)"
@@ -234,10 +226,10 @@ function ProvinceCombobox({
           role="listbox"
           // giữ focus ở ô nhập để onBlur không đóng danh sách trước khi bấm xong
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute inset-x-0 top-full z-40 mt-1.5 max-h-64 overflow-y-auto rounded-[14px] border border-line bg-surface py-1 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+          className={`absolute inset-x-0 top-full z-40 mt-2 max-h-72 overflow-y-auto ${MENU_PANEL}`}
         >
           {filtered.length === 0 ? (
-            <li className="px-3.5 py-2 text-[13.5px] text-ink-muted">Không tìm thấy tỉnh/thành</li>
+            <li className="px-3 py-2 text-[14px] text-ink-muted">Không tìm thấy tỉnh/thành</li>
           ) : (
             filtered.map((p, i) => (
               <li
@@ -247,8 +239,8 @@ function ProvinceCombobox({
                 aria-selected={p.code === value}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(p.code)}
-                className={`cursor-pointer px-3.5 py-2 text-[14px] ${i === active ? 'bg-sky-soft' : ''} ${
-                  p.code === value ? 'font-semibold text-primary' : ''
+                className={`${MENU_ITEM} cursor-pointer ${i === active ? 'bg-muted text-ink' : ''} ${
+                  p.code === value ? 'font-semibold !text-primary' : ''
                 }`}
               >
                 {p.name}

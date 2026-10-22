@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { feedbackApi } from '@/api/endpoints'
 import type { ComplaintType, Order } from '@/api/types'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
+import { Field, Input, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { COMPLAINT_ALLOWED, COMPLAINT_TYPE } from '@/lib/labels'
@@ -135,13 +136,12 @@ function ComplaintForm({ onClose, order }: { onClose: () => void; order: Order }
           htmlFor="complaintType"
           hint={order.status !== 'DELIVERED' ? 'Đổi / trả hàng mở sau khi đơn đã giao.' : undefined}
         >
-          <Select id="complaintType" value={type} onChange={(e) => setType(e.target.value as ComplaintType)}>
-            {allowedTypes.map((t) => (
-              <option key={t} value={t}>
-                {COMPLAINT_TYPE[t]}
-              </option>
-            ))}
-          </Select>
+          <DropdownSelect
+            id="complaintType"
+            value={type}
+            options={allowedTypes.map((t) => ({ value: t, label: COMPLAINT_TYPE[t] }))}
+            onChange={setType}
+          />
         </Field>
         <Field label="Sản phẩm liên quan" hint="Không chọn sản phẩm nào = phản hồi chung cho cả đơn.">
           <ul className="space-y-2">

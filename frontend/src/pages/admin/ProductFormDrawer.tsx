@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/api/endpoints'
 import type { ProductDetail, ProductRequest } from '@/api/types'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
+import { Field, Input, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
@@ -206,14 +207,21 @@ function ProductForm({
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Danh mục" htmlFor="pcat" required error={errors.categoryId?.message}>
-            <Select id="pcat" invalid={Boolean(errors.categoryId)} {...form.register('categoryId')}>
-              <option value="">Chọn danh mục</option>
-              {categories.data?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            <Controller
+              control={form.control}
+              name="categoryId"
+              render={({ field }) => (
+                <DropdownSelect
+                  id="pcat"
+                  value={field.value}
+                  placeholder="Chọn danh mục"
+                  invalid={Boolean(errors.categoryId)}
+                  options={(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              )}
+            />
           </Field>
           <Field label="Giá (₫)" htmlFor="pprice" required error={errors.price?.message}>
             <Input

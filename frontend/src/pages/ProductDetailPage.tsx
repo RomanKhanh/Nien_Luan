@@ -9,6 +9,7 @@ import { ProductArt } from '@/components/product/ProductArt'
 import { ProductCard } from '@/components/product/ProductCard'
 import { SkillBar, Stars } from '@/components/ui/Badges'
 import { Button } from '@/components/ui/Button'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader, Skeleton } from '@/components/ui/States'
 import { QuantityStepper } from '@/components/ui/QuantityStepper'
@@ -340,18 +341,14 @@ function ChildGainPanel({ productId }: { productId: number }) {
       <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[13.5px]">
         <span className="font-bold text-ink">Nếu thêm cho bé</span>
         {children.data.length > 1 ? (
-          <select
-            aria-label="Chọn hồ sơ bé"
-            value={childId}
-            onChange={(e) => setPickedId(Number(e.target.value))}
-            className="min-w-0 cursor-pointer truncate rounded-full border-2 border-line bg-sky-soft/60 px-3 py-0.5 font-bold text-ink outline-none focus:border-sky"
-          >
-            {children.data.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <DropdownSelect
+            variant="pill"
+            label="Chọn hồ sơ bé"
+            value={String(childId)}
+            options={children.data.map((c) => ({ value: String(c.id), label: c.name }))}
+            onChange={(id) => setPickedId(Number(id))}
+            className="min-w-0 [&>button]:!py-0.5"
+          />
         ) : (
           <span className="font-bold text-primary">{children.data[0].name}</span>
         )}

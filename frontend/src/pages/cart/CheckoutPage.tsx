@@ -8,7 +8,8 @@ import { childApi, meApi, orderApi, shippingApi, voucherApi } from '@/api/endpoi
 import type { PaymentMethod, ShippingQuote } from '@/api/types'
 import { PageHero } from '@/components/layout/PageHero'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
+import { Field, Input } from '@/components/ui/Field'
 import { ErrorState, PageLoader } from '@/components/ui/States'
 import { useToast } from '@/components/ui/Toast'
 import { addressIssues, addressShape, addressToValue, codeOrNull, type AddressValue } from '@/features/address/address'
@@ -256,26 +257,24 @@ export default function CheckoutPage() {
                       <span className="flex-1 text-[14px] font-semibold">
                         {item.productName} <span className="font-normal text-ink-muted">× {item.quantity}</span>
                       </span>
-                      <Select
-                        aria-label={`Bé nhận ${item.productName}`}
-                        className="sm:!w-56"
-                        value={assignments[item.productId] ?? ''}
-                        onChange={(e) =>
+                      <DropdownSelect
+                        label={`Bé nhận ${item.productName}`}
+                        className="sm:w-56"
+                        align="right"
+                        value={String(assignments[item.productId] ?? '')}
+                        options={[
+                          { value: '', label: 'Không gắn bé' },
+                          ...(children.data ?? []).map((c) => ({ value: String(c.id), label: `Bé ${c.name} (${c.age} tuổi)` })),
+                        ]}
+                        onChange={(value) =>
                           setAssignments((prev) => {
                             const next = { ...prev }
-                            if (e.target.value) next[item.productId] = Number(e.target.value)
+                            if (value) next[item.productId] = Number(value)
                             else delete next[item.productId]
                             return next
                           })
                         }
-                      >
-                        <option value="">Không gắn bé</option>
-                        {children.data?.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            Bé {c.name} ({c.age} tuổi)
-                          </option>
-                        ))}
-                      </Select>
+                      />
                     </li>
                   ))}
                 </ul>

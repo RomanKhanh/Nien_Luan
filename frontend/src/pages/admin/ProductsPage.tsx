@@ -5,7 +5,8 @@ import type { ProductSummary } from '@/api/types'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { Pill, SkillBadge } from '@/components/ui/Badges'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
+import { Field, Input } from '@/components/ui/Field'
 import { ConfirmDialog, Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States'
@@ -70,21 +71,19 @@ export default function ProductsPage() {
               setPage(0)
             }}
           />
-          <Select
-            className="!w-auto"
-            value={categoryId ?? ''}
-            onChange={(e) => {
-              setCategoryId(e.target.value ? Number(e.target.value) : undefined)
+          <DropdownSelect
+            label="Lọc theo danh mục"
+            value={categoryId === undefined ? '' : String(categoryId)}
+            options={[
+              { value: '', label: 'Tất cả danh mục' },
+              ...(categories.data ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+            onChange={(value) => {
+              setCategoryId(value ? Number(value) : undefined)
               setPage(0)
             }}
-          >
-            <option value="">Tất cả danh mục</option>
-            {categories.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
+            align="right"
+          />
         </div>
         {products.isPending ? (
           <PageLoader />

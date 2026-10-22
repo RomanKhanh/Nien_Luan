@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { meApi } from '@/api/endpoints'
 import { useAuth } from '@/auth/AuthContext'
 import { buttonClass } from '@/components/ui/Button'
+import { MENU_ITEM, MENU_PANEL } from '@/components/ui/menuStyles'
 import { useCartCount } from '@/features/cart/useCart'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { SearchBox } from '@/features/catalog/SearchBox'
@@ -186,7 +187,7 @@ function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-56 rounded-md border border-line bg-surface p-1.5 shadow-pop"
+          className={`absolute right-0 top-full mt-2 w-56 ${MENU_PANEL}`}
         >
           {items.map((item) => (
             <Link
@@ -194,7 +195,7 @@ function UserMenu() {
               to={item.to}
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="block rounded-sm px-3 py-2 text-[14px] text-ink-2 hover:bg-muted hover:text-ink"
+              className={MENU_ITEM}
             >
               {item.label}
             </Link>
