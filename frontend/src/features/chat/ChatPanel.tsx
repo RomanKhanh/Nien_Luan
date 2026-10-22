@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { chatApi } from '@/api/chat'
 import { childApi } from '@/api/endpoints'
@@ -6,6 +6,7 @@ import type { ChatSessionDetail } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { Mascot } from '@/components/decor/Decor'
 import { ButtonLink, Spinner } from '@/components/ui/Button'
+import { DropdownSelect } from '@/components/ui/DropdownSelect'
 import { useToast } from '@/components/ui/Toast'
 import { childKeys } from '@/features/children/keys'
 import type { ChatPrompt } from './chatContext'
@@ -32,11 +33,16 @@ export function ChatPanel({
   variant?: 'widget' | 'page'
 }) {
   const { session, isCustomer } = useAuth()
+  // id câu trả lời vừa nhận: chỉ tin này hiện kiểu gõ chữ, lịch sử cũ hiện đủ ngay. Giữ ở đây (ngoài Conversation)
+  // vì câu hỏi đầu tiên tạo phiên mới làm Conversation dựng lại theo key, state bên trong sẽ mất.
+  const [typingId, setTypingId] = useState<number | null>(null)
   if (!session) return <Gate kind="login" />
   if (!isCustomer) return <Gate kind="admin" />
   return (
     <Conversation
       key={sessionId ?? 'new'}
+      typingId={typingId}
+      onTypingChange={setTypingId}
       sessionId={sessionId}
       onSessionChange={onSessionChange}
       prompt={prompt}
@@ -48,6 +54,8 @@ export function ChatPanel({
 }
 
 function Conversation({
+  typingId,
+  onTypingChange: setTypingId,
   sessionId,
   onSessionChange,
   prompt,
@@ -55,6 +63,8 @@ function Conversation({
   onNavigate,
   variant,
 }: {
+  typingId: number | null
+  onTypingChange: (id: number | null) => void
   sessionId: number | null
   onSessionChange: (id: number) => void
   prompt?: (ChatPrompt & { key: number }) | null
@@ -109,6 +119,8 @@ function Conversation({
       setFailed(null)
     },
     onSuccess: ({ id, reply }) => {
+      // đặt trước khi thêm tin vào cache để bong bóng mới dựng ra đã ở chế độ gõ chữ
+      setTypingId(reply.botMessage.id)
       queryClient.setQueryData<ChatSessionDetail>(chatKeys.session(id), (old) =>
         old
           ? {
@@ -165,6 +177,13 @@ function Conversation({
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, pending, failed])
 
+  // trong lúc câu trả lời đang gõ: cuộn theo chữ mới, trừ khi người dùng đã cuộn lên đọc tin cũ
+  const followTyping = useCallback(() => {
+    const el = scrollRef.current
+    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTop = el.scrollHeight
+  }, [])
+  const typingDone = useCallback(() => setTypingId(null), [setTypingId])
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // isComposing: đang gõ dấu tiếng Việt (Telex/VNI) thì Enter chưa phải là gửi
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -180,24 +199,22 @@ function Conversation({
       {/* đang tư vấn cho bé nào: chatbot dùng tuổi + hồ sơ kỹ năng của bé làm ngữ cảnh */}
       <div className="flex items-center gap-2 border-b border-line bg-surface px-4 py-2.5 text-[13px]">
         <span className="shrink-0 font-semibold text-ink-muted">Tư vấn cho:</span>
-        <select
-          aria-label="Chọn hồ sơ bé để tư vấn"
-          value={childId ?? ''}
+        <DropdownSelect
+          variant="pill"
+          label="Chọn hồ sơ bé để tư vấn"
+          value={childId == null ? '' : String(childId)}
           disabled={changeChild.isPending || send.isPending}
-          onChange={(e) => {
-            const v = e.target.value ? Number(e.target.value) : null
+          options={[
+            { value: '', label: 'Không chọn bé (tư vấn chung)' },
+            ...(children.data ?? []).map((c) => ({ value: String(c.id), label: `Bé ${c.name} · ${c.age} tuổi` })),
+          ]}
+          onChange={(value) => {
+            const v = value ? Number(value) : null
             if (sessionId === null) setDraftChild(v)
             else changeChild.mutate(v)
           }}
-          className="min-w-0 flex-1 cursor-pointer truncate rounded-full border-2 border-line bg-sky-soft/60 px-3 py-1 font-bold text-ink outline-none focus:border-sky"
-        >
-          <option value="">Không chọn bé (tư vấn chung)</option>
-          {children.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              Bé {c.name} · {c.age} tuổi
-            </option>
-          ))}
-        </select>
+          className="min-w-0 flex-1 [&>button]:w-full"
+        />
         {children.data?.length === 0 && (
           <ButtonLink to="/children" size="sm" variant="ghost" className="!px-2" onClick={onNavigate}>
             + Tạo hồ sơ
@@ -227,7 +244,14 @@ function Conversation({
         ) : (
           <>
             {messages.map((m) => (
-              <MessageBubble key={m.id} message={m} onNavigate={onNavigate} />
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onNavigate={onNavigate}
+                typing={m.id === typingId}
+                onTyped={typingDone}
+                onTypingProgress={followTyping}
+              />
             ))}
             {pending && (
               <>

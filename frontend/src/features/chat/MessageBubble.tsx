@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { ChatMessage, ChatSuggestedProduct } from '@/api/types'
 import { Mascot } from '@/components/decor/Decor'
@@ -8,17 +9,27 @@ import { useAddToCart } from '@/features/cart/useCart'
 import { ageRange, formatDateTime, formatPrice } from '@/lib/format'
 import { dominantSkill, topImpacts } from '@/lib/skills'
 import { RichText } from './RichText'
+import { parseRichText, richTextLength } from './richTextParse'
+import { useTypewriter } from './useTypewriter'
 
 // review = trang giám sát của admin: hiện chủ đề, thời gian phản hồi, không có nút thêm vào giỏ
 export function MessageBubble({
   message,
   review = false,
   onNavigate,
+  typing = false,
+  onTyped,
+  onTypingProgress,
 }: {
   message: ChatMessage
   review?: boolean
   // khung chat nổi: bấm vào sản phẩm thì thu nhỏ khung lại để thấy trang
   onNavigate?: () => void
+  // câu trả lời vừa nhận: hiện dần kiểu gõ chữ; xong thì gọi onTyped. Tin nhắn cũ hiện đủ ngay.
+  typing?: boolean
+  onTyped?: () => void
+  // mỗi lần hiện thêm chữ (để khung chat cuộn theo)
+  onTypingProgress?: () => void
 }) {
   if (message.sender === 'USER') {
     return (
@@ -31,21 +42,74 @@ export function MessageBubble({
     )
   }
   return (
+    <BotMessage
+      message={message}
+      review={review}
+      onNavigate={onNavigate}
+      typing={typing}
+      onTyped={onTyped}
+      onTypingProgress={onTypingProgress}
+    />
+  )
+}
+
+function BotMessage({
+  message,
+  review,
+  onNavigate,
+  typing,
+  onTyped,
+  onTypingProgress,
+}: {
+  message: ChatMessage
+  review: boolean
+  onNavigate?: () => void
+  typing: boolean
+  onTyped?: () => void
+  onTypingProgress?: () => void
+}) {
+  const total = useMemo(() => richTextLength(parseRichText(message.content)), [message.content])
+  const { visible, done, animated, skip } = useTypewriter(total, typing)
+
+  useEffect(() => {
+    if (animated) onTypingProgress?.()
+  }, [animated, visible, onTypingProgress])
+  useEffect(() => {
+    if (animated && done) onTyped?.()
+  }, [animated, done, onTyped])
+
+  // thẻ sản phẩm và nguồn chỉ hiện sau khi gõ xong, hiện dần cho liền mạch
+  const extrasClass = animated ? 'animate-fade-up' : undefined
+  return (
     <div className="flex gap-2.5">
       <BotAvatar />
       <div className="min-w-0 flex-1">
-        <div className="rounded-[20px] rounded-tl-md border-[1.5px] border-line bg-surface px-4 py-3 text-[14px] leading-relaxed text-ink-2">
-          <RichText text={message.content} />
+        <div
+          className={`rounded-[20px] rounded-tl-md border-[1.5px] border-line bg-surface px-4 py-3 text-[14px] leading-relaxed text-ink-2 ${done ? '' : 'cursor-pointer'}`}
+          onClick={done ? undefined : skip}
+          title={done ? undefined : 'Bấm để hiện toàn bộ câu trả lời'}
+        >
+          {animated ? (
+            <>
+              {/* trình đọc màn hình đọc cả câu một lần, không đọc từng chữ đang gõ */}
+              <span className="sr-only">{message.content}</span>
+              <div aria-hidden>
+                <RichText text={message.content} visibleChars={visible} />
+              </div>
+            </>
+          ) : (
+            <RichText text={message.content} />
+          )}
         </div>
-        {message.suggestedProducts.length > 0 && (
-          <div className="mt-2 space-y-2">
+        {done && message.suggestedProducts.length > 0 && (
+          <div className={`mt-2 space-y-2 ${extrasClass ?? ''}`}>
             {message.suggestedProducts.map((p) => (
               <SuggestedProduct key={p.productId} product={p} review={review} onNavigate={onNavigate} />
             ))}
           </div>
         )}
-        {message.sources.length > 0 && (
-          <details className="group mt-2 rounded-2xl bg-sky-soft/60 px-3 py-2 text-[12.5px]">
+        {done && message.sources.length > 0 && (
+          <details className={`group mt-2 rounded-2xl bg-sky-soft/60 px-3 py-2 text-[12.5px] ${extrasClass ?? ''}`}>
             <summary className="cursor-pointer list-none font-semibold text-sky-deep marker:hidden">
               📚 Nguồn tham khảo ({message.sources.length})
               <span className="ml-1 inline-block transition group-open:rotate-90" aria-hidden>

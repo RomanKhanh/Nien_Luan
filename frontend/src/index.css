@@ -21,6 +21,8 @@
   --animate-float-slow: float 9s ease-in-out infinite;
   --animate-wiggle: wiggle 0.5s ease-in-out;
   --animate-spin-slow: spin 24s linear infinite;
+  --animate-caret: caret 0.9s steps(1) infinite;
+  --animate-fade-up: fade-up 0.35s ease-out both;
 
   --color-primary: #5b3df5;
   --color-primary-hover: #4227d6;
@@ -217,6 +219,21 @@
   }
   75% {
     transform: rotate(6deg);
+  }
+}
+
+/* con trỏ nhấp nháy khi chatbot đang "gõ" câu trả lời (TypingText) */
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* thẻ sản phẩm / nguồn hiện dần sau khi câu trả lời gõ xong */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 
