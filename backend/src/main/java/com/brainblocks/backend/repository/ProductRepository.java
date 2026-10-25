@@ -114,6 +114,30 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         long getViews();
     }
 
+    // tồn kho hiện tại đọc thẳng từ DB (không qua entity trong persistence context)
+    @Query("select p.stockQuantity from Product p where p.id = :productId")
+    Integer findStockQuantityById(@Param("productId") Long productId);
+
+    // sản phẩm đang bán có tồn kho <= ngưỡng, ít hàng nhất lên trước (trang "sắp hết hàng" của admin)
+    @Query("""
+            select p.id as productId, p.name as productName, p.stockQuantity as stockQuantity,
+                   p.category.name as categoryName
+            from Product p
+            where p.active = true and p.stockQuantity <= :threshold
+            order by p.stockQuantity asc, p.id
+            """)
+    List<LowStockProduct> findLowStock(@Param("threshold") int threshold, Pageable pageable);
+
+    interface LowStockProduct {
+        Long getProductId();
+
+        String getProductName();
+
+        int getStockQuantity();
+
+        String getCategoryName();
+    }
+
     // Hoàn kho khi hủy đơn, cộng thẳng trong DB để không mất cập nhật khi chạy song song
     @Modifying(flushAutomatically = true)
     @Query("update Product p set p.stockQuantity = p.stockQuantity + :quantity where p.id = :productId")

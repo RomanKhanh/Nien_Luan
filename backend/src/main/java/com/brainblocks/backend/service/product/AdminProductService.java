@@ -4,6 +4,7 @@ import com.brainblocks.backend.dto.request.product.ProductRequest;
 import com.brainblocks.backend.dto.request.product.SkillImpactRequest;
 import com.brainblocks.backend.dto.request.product.UpdateStockRequest;
 import com.brainblocks.backend.dto.response.PageResponse;
+import com.brainblocks.backend.dto.response.product.LowStockProductResponse;
 import com.brainblocks.backend.dto.response.product.ProductDetailResponse;
 import com.brainblocks.backend.dto.response.product.ProductSummaryResponse;
 import com.brainblocks.backend.entity.Category;
@@ -16,8 +17,11 @@ import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.repository.SkillRepository;
 import com.brainblocks.backend.service.ai.ProductEmbeddingService.ProductContentChangedEvent;
 import com.brainblocks.backend.service.skill.SkillProfileService;
+import com.brainblocks.backend.service.stock.LowStockNotifier;
+import com.brainblocks.backend.service.stock.LowStockPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +43,8 @@ public class AdminProductService {
     private final ProductService productService;
     private final SkillProfileService skillProfileService;
     private final ApplicationEventPublisher events;
+    private final LowStockNotifier lowStockNotifier;
+    private final LowStockPolicy lowStockPolicy;
 
     @Transactional(readOnly = true)
     public PageResponse<ProductSummaryResponse> search(ProductSearchCriteria criteria, ProductSort sort,
@@ -84,8 +90,19 @@ public class AdminProductService {
     @Transactional
     public ProductDetailResponse updateStock(Long id, UpdateStockRequest request) {
         Product product = findProduct(id);
+        lowStockNotifier.afterSet(product, product.getStockQuantity(), request.stockQuantity());
         product.setStockQuantity(request.stockQuantity());
         return productService.toDetailResponse(product);
+    }
+
+    // sản phẩm đang bán có tồn kho <= ngưỡng, ít hàng nhất lên trước
+    @Transactional(readOnly = true)
+    public List<LowStockProductResponse> getLowStockProducts(int limit) {
+        return productRepository.findLowStock(lowStockPolicy.threshold(),
+                        PageRequest.of(0, Math.clamp(limit, 1, 100))).stream()
+                .map(row -> new LowStockProductResponse(row.getProductId(), row.getProductName(),
+                        row.getCategoryName(), row.getStockQuantity()))
+                .toList();
     }
 
     /**

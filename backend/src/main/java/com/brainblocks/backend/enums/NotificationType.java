@@ -9,5 +9,6 @@ public enum NotificationType {
     NEW_ORDER,
     ORDER_CANCELLED_BY_CUSTOMER,
     NEW_COMPLAINT,
-    NEW_REVIEW
+    NEW_REVIEW,
+    LOW_STOCK
 }

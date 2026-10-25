@@ -23,6 +23,8 @@ import com.brainblocks.backend.service.location.LocationDirectory.ResolvedAddres
 import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.shipping.ShippingQuote;
 import com.brainblocks.backend.service.shipping.ShippingQuoteService;
+import com.brainblocks.backend.service.stock.LowStockNotifier;
+import com.brainblocks.backend.service.stock.LowStockPolicy;
 import com.brainblocks.backend.service.voucher.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,7 @@ public class OrderService {
     private final ShippingQuoteService shippingQuoteService;
     private final UnpaidOrderPolicy unpaidOrderPolicy;
     private final VoucherService voucherService;
+    private final LowStockNotifier lowStockNotifier;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -104,6 +107,7 @@ public class OrderService {
             if (productRepository.decreaseStock(product.getId(), item.getQuantity()) == 0) {
                 throw new IllegalArgumentException("Insufficient stock for: " + product.getName());
             }
+            lowStockNotifier.afterDecrease(product, item.getQuantity());
 
             order.getItems().add(OrderItem.builder()
                     .order(order)

@@ -17,6 +17,7 @@ import com.brainblocks.backend.repository.OrderRepository;
 import com.brainblocks.backend.repository.OrderRepository.OrderAmount;
 import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.repository.SkillRepository;
+import com.brainblocks.backend.service.stock.LowStockPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class AdminStatsService {
     private final SkillRepository skillRepository;
     private final ComplaintRepository complaintRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final LowStockPolicy lowStockPolicy;
 
     @Transactional(readOnly = true)
     public AdminStatsResponse getStats() {
@@ -80,7 +82,7 @@ public class AdminStatsService {
                 customerRepository.count(),
                 customerRepository.countByCreatedAtGreaterThanEqual(today.minusDays(30).atStartOfDay()),
                 productRepository.countByActiveTrue(),
-                productRepository.countByActiveTrueAndStockQuantityLessThanEqual(LOW_STOCK_THRESHOLD),
+                productRepository.countByActiveTrueAndStockQuantityLessThanEqual(lowStockPolicy.threshold()),
                 totalOrders,
                 ordersByStatus,
                 orderRepository.sumSubtotalByStatus(OrderStatus.DELIVERED),

@@ -4,6 +4,7 @@ import com.brainblocks.backend.dto.request.product.ProductRequest;
 import com.brainblocks.backend.dto.request.product.UpdateStockRequest;
 import com.brainblocks.backend.dto.response.ApiResponse;
 import com.brainblocks.backend.dto.response.PageResponse;
+import com.brainblocks.backend.dto.response.product.LowStockProductResponse;
 import com.brainblocks.backend.dto.response.product.ProductDetailResponse;
 import com.brainblocks.backend.dto.response.product.ProductSummaryResponse;
 import com.brainblocks.backend.service.product.AdminProductService;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 // /api/admin/** đã được SecurityConfig giới hạn cho ROLE_ADMIN
 @RestController
@@ -73,5 +76,12 @@ public class AdminProductController {
     public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable Long id) {
         adminProductService.deleteProduct(id);
         return ResponseEntity.ok(ApiResponse.success("Product hidden", null));
+    }
+
+    // sản phẩm sắp hết hàng / hết hàng (tồn kho <= app.stock.low-threshold)
+    @GetMapping("/low-stock")
+    public ResponseEntity<ApiResponse<List<LowStockProductResponse>>> getLowStock(
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(adminProductService.getLowStockProducts(limit)));
     }
 }
