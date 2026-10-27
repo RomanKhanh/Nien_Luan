@@ -84,6 +84,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(FacebookSignInException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFacebookSignIn(FacebookSignInException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(FacebookSignInUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleFacebookUnavailable(FacebookSignInUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ApiResponse<Void>> handleDisabled(DisabledException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Account is locked"));

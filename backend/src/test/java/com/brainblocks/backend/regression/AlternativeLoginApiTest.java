@@ -120,6 +120,27 @@ class AlternativeLoginApiTest {
         assertThat(call("POST", "/api/auth/google", Map.of(), null).status()).isEqualTo(400);
     }
 
+    @Test
+    void facebookLoginIsPublicButRequiresConfigurationAndBoundedToken() throws Exception {
+        Res res = call("POST", "/api/auth/facebook", Map.of("accessToken", "test-token"), null);
+        assertThat(res.status()).isEqualTo(503);
+        assertThat(res.message()).contains("Facebook sign-in is not available");
+        assertThat(call("POST", "/api/auth/facebook", Map.of(), null).status()).isEqualTo(400);
+        assertThat(call("POST", "/api/auth/facebook", Map.of("accessToken", "x".repeat(8193)), null).status()).isEqualTo(400);
+    }
+
+    @Test
+    void facebookEmailEndpointsArePublicAndValidateProofFields() throws Exception {
+        assertThat(call("POST", "/api/auth/facebook/email/send-code",
+                Map.of("accessToken", "test-token", "email", "a@test.local"), null).status()).isEqualTo(503);
+        assertThat(call("POST", "/api/auth/facebook/email/send-code",
+                Map.of("accessToken", "test-token", "email", "invalid"), null).status()).isEqualTo(400);
+        assertThat(call("POST", "/api/auth/facebook/email/complete",
+                Map.of("accessToken", "test-token", "email", "a@test.local", "code", "123456"), null).status()).isEqualTo(503);
+        assertThat(call("POST", "/api/auth/facebook/email/complete",
+                Map.of("accessToken", "test-token", "email", "a@test.local", "code", "123"), null).status()).isEqualTo(400);
+    }
+
     private String register() throws Exception {
         String email = "otp" + SEQ.incrementAndGet() + "-" + System.nanoTime() + "@test.local";
         Res res = call("POST", "/api/auth/register",

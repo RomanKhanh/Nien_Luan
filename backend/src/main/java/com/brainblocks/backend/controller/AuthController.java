@@ -2,6 +2,11 @@ package com.brainblocks.backend.controller;
 
 import com.brainblocks.backend.dto.request.auth.ForgotPasswordRequest;
 import com.brainblocks.backend.dto.request.auth.GoogleLoginRequest;
+import com.brainblocks.backend.dto.request.auth.FacebookLoginRequest;
+import com.brainblocks.backend.dto.request.auth.FacebookEmailCodeRequest;
+import com.brainblocks.backend.dto.request.auth.FacebookEmailLoginRequest;
+import com.brainblocks.backend.service.auth.FacebookEmailLoginService;
+import com.brainblocks.backend.service.auth.FacebookLoginService;
 import com.brainblocks.backend.dto.request.auth.LoginRequest;
 import com.brainblocks.backend.dto.request.auth.RegisterRequest;
 import com.brainblocks.backend.dto.request.auth.ResetPasswordRequest;
@@ -33,6 +38,8 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final EmailVerificationService emailVerificationService;
     private final GoogleLoginService googleLoginService;
+    private final FacebookLoginService facebookLoginService;
+    private final FacebookEmailLoginService facebookEmailLoginService;
     private final LoginOtpService loginOtpService;
 
     @PostMapping("/login")
@@ -44,6 +51,23 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<LoginResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
         return ResponseEntity.ok(ApiResponse.success(googleLoginService.login(request.idToken())));
+    }
+
+    // Token Facebook được xác minh ở server trước khi phát JWT nội bộ.
+    @PostMapping("/facebook")
+    public ResponseEntity<ApiResponse<LoginResponse>> loginWithFacebook(@Valid @RequestBody FacebookLoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(facebookLoginService.login(request.accessToken())));
+    }
+
+    @PostMapping("/facebook/email/send-code")
+    public ResponseEntity<ApiResponse<Void>> sendFacebookEmailCode(@Valid @RequestBody FacebookEmailCodeRequest request) {
+        facebookEmailLoginService.sendCode(request.accessToken(), request.email());
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent", null));
+    }
+
+    @PostMapping("/facebook/email/complete")
+    public ResponseEntity<ApiResponse<LoginResponse>> completeFacebookEmail(@Valid @RequestBody FacebookEmailLoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(facebookEmailLoginService.complete(request.accessToken(), request.email(), request.code())));
     }
 
     // đăng nhập bằng mã qua email (LoginOtpService): luôn trả cùng một câu, không lộ email nào đã có tài khoản

@@ -11,6 +11,8 @@ interface AuthState {
   isAdmin: boolean
   login: (email: string, password: string) => Promise<LoginResponse>
   loginWithGoogle: (idToken: string) => Promise<LoginResponse>
+  loginWithFacebook: (accessToken: string) => Promise<LoginResponse>
+  completeFacebookEmail: (accessToken: string, email: string, code: string) => Promise<LoginResponse>
   loginWithOtp: (email: string, code: string) => Promise<LoginResponse>
   logout: () => void
 }
@@ -60,6 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   )
 
+  const loginWithFacebook = useCallback(
+    (accessToken: string) => startSession(authApi.loginWithFacebook(accessToken)),
+    [startSession],
+  )
+
+  const completeFacebookEmail = useCallback(
+    (accessToken: string, email: string, code: string) => startSession(authApi.completeFacebookEmail(accessToken, email, code)),
+    [startSession],
+  )
+
   const loginWithOtp = useCallback(
     (email: string, code: string) => startSession(authApi.verifyLoginOtp(email, code)),
     [startSession],
@@ -73,10 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: session?.role === 'ADMIN',
       login,
       loginWithGoogle,
+      loginWithFacebook,
+      completeFacebookEmail,
       loginWithOtp,
       logout,
     }),
-    [session, login, loginWithGoogle, loginWithOtp, logout],
+    [session, login, loginWithGoogle, loginWithFacebook, completeFacebookEmail, loginWithOtp, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

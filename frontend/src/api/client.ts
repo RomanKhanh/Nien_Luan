@@ -43,7 +43,12 @@ export class ApiError extends Error {
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
   if (axios.isAxiosError(error)) {
-    const body = error.response?.data as Partial<ApiEnvelope<unknown>> | undefined
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return new ApiError(408, 'Request timed out')
+    }
+    const data: unknown = error.response?.data
+    if (data === 'Invalid CORS request') return new ApiError(403, 'Invalid CORS request')
+    const body = data as Partial<ApiEnvelope<unknown>> | undefined
     if (!error.response) return new ApiError(0, 'Network Error')
     return new ApiError(error.response.status, body?.message ?? error.message)
   }
@@ -62,11 +67,23 @@ export async function request<T>(promise: Promise<{ data: ApiEnvelope<T> }>): Pr
 
 // Backend trả thông báo lỗi tiếng Anh; dịch các câu hay gặp, câu lạ thì giữ nguyên
 const EXACT: Record<string, string> = {
+  'Invalid CORS request': 'Máy chủ chưa cho phép kết nối từ địa chỉ website này. Vui lòng liên hệ quản trị viên.',
+  'Request timed out': 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.',
   'Network Error': 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.',
   'Incorrect email or password': 'Email hoặc mật khẩu không đúng.',
   'Account is locked': 'Tài khoản của bạn đang bị khoá. Vui lòng liên hệ hỗ trợ.',
   'Email already in use': 'Email này đã được đăng ký.',
   'Invalid Google credential': 'Không xác minh được tài khoản Google, vui lòng thử lại.',
+  'Invalid Facebook credential': 'Phiên Facebook không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+  'Facebook account cannot be linked to this email': 'Không thể liên kết Facebook này với email đã chọn. Tài khoản có thể đã liên kết Facebook khác hoặc là tài khoản quản trị. Hãy dùng cách đăng nhập hiện có.',
+  'Facebook email is required': 'Facebook chưa cung cấp email. Vui lòng cho phép chia sẻ email hoặc đăng nhập bằng cách khác.',
+  'Facebook email permission not granted': 'Phiên Facebook chưa được cấp quyền email (FB_EMAIL_NOT_GRANTED). Nếu bạn quản lý ứng dụng, hãy kiểm tra quyền email và vai trò người thử nghiệm trên Meta App.',
+  'Facebook email permission declined': 'Quyền chia sẻ email đã bị từ chối (FB_EMAIL_DECLINED). Hãy đăng nhập Facebook lại và cho phép chia sẻ email khi được hỏi.',
+  'Facebook email permission expired': 'Quyền chia sẻ email đã hết hạn (FB_EMAIL_EXPIRED). Vui lòng đăng nhập Facebook lại để cấp lại quyền.',
+  'Facebook email missing despite granted permission': 'Facebook xác nhận đã cấp quyền email nhưng không trả địa chỉ email (FB_EMAIL_NOT_RETURNED). Bạn có thể đăng nhập BrainBlocks bằng email hoặc Google.',
+  'Facebook email permission could not be determined': 'Facebook không trả email và chưa xác định được trạng thái quyền (FB_EMAIL_UNKNOWN). Vui lòng thử lại hoặc dùng cách đăng nhập khác.',
+  'Facebook email already registered; use another sign-in method': 'Email này đã có tài khoản BrainBlocks. Hãy đăng nhập bằng mật khẩu, mã email hoặc Google đã liên kết.',
+  'Facebook sign-in is not available right now, please try again later': 'Đăng nhập Facebook chưa được cấu hình hoặc đang gián đoạn. Vui lòng thử cách đăng nhập khác.',
   'Google email is not verified': 'Email của tài khoản Google này chưa được xác minh.',
   'This email is linked to a different Google account':
     'Email này đã liên kết với một tài khoản Google khác. Hãy chọn đúng tài khoản Google hoặc đăng nhập bằng mật khẩu.',

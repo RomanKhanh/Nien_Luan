@@ -54,6 +54,12 @@ export const authApi = {
   login: (email: string, password: string) => request<LoginResponse>(http.post('/auth/login', { email, password })),
   // idToken: "credential" Google Identity Services trả về sau khi khách chọn tài khoản Google
   loginWithGoogle: (idToken: string) => request<LoginResponse>(http.post('/auth/google', { idToken })),
+  loginWithFacebook: (accessToken: string) =>
+    request<LoginResponse>(http.post('/auth/facebook', { accessToken }, { timeout: 25000 })),
+  sendFacebookEmailCode: (accessToken: string, email: string) =>
+    request<void>(http.post('/auth/facebook/email/send-code', { accessToken, email }, { timeout: 30000 })),
+  completeFacebookEmail: (accessToken: string, email: string, code: string) =>
+    request<LoginResponse>(http.post('/auth/facebook/email/complete', { accessToken, email, code }, { timeout: 30000 })),
   // đăng nhập bằng mã: backend luôn trả "đã gửi" kể cả email chưa đăng ký (không lộ email nào có tài khoản)
   sendLoginOtp: (email: string) => request<unknown>(http.post('/auth/otp/send', { email })),
   verifyLoginOtp: (email: string, code: string) =>

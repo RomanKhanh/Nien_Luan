@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string
   // OAuth Client ID cho nút đăng nhập Google; trống thì trang đăng nhập ẩn nút (xem .env.example)
   readonly VITE_GOOGLE_CLIENT_ID?: string
+  readonly VITE_FACEBOOK_APP_ID?: string
+  readonly VITE_FACEBOOK_API_VERSION?: string
 }
 import type { ApiError } from '@/api/client'
 

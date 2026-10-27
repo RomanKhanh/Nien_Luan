@@ -43,6 +43,10 @@ public abstract class User {
     @Column(unique = true)
     private String googleSubject;
 
+    // Facebook app-scoped user id, verified by the backend.
+    @Column(unique = true)
+    private String facebookSubject;
+
     // Cột role giữ theo sơ đồ lớp, nhưng giá trị luôn suy ra từ lớp con (xem getRole/syncRoleColumn):
     // không thể có Customer mang role ADMIN do code tạo sai.
     @Enumerated(EnumType.STRING)

@@ -10,10 +10,13 @@ React 19 + TypeScript + Vite, Tailwind CSS v4 (token lấy từ design system tr
 
 # 2. frontend
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # https://localhost:5173 (hỗ trợ đăng nhập Facebook)
 ```
 
-Vite proxy `/api` sang `http://localhost:8080` (đổi bằng biến môi trường `VITE_BACKEND_URL`), nên không cần cấu hình CORS khi dev.
+Vite proxy `/api` sang `http://localhost:8080` (đổi bằng biến môi trường `VITE_BACKEND_URL`).
+Backend cần `CORS_ORIGINS=http://localhost:5173,https://localhost:5173` vì proxy vẫn chuyển Origin của trình duyệt.
+HTTPS local dùng chứng chỉ tự ký. Dừng server cũ trước khi chạy lại `npm run dev`, rồi mở đúng URL HTTPS.
+Nếu cần HTTP để thử các chức năng khác, dùng `npm run dev:http`; nút Facebook yêu cầu HTTPS.
 Muốn có sẵn danh mục + sản phẩm mẫu để thử giao diện: đặt `SEED_DEMO_DATA=true` trong `backend/.env` (chỉ tạo khi DB chưa có sản phẩm nào).
 
 ## Build

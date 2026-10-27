@@ -11,6 +11,8 @@ import { LockIcon, MailIcon } from '@/components/ui/FormIcons'
 import { useToast } from '@/components/ui/Toast'
 import { AuthShell } from './AuthShell'
 import { GoogleSignInButton } from './GoogleSignInButton'
+import { FacebookSignInButton } from './FacebookSignInButton'
+import { FacebookEmailForm } from './FacebookEmailForm'
 import { OtpLoginForm } from './OtpLoginForm'
 
 const schema = z.object({
@@ -20,7 +22,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, session } = useAuth()
+  const { login, loginWithGoogle, loginWithFacebook, session } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
@@ -28,13 +30,15 @@ export default function LoginPage() {
   const [error, setError] = useState<ApiError | null>(null)
   // email của tài khoản vừa bị từ chối vì bị khoá; đăng nhập Google không biết trước email nên để trống
   const [lockedEmail, setLockedEmail] = useState('')
-  const [googleBusy, setGoogleBusy] = useState(false)
+  const [socialBusy, setSocialBusy] = useState(false)
+  // Kept only in component memory; never persist Facebook access tokens.
+  const [facebookEmailToken, setFacebookEmailToken] = useState<string | null>(null)
   // cách đăng nhập bằng email: mật khẩu hoặc mã 6 số gửi qua email
   const [mode, setMode] = useState<'password' | 'otp'>('password')
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } })
 
-  if (session && !form.formState.isSubmitting && !googleBusy) {
+  if (session && !form.formState.isSubmitting && !socialBusy) {
     return <Navigate to={session.role === 'ADMIN' ? '/admin' : (from ?? '/')} replace />
   }
 
@@ -42,7 +46,7 @@ export default function LoginPage() {
 
   const onGoogleCredential = async (idToken: string) => {
     setError(null)
-    setGoogleBusy(true)
+    setSocialBusy(true)
     try {
       goHome((await loginWithGoogle(idToken)).role)
     } catch (e) {
@@ -54,7 +58,25 @@ export default function LoginPage() {
         toast.error(apiError.message)
       }
     } finally {
-      setGoogleBusy(false)
+      setSocialBusy(false)
+    }
+  }
+
+  const onFacebookCredential = async (accessToken: string) => {
+    setError(null)
+    setSocialBusy(true)
+    try {
+      goHome((await loginWithFacebook(accessToken)).role)
+    } catch (e) {
+      const apiError = toApiError(e)
+      if (apiError.rawMessage.startsWith('Facebook email ')) {
+        setFacebookEmailToken(accessToken)
+        return
+      }
+      setLockedEmail('')
+      setError(apiError)
+    } finally {
+      setSocialBusy(false)
     }
   }
 
@@ -74,6 +96,11 @@ export default function LoginPage() {
       }
     }
   })
+
+  if (facebookEmailToken) {
+    return <AuthShell><FacebookEmailForm accessToken={facebookEmailToken} onSuccess={goHome}
+      onCancel={() => { setFacebookEmailToken(null); setError(null) }} /></AuthShell>
+  }
 
   // backend trả 403 "Account is locked" cho tài khoản bị admin khoá
   if (error?.rawMessage === 'Account is locked') {
@@ -175,12 +202,13 @@ export default function LoginPage() {
       </div>
 
       {/* nút Google (ẩn khi chưa cấu hình VITE_GOOGLE_CLIENT_ID), rồi nút chuyển giữa mật khẩu và mã qua email */}
-      <div aria-busy={googleBusy} className={googleBusy ? 'pointer-events-none opacity-60' : undefined}>
+      <div aria-busy={socialBusy} className={socialBusy ? 'pointer-events-none opacity-60' : undefined}>
         <GoogleSignInButton
           onCredential={onGoogleCredential}
           onError={() => toast.error('Không đăng nhập được bằng Google, vui lòng thử lại.')}
         />
       </div>
+      <FacebookSignInButton onCredential={onFacebookCredential} disabled={socialBusy || form.formState.isSubmitting} />
       <button
         type="button"
         onClick={() => {
