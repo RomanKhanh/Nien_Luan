@@ -75,6 +75,14 @@ export interface ProductSummary {
   reviewCount: number
 }
 
+// Các sản phẩm sắp hết hàng hoặc đã hết hàng
+export interface LowStockProduct {
+  id: number
+  name: string
+  categoryName: string
+  stockQuantity: number
+}
+
 // gợi ý dưới ô tìm kiếm; label là tên gốc có dấu
 export type SearchSuggestion =
   | { type: 'PRODUCT'; label: string; id: number; code: null; thumbnailUrl: string | null; price: number }

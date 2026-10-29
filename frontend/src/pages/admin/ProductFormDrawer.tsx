@@ -168,6 +168,7 @@ function ProductForm({
     onSuccess: (saved) => {
       queryClient.setQueryData(['admin', 'product', saved.id], saved)
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'low-stock-products'] })
       queryClient.invalidateQueries({ queryKey: ['product', saved.id] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       queryClient.invalidateQueries({ queryKey: ['categories'] })

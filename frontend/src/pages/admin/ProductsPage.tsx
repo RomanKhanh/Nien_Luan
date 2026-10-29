@@ -16,8 +16,13 @@ import { useDebounced } from '@/lib/useDebounced'
 import { ageRange, formatPrice } from '@/lib/format'
 import { topImpacts } from '@/lib/skills'
 import { ProductFormDrawer } from './ProductFormDrawer'
-
+type StockTarget = {
+  id: number
+  name: string
+  stockQuantity: number
+}
 export default function ProductsPage() {
+  const [activeTab, setActiveTab] = useState<'all' | 'lowStock'>('all')
   const [keyword, setKeyword] = useState('')
   const [categoryId, setCategoryId] = useState<number | undefined>()
   const [page, setPage] = useState(0)
@@ -29,9 +34,14 @@ export default function ProductsPage() {
     queryFn: () => adminApi.products(params),
     placeholderData: keepPreviousData,
   })
+  const lowStockProducts = useQuery({
+  queryKey: ['admin', 'low-stock-products'],
+  queryFn: () => adminApi.lowStockProducts(),
+  enabled: activeTab === 'lowStock',
+})
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [stockTarget, setStockTarget] = useState<ProductSummary | null>(null)
+  const [stockTarget, setStockTarget] = useState<StockTarget | null>(null)
   const [hideTarget, setHideTarget] = useState<ProductSummary | null>(null)
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -59,6 +69,32 @@ export default function ProductsPage() {
         description="Thêm, sửa, ẩn sản phẩm; cập nhật tồn kho, độ tuổi và chỉ số kỹ năng."
         actions={<Button onClick={() => openForm(null)}>+ Thêm sản phẩm</Button>}
       />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('all')}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+            activeTab === 'all'
+              ? 'bg-primary text-white'
+              : 'border border-line bg-surface text-ink'
+          }`}
+        >
+          Tất cả sản phẩm
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('lowStock')}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+            activeTab === 'lowStock'
+              ? 'bg-primary text-white'
+              : 'border border-line bg-surface text-ink'
+          }`}
+        >
+          Cảnh báo tồn kho
+        </button>
+      </div>
+      {activeTab === 'all' ? (
       <div className="card overflow-hidden">
         <div className="flex flex-wrap gap-3 border-b border-line p-4">
           <Input
@@ -154,12 +190,75 @@ export default function ProductsPage() {
             </table>
           </div>
         )}
-        {products.data && (
-          <div className="border-t border-line p-4">
-            <Pagination page={page} totalPages={products.data.totalPages} onChange={setPage} />
-          </div>
-        )}
+              </div>
+) : (
+  <div className="card overflow-hidden">
+    <div className="border-b border-line p-4">
+      <p className="font-semibold">Sản phẩm cần kiểm tra tồn kho</p>
+      <p className="mt-1 text-sm text-ink-muted">
+        Danh sách sản phẩm hết hàng hoặc đang nằm trong ngưỡng cảnh báo của hệ thống.
+        Hiển thị tối đa 100 sản phẩm.
+      </p>
+    </div>
+
+    {lowStockProducts.isPending ? (
+      <PageLoader />
+    ) : lowStockProducts.isError ? (
+      <ErrorState
+        message={lowStockProducts.error.message}
+        onRetry={() => lowStockProducts.refetch()}
+      />
+    ) : lowStockProducts.data.length === 0 ? (
+      <EmptyState title="Không có sản phẩm cần cảnh báo tồn kho" />
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px] text-left text-[14px]">
+          <thead className="bg-muted/60 text-[12.5px] uppercase tracking-[0.04em] text-ink-muted">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Sản phẩm</th>
+              <th className="px-4 py-3 font-semibold">Danh mục</th>
+              <th className="px-4 py-3 font-semibold">Tồn kho</th>
+              <th className="px-4 py-3 font-semibold">Trạng thái</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-line">
+            {lowStockProducts.data.map((p) => (
+              <tr key={p.id}>
+                <td className="px-4 py-3 font-semibold">{p.name}</td>
+
+                <td className="px-4 py-3">{p.categoryName}</td>
+
+                <td className="px-4 py-3 tabular-nums">
+                  {p.stockQuantity}
+                </td>
+
+                <td className="px-4 py-3">
+                  {p.stockQuantity === 0 ? (
+                    <span className="font-semibold text-danger">Hết hàng</span>
+                  ) : (
+                    <span className="font-semibold text-[#B45309]">Sắp hết hàng</span>
+                  )}
+                </td>
+
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setStockTarget(p)}
+                  >
+                    Cập nhật kho
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+    )}
+  </div>
+)}
 
       <ProductFormDrawer
         open={formOpen}
@@ -186,7 +285,7 @@ export default function ProductsPage() {
   )
 }
 
-function StockModal({ product, onClose }: { product: ProductSummary | null; onClose: () => void }) {
+function StockModal({ product, onClose }: { product: StockTarget | null; onClose: () => void }) {
   const [value, setValue] = useState('')
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -199,6 +298,7 @@ function StockModal({ product, onClose }: { product: ProductSummary | null; onCl
     mutationFn: () => adminApi.updateStock(product!.id, Number(value)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'low-stock-products'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       toast.success('Đã cập nhật tồn kho')
       setLastId(null)

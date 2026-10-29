@@ -43,6 +43,7 @@ import type {
   Voucher,
   VoucherStatus,
   VoucherSummary,
+  LowStockProduct,
 } from './types'
 
 // axios tự bỏ tham số undefined; mảng skills gửi dạng skills=LOGIC,STEM cho khớp @RequestParam List<String>
@@ -244,6 +245,12 @@ export const adminApi = {
   updateStock: (id: number, stockQuantity: number) =>
     request<ProductDetail>(http.patch(`/admin/products/${id}/stock`, { stockQuantity })),
   hideProduct: (id: number) => request<void>(http.delete(`/admin/products/${id}`)),
+
+  //các sản phẩm hết hàng hoặc sắp hết
+  lowStockProducts: (limit = 100) =>
+    request<LowStockProduct[]>(
+      http.get('/admin/products/low-stock', { params: { limit } }),
+    ),
 
   // ảnh sản phẩm: mỗi thao tác lưu ngay, tách khỏi PUT sản phẩm
   uploadProductImage: (productId: number, file: File) => {
