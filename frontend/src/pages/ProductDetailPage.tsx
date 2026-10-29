@@ -5,7 +5,7 @@ import { catalogApi, childApi } from '@/api/endpoints'
 import type { ProductDetail } from '@/api/types'
 import { useAuth } from '@/auth/AuthContext'
 import { Mascot, SkillIcon, TornEdge } from '@/components/decor/Decor'
-import { ProductArt } from '@/components/product/ProductArt'
+import { ProductGallery } from '@/components/product/ProductGallery'
 import { ProductCard } from '@/components/product/ProductCard'
 import { SkillBar, Stars } from '@/components/ui/Badges'
 import { Button } from '@/components/ui/Button'
@@ -21,8 +21,7 @@ import { childKeys } from '@/features/children/keys'
 import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { SkillGainChips } from '@/features/skills/SkillGainChips'
 import { ageRange, formatDecimal, formatPrice, formatRelative, formatWeightKg, initials } from '@/lib/format'
-import { dominantSkill, skillTheme } from '@/lib/skills'
-import { youtubeEmbedUrl, youtubeId } from '@/lib/youtube'
+import { skillTheme } from '@/lib/skills'
 
 // Lượt xem cho thống kê "sản phẩm được quan tâm": mỗi sản phẩm tính 1 lần mỗi phiên trình duyệt, để tải lại
 // trang không cộng dồn. sessionStorage bị chặn thì vẫn gửi; gửi lỗi thì bỏ qua (không ảnh hưởng người xem).
@@ -63,15 +62,11 @@ function ProductView({ product }: { product: ProductDetail }) {
   const { isCustomer, isAdmin, session } = useAuth()
   const navigate = useNavigate()
   const [quantity, setQuantity] = useState(1)
-  const [imageIndex, setImageIndex] = useState(0)
   const [assignOpen, setAssignOpen] = useState(false)
   const addToCart = useAddToCart()
   const chat = useChatWidget()
   const outOfStock = product.stockQuantity <= 0
   const maxQuantity = Math.min(product.stockQuantity, 99)
-  const image = product.images[imageIndex]
-  const theme = skillTheme(dominantSkill(product.skillImpacts) ?? '')
-  const videoId = youtubeId(product.videoUrl)
 
   const buyNow = () => addToCart.mutate({ productId: product.id, quantity }, { onSuccess: () => navigate('/cart') })
 
@@ -103,40 +98,7 @@ function ProductView({ product }: { product: ProductDetail }) {
           </nav>
 
           <div className="mt-5 grid gap-8 lg:grid-cols-2 lg:gap-12">
-            <div>
-              <div className="relative">
-                <span
-                  className="absolute -right-3 -top-3 h-16 w-16 animate-float rounded-full opacity-80"
-                  style={{ background: theme.color }}
-                  aria-hidden
-                />
-                <span
-                  className="absolute -bottom-3 -left-3 h-10 w-10 animate-float-slow rounded-xl bg-sun"
-                  aria-hidden
-                />
-                <div
-                  className="relative overflow-hidden rounded-[28px] border-[6px] bg-white shadow-pop"
-                  style={{ borderColor: theme.color }}
-                >
-                  <ProductArt url={image?.url} name={product.name} skillCode={dominantSkill(product.skillImpacts)} />
-                </div>
-              </div>
-              {product.images.length > 1 && (
-                <div className="mt-5 flex gap-2 overflow-x-auto p-1">
-                  {product.images.map((img, i) => (
-                    <button
-                      type="button"
-                      key={img.id}
-                      onClick={() => setImageIndex(i)}
-                      className={`w-20 shrink-0 overflow-hidden rounded-2xl border-[3px] bg-white transition ${i === imageIndex ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100'}`}
-                      aria-label={`Ảnh ${i + 1}`}
-                    >
-                      <img src={img.url} alt="" className="aspect-[4/3] w-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ProductGallery key={product.id} product={product} />
 
             <div>
               <div className="flex flex-wrap gap-2">
@@ -266,6 +228,7 @@ function ProductView({ product }: { product: ProductDetail }) {
               )}
             </div>
           </div>
+
         </div>
         <TornEdge className="absolute inset-x-0 bottom-0" seed={29} />
       </div>
@@ -275,22 +238,6 @@ function ProductView({ product }: { product: ProductDetail }) {
           <div>
             <h2 className="h2">Mô tả</h2>
             <p className="mt-3 whitespace-pre-line text-ink-2">{product.description ?? 'Chưa có mô tả.'}</p>
-            {videoId && (
-              <>
-                <h2 className="h2 mt-8">Video hướng dẫn sử dụng</h2>
-                <div className="mt-3 aspect-video overflow-hidden rounded-[20px] border-[3px] border-line bg-ink shadow-card">
-                  <iframe
-                    src={youtubeEmbedUrl(videoId)}
-                    title={`Video hướng dẫn sử dụng ${product.name}`}
-                    className="h-full w-full"
-                    loading="lazy"
-                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                </div>
-              </>
-            )}
           </div>
           <dl className="card grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 self-start border-dashed border-sky/50 bg-sky-soft/40 p-5 text-[14px]">
             <dt className="text-ink-muted">Danh mục</dt>
