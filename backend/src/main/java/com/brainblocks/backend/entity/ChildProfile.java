@@ -72,6 +72,14 @@ public class ChildProfile {
     )
     private Set<Skill> interestedSkills = new HashSet<>();
 
+    @Builder.Default
+    @OneToMany(
+            mappedBy = "childProfile",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<ChildWishlistItem> wishlistItems = new ArrayList<>();
+
     // tuổi tròn theo năm tính đến hôm nay; bé dưới 1 tuổi trả 0.
     // không có field age nên Hibernate (field access) không map method này thành cột
     public int getAge() {
