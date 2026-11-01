@@ -21,6 +21,7 @@ import { SkillTimelineChart } from '@/features/skills/SkillTimelineChart'
 import { formatDate, formatDecimal, formatPrice, initials } from '@/lib/format'
 import { skillLevel, skillTheme } from '@/lib/skills'
 import { AccountShell } from '../account/AccountShell'
+import { ChildWishlist } from '@/features/wishlist/ChildWishlist'
 
 export default function SkillProfilePage() {
   const id = Number(useParams().id)
@@ -87,6 +88,7 @@ export default function SkillProfilePage() {
           <div className="min-w-0 space-y-6">
             <SkillMap child={child.data} />
             <ToyList child={child.data} />
+            <ChildWishlist key={child.data.id} childId={child.data.id} />
             <Recommendations child={child.data} />
           </div>
           <aside className="order-first grid gap-4 md:grid-cols-[minmax(0,1fr)_260px] md:items-start">

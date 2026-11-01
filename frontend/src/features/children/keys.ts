@@ -8,6 +8,7 @@ export const childKeys = {
   timeline: (id: number) => ['skill-timeline', id] as const,
   recommendations: (id: number) => ['recommendations', id] as const,
   skillPreview: (id: number, productId: number) => ['skill-preview', id, productId] as const,
+  wishlist: (id: number) => ['child', id, 'wishlist'] as const,
 }
 
 // đồ chơi của bé thay đổi -> hồ sơ kỹ năng, lộ trình, gợi ý, dự kiến tăng điểm và "Hợp với bé" đều phải tải lại

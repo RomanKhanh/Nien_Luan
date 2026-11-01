@@ -83,6 +83,21 @@ export interface LowStockProduct {
   stockQuantity: number
 }
 
+// sản phẩm muốn mua
+export interface ChildWishlistItem {
+  id: number
+  productId: number
+  productName: string
+  price: number
+  minAge: number
+  maxAge: number
+  active: boolean
+  inStock: boolean
+  ageAppropriate: boolean
+  alreadyOwned: boolean
+  createdAt: string
+}
+
 // gợi ý dưới ô tìm kiếm; label là tên gốc có dấu
 export type SearchSuggestion =
   | { type: 'PRODUCT'; label: string; id: number; code: null; thumbnailUrl: string | null; price: number }

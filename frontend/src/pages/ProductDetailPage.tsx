@@ -22,6 +22,7 @@ import { WriteReviewModal } from '@/features/reviews/WriteReviewModal'
 import { SkillGainChips } from '@/features/skills/SkillGainChips'
 import { ageRange, formatDecimal, formatPrice, formatRelative, formatWeightKg, initials } from '@/lib/format'
 import { skillTheme } from '@/lib/skills'
+import { SaveToWishlist } from '@/features/wishlist/SaveToWishlist'
 
 // Lượt xem cho thống kê "sản phẩm được quan tâm": mỗi sản phẩm tính 1 lần mỗi phiên trình duyệt, để tải lại
 // trang không cộng dồn. sessionStorage bị chặn thì vẫn gửi; gửi lỗi thì bỏ qua (không ảnh hưởng người xem).
@@ -193,6 +194,12 @@ function ProductView({ product }: { product: ProductDetail }) {
                   Mua ngay
                 </Button>
               </div>
+              {isCustomer && (
+                <SaveToWishlist
+                  key={product.id}
+                  productId={product.id}
+                />
+              )}
               {(isCustomer || !session) && (
                 <Button
                   variant="secondary"

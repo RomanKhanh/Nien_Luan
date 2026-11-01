@@ -44,6 +44,7 @@ import type {
   VoucherStatus,
   VoucherSummary,
   LowStockProduct,
+  ChildWishlistItem
 } from './types'
 
 // axios tự bỏ tham số undefined; mảng skills gửi dạng skills=LOGIC,STEM cho khớp @RequestParam List<String>
@@ -181,6 +182,20 @@ export const childApi = {
     ),
   recommendations: (id: number, limit = 4) =>
     request<Recommendation[]>(http.get(`/children/${id}/skill-profile/recommendations`, { params: { limit } })),
+   wishlist: (childId: number) =>
+    request<ChildWishlistItem[]>(
+      http.get(`/children/${childId}/wishlist`),
+    ),
+
+  addWishlist: (childId: number, productId: number) =>
+    request<void>(
+      http.put(`/children/${childId}/wishlist/${productId}`),
+    ),
+
+  removeWishlist: (childId: number, productId: number) =>
+    request<void>(
+      http.delete(`/children/${childId}/wishlist/${productId}`),
+    ),
 }
 
 // thông báo của chính người đang đăng nhập (khách hàng hoặc admin)
