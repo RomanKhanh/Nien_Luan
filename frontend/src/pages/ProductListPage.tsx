@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { catalogApi, childApi } from '@/api/endpoints'
 import type { ChildProfile, Page, ProductQuery, ProductSort, ProductSummary, SkillGain } from '@/api/types'
@@ -79,7 +79,12 @@ export default function ProductListPage() {
       return { ...page, content: page.content.map((product) => ({ product })) }
     },
     enabled: !waitingForChild,
-    placeholderData: keepPreviousData,
+    // Không giữ danh sách đã loại món bé sở hữu khi chuyển về "Tất cả sản phẩm".
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[0] === (child ? 'product-matches' : 'products') &&
+      (!child || previousQuery.queryKey[1] === child.id)
+        ? previousData
+        : undefined,
   })
 
   // đổi bộ lọc thì về trang đầu
@@ -123,7 +128,13 @@ export default function ProductListPage() {
           <ChildPicker
             childrenList={children.data!}
             selectedId={child?.id}
-            onSelect={(id) => update({ child: id ? String(id) : undefined, sort: undefined })}
+            onSelect={(id) => {
+              if (id === undefined) {
+                setParams({})
+              } else {
+                update({ child: String(id), sort: undefined })
+              }
+            }}
           />
         )}
       </PageHero>
