@@ -16,9 +16,9 @@ import com.brainblocks.backend.repository.ProductRepository.ProductThumbnail;
 import com.brainblocks.backend.repository.ProductSkillImpactRepository;
 import com.brainblocks.backend.repository.ReviewRepository;
 import com.brainblocks.backend.repository.ReviewRepository.RatingSummary;
+import com.brainblocks.backend.util.Pages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -54,9 +54,13 @@ public class ProductService {
                 && criteria.minPrice().compareTo(criteria.maxPrice()) > 0) {
             throw new IllegalArgumentException("minPrice must not be greater than maxPrice");
         }
+        if (criteria.ageFrom() != null && criteria.ageTo() != null
+                && criteria.ageFrom() > criteria.ageTo()) {
+            throw new IllegalArgumentException("ageFrom must not be greater than ageTo");
+        }
         boolean byRelevance = sort == ProductSort.RELEVANCE;
         // RELEVANCE tự gắn ORDER BY trong Specification (sắp theo subquery), nên không truyền Sort
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 byRelevance ? Sort.unsorted() : toSort(sort));
         Page<Product> products = productRepository.findAll(
                 ProductSpecifications.matching(criteria, SKILL_FILTER_MIN_IMPACT, byRelevance), pageable);

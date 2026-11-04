@@ -24,6 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
   const logout = useCallback(() => {
+    // báo server thu hồi token của thiết bị này; không chờ, lỗi mạng cũng vẫn đăng xuất ở client
+    const token = tokenStorage.get()?.token
+    if (token) authApi.logout(token).catch(() => {})
     tokenStorage.clear()
     setSession(null)
     // dữ liệu của tài khoản cũ (giỏ, hồ sơ bé...) không được lộ sang phiên sau
@@ -38,6 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('auth:expired', onExpired)
     return () => window.removeEventListener('auth:expired', onExpired)
+  }, [queryClient])
+
+  // trình duyệt báo sự kiện "storage" cho các tab KHÁC khi một tab đăng nhập / đăng xuất (key null = localStorage.clear())
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== tokenStorage.key) return
+      const previous = tokenStorage.get()
+      const next = tokenStorage.reload()
+      if (previous?.token === next?.token) return
+      // đổi tài khoản / đăng xuất: bỏ dữ liệu của phiên cũ như khi đăng xuất ở chính tab này
+      queryClient.clear()
+      setSession(next)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [queryClient])
 
   // mọi cách đăng nhập (mật khẩu, Google...) đều nhận cùng LoginResponse rồi mở phiên giống nhau

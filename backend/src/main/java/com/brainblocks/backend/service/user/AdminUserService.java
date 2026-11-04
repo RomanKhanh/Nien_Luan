@@ -9,9 +9,9 @@ import com.brainblocks.backend.enums.Role;
 import com.brainblocks.backend.exception.ResourceNotFoundException;
 import com.brainblocks.backend.repository.CustomerRepository;
 import com.brainblocks.backend.repository.UserRepository;
+import com.brainblocks.backend.util.Pages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ public class AdminUserService {
     public PageResponse<UserProfileResponse> getCustomers(String keyword, int page, int size) {
         // sort cố định phía server, không nhận field sort từ client (tránh sort theo field lạ hoặc password)
         // PageRequest.of tự ném IllegalArgumentException nếu page < 0 hoặc size < 1
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<Customer> customers = (keyword == null || keyword.isBlank())
@@ -48,6 +48,8 @@ public class AdminUserService {
 
     @Transactional
     public UserProfileResponse updateStatus(Long id, UpdateUserStatusRequest request) {
+        // Khóa trước khi đọc để các cập nhật users chạy lần lượt.
+        userRepository.lockId(id);
         User user = findUser(id);
 
         // không cho khóa/mở tài khoản admin, tránh admin tự khóa mình hoặc khóa lẫn nhau

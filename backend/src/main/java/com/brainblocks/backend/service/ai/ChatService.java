@@ -319,11 +319,13 @@ public class ChatService {
                 .topic(topic).responseTimeMs(Math.max(0, elapsed))
                 .responseMetadataJson(JSON.writeValueAsString(new Metadata(reasons, sources))).build();
         bot.getSuggestedProducts().addAll(selected);
+        int replyIndex = session.getMessages().size();
         session.addMessage(user);
         session.addMessage(bot);
         if (session.getTitle() == null) session.setTitle(truncate(question, 255));
-        sessions.saveAndFlush(session);
-        var responses = toMessages(List.of(user, bot));
+        ChatSession saved = sessions.saveAndFlush(session);
+        // Dùng bản đã lưu vì merge có thể tạo bản sao của tin nhắn mới.
+        var responses = toMessages(saved.getMessages().subList(replyIndex, replyIndex + 2));
         return new ChatReplyResponse(responses.get(0), responses.get(1));
     }
 

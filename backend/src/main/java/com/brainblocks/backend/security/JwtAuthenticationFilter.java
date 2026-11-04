@@ -1,5 +1,6 @@
 package com.brainblocks.backend.security;
 
+import com.brainblocks.backend.repository.RevokedTokenRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,6 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final RevokedTokenRepository revokedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -38,8 +40,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String email = jwtService.extractEmail(token);
+            String jti = jwtService.extractJti(token);
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // Token cũ chưa có jti không thể thu hồi riêng, vẫn hợp lệ đến khi hết hạn.
+            boolean revoked = jti != null && revokedTokenRepository.existsById(jti);
+
+            if (!revoked && email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                 if (userDetails.isEnabled() && jwtService.isTokenValid(token, userDetails)) {
