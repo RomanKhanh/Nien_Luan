@@ -178,3 +178,61 @@ Ba mục còn lại ở mục 6 **đã sửa xong**, cụ thể:
 **Lưu ý khi chạy với DB thật:** `spring.jpa.hibernate.ddl-auto=update` sẽ tự tạo bảng mới `revoked_tokens` (2 cột) ở lần khởi động tới. Không bảng cũ nào bị đổi.
 
 **Còn lại (nhỏ):** message lỗi `ageFrom must not be greater than ageTo` chưa có bản dịch tiếng Việt trong `frontend/src/api/client.ts`. Giao diện không tạo ra trường hợp này.
+
+## 8. Đợt test bổ sung (không trùng test đã có)
+
+Branch `test/extra-cases`. Claude dò endpoint/class chưa có test nào chạm tới, Codex viết test backend, Claude viết test frontend, rồi Antigravity rà trùng lặp. Chỉ thêm file test, **không sửa code chính** trong đợt này.
+
+### Test mới
+
+| Phần | File | Test | Pass | Nội dung |
+|---|---|---:|---:|---|
+| Backend (Codex) | `fulltest/ops/OperationsApiTest.java` | 20 | 20 | Cảnh báo tồn kho thấp qua checkout (mỗi lần vượt ngưỡng 1 cảnh báo, nhập kho thì bật lại), `GET /api/admin/products/low-stock` (thứ tự, kẹp limit, 403 với khách), thông báo không lộ sang người khác và giới hạn size 50, `UnpaidOrderExpiryJob` (hoàn voucher, chạy 2 lần không hoàn kho 2 lần, không đụng đơn COD hay đơn đã trả), `momo-return` (chữ ký sai hoặc thiếu tham số không gây 500), `skill-profile/recalculate` (chủ hồ sơ / người khác / chưa đăng nhập), runner tính lại khi khởi động, seeder chạy lại không nhân đôi dữ liệu |
+| | `LowStockNotifierTest.java` | 6 | 6 | Ngưỡng không hợp lệ, đọc tồn kho đã lưu thay vì entity cũ, không cảnh báo trùng, sản phẩm ẩn |
+| | `NotificationServiceTest.java` | 1 | 1 | Thông báo gửi riêng từng admin đang hoạt động |
+| | `SearchSuggestionServiceTest.java` | 4 | 4 | Gợi ý 1 ký tự, giới hạn số gợi ý, xếp hạng theo tên, cắt từ khóa dài |
+| | `CatalogDemoSeederTest.java` | 1 | 1 | Seeder demo chạy 2 lần không tạo trùng |
+| Frontend (Claude) | `checkout.test.tsx` | 9 | 9 | Tự điền từ hồ sơ, body đặt COD, validate SĐT/tên, 409 phí ship đổi, hết hàng, MoMo chuyển hướng; **bảo mật: link thanh toán `javascript:` không được chuyển hướng** |
+| | `product-detail.test.tsx` | 8 | 8 | Chỉ số kỹ năng, 404, hết hàng, không vượt tồn kho, "Mua ngay" đúng số lượng, lượt xem chỉ đếm 1 lần mỗi phiên, admin xem không tính lượt |
+| | `orders.test.tsx` | 12 | 12 | Tab lọc theo trạng thái, banner đặt hàng thành công, hủy đơn PENDING, không hủy được CONFIRMED/SHIPPING/DELIVERED, hủy bị từ chối, 404 |
+| | `register.test.tsx` | 12 | **10** | Bắt buộc gửi mã, quy tắc mật khẩu, mã sai, email trùng (409), đổi email phải gửi lại mã, cooldown gửi lại mã; **2 fail = bug 8** |
+| | `notifications.test.tsx` | 8 | 8 | Đánh dấu đã đọc, read-all, phân trang; **bảo mật: link thông báo trỏ ra domain khác bị React Router chặn** |
+| **Tổng mới** | | **81** | **79** | |
+
+### Bug mới phát hiện
+
+| # | Mức độ | Cụm | Mô tả | Vị trí | Test phát hiện |
+|---|---|---|---|---|---|
+| 8 | Trung bình | A. Người dùng (frontend) | **Đăng ký xong luôn bị đưa về trang chủ `/`**, thay vì `/children` hoặc trang khách đang xem dở (`state.from`, ví dụ bấm "Thêm vào giỏ" khi chưa có tài khoản). `RegisterPage` có `if (session && !isSubmitting) return <Navigate to="/" />`. `navigate(from ?? '/children')` của React Router chạy dạng transition nên chạy sau; lúc form hết trạng thái gửi thì trang đăng ký vẫn đang render, `<Navigate to="/">` chạy sau và thắng. `LoginPage` dùng cùng cách viết nhưng hai đích chuyển trang trùng nhau nên không lộ lỗi. *Tái hiện trong jsdom với `MemoryRouter`; nên xác nhận thêm trên trình duyệt thật.* | `frontend/src/pages/auth/RegisterPage.tsx` (dòng `if (session && !form.formState.isSubmitting) return <Navigate to="/" replace />`) | `register.test.tsx` › "chuyển tới trang hồ sơ bé", "quay lại đúng trang đó (state.from)" |
+
+### Kiểm tra trùng lặp (Antigravity, chỉ đọc)
+
+```
+agy -p "$(cat agy-dup.txt)"
+```
+- **Không có test trùng hoàn toàn.** Có 1 cặp trùng một phần: `OperationsApiTest.unpaidJobReleasesVoucherAndSecondRunDoesNotRestoreStockOrCartAgain` và `ReviewFindingsRegressionTest.unpaidMomoOrderIsCancelledAfterDeadline` cùng hủy đơn MoMo quá hạn. Claude giữ cả hai, vì test mới kiểm tra thêm hoàn voucher và chạy job lần 2, còn test cũ kiểm tra đơn trong hạn và chặn `create-url`.
+- Xác nhận Codex bỏ qua `ReturnExpiryJob` / `EvidencePurgeJob` là **đúng**: đã có `CatalogAndFeedbackTest.approvedReturnExpiresAfterSevenDays` và `closedComplaintEvidenceIsPurgedAfterRetentionUnlessHeld`. Claude đã kiểm tra tên test có thật.
+
+### Nhật ký giao việc
+
+| Lần | Lệnh | Kết quả |
+|---|---|---|
+| Codex 1 | `codex exec --sandbox workspace-write "$(cat codex-ops.txt)"` | 5 file, 32 test. Claude chạy: **lỗi biên dịch** do gọi hàm AssertJ không tồn tại `doesNotContainElementsOf` (`OperationsApiTest.java:172`). |
+| Codex 2 | `codex exec --sandbox workspace-write "...sửa doesNotContainElementsOf -> doesNotContainAnyElementsOf..."` | Sửa đúng 1 dòng, rà các file còn lại không thấy lỗi tương tự. Claude chạy: **32/32 pass**. |
+| Antigravity | `agy -p "$(cat agy-dup.txt)"` | Như mục kiểm tra trùng lặp ở trên. |
+
+Trong lúc viết, Claude tự sửa 2 test frontend của mình bị viết sai (không phải bug): test "lượt xem chỉ đếm 1 lần" ban đầu chưa thực sự mở lại trang, và test "vừa đặt xong" ban đầu kiểm tra ngược ý. Ngoài ra, test "link thông báo ra ngoài" ban đầu kỳ vọng sai cơ chế: React Router 7 ném lỗi `External navigation is not allowed` chứ không đổi đường dẫn.
+
+### Kết quả chạy toàn bộ sau đợt bổ sung
+
+| Phần | Test | Pass | Fail |
+|---|---:|---:|---:|
+| Backend (`./mvnw test`, H2) | 514 | 514 | 0 |
+| Frontend (`npm test`) | 105 | 103 | 2 (bug 8) |
+| **Tổng** | **619** | **617** | **2** |
+
+### Sửa bug 8
+
+Claude tự sửa vì việc nhỏ và đã rõ nguyên nhân. Trong `RegisterPage.tsx`, thêm state `justRegistered` và bật nó **trước** khi gọi `login()`. Đoạn chặn `<Navigate to="/">` (dành cho người đã đăng nhập sẵn mở lại trang đăng ký) giờ bỏ qua trường hợp vừa đăng ký trên chính trang này, nên `navigate(from ?? '/children')` chạy đúng.
+
+Kết quả sau khi sửa: frontend **105/105**, backend **514/514**, tổng **619/619 pass**. `tsc -b`, `npm run build` đều đạt.

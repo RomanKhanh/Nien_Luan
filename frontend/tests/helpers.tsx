@@ -8,6 +8,7 @@ import type { LoginResponse } from '@/api/types'
 import { AuthProvider } from '@/auth/AuthContext'
 import { tokenStorage } from '@/auth/tokenStorage'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ChatProvider } from '@/features/chat/ChatProvider'
 
 // Giả lập backend ở tầng adapter của axios: đi qua interceptor + request() thật, chỉ thay phần gửi mạng.
 export interface Call {
@@ -71,7 +72,7 @@ function LocationProbe() {
 // bọc component giống main.tsx: react-query + router + toast + auth
 export function renderWithApp(
   ui: ReactNode,
-  { route = '/', path = '*', extraRoutes }: { route?: string; path?: string; extraRoutes?: ReactNode } = {},
+  { route = '/', path = '*', extraRoutes }: { route?: string | { pathname: string; state?: unknown }; path?: string; extraRoutes?: ReactNode } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -81,11 +82,13 @@ export function renderWithApp(
       <MemoryRouter initialEntries={[route]}>
         <ToastProvider>
           <AuthProvider>
+            <ChatProvider>
             <Routes>
               <Route path={path} element={ui} />
               {extraRoutes}
             </Routes>
             <LocationProbe />
+            </ChatProvider>
           </AuthProvider>
         </ToastProvider>
       </MemoryRouter>
