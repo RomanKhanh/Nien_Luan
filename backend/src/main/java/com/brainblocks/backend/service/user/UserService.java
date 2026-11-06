@@ -32,6 +32,8 @@ public class UserService {
 
     @Transactional
     public UserProfileResponse updateMyProfile(UpdateProfileRequest request) {
+        // Khóa trước khi đọc để không ghi đè trạng thái hoặc mật khẩu vừa đổi.
+        userRepository.lockId(currentUserProvider.getCurrentUserId());
         User user = getCurrentUserEntity();
         user.setFullName(request.fullName().trim());
         user.setPhone(blankToNull(request.phone()));

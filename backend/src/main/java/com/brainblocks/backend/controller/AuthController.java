@@ -20,6 +20,7 @@ import com.brainblocks.backend.service.AuthService;
 import com.brainblocks.backend.service.auth.EmailVerificationService;
 import com.brainblocks.backend.service.auth.GoogleLoginService;
 import com.brainblocks.backend.service.auth.LoginOtpService;
+import com.brainblocks.backend.service.auth.LogoutService;
 import com.brainblocks.backend.service.auth.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,6 +43,14 @@ public class AuthController {
     private final FacebookLoginService facebookLoginService;
     private final FacebookEmailLoginService facebookEmailLoginService;
     private final LoginOtpService loginOtpService;
+    private final LogoutService logoutService;
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        logoutService.logout(authorization);
+        return ResponseEntity.ok(ApiResponse.success("Logged out", null));
+    }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {

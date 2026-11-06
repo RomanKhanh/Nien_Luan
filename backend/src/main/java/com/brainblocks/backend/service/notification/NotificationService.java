@@ -11,8 +11,9 @@ import com.brainblocks.backend.repository.AdminRepository;
 import com.brainblocks.backend.repository.NotificationRepository;
 import com.brainblocks.backend.repository.NotificationRepository.TypeCount;
 import com.brainblocks.backend.security.CurrentUserProvider;
+import com.brainblocks.backend.util.Pages;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +51,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public PageResponse<NotificationResponse> getMyNotifications(int page, int size) {
-        PageRequest pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         return PageResponse.of(
                 notificationRepository.findByRecipientId(currentUserProvider.getCurrentUserId(), pageable),

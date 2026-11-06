@@ -48,6 +48,8 @@ export default function RegisterPage() {
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
   const [sending, setSending] = useState(false)
+  // vừa đăng ký xong trên chính trang này: tự chuyển trang ở onSubmit, không để chặn "đã đăng nhập" bên dưới đưa về "/"
+  const [justRegistered, setJustRegistered] = useState(false)
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { fullName: '', email: '', verificationCode: '', password: '', confirm: '' },
@@ -62,7 +64,8 @@ export default function RegisterPage() {
     return () => clearTimeout(timer)
   }, [cooldown])
 
-  if (session && !form.formState.isSubmitting) return <Navigate to="/" replace />
+  // navigate() ở onSubmit chạy dạng transition nên trang này còn render sau khi isSubmitting về false
+  if (session && !form.formState.isSubmitting && !justRegistered) return <Navigate to="/" replace />
 
   const sendCode = async () => {
     setError(null)
@@ -98,6 +101,7 @@ export default function RegisterPage() {
         verificationCode: values.verificationCode,
       })
       // đăng ký xong đăng nhập luôn cho liền mạch
+      setJustRegistered(true)
       await login(values.email, values.password)
       toast.success('Tạo tài khoản thành công. Bạn được tặng 3 voucher, xem trong Ví voucher.')
       navigate(from ?? '/children', { replace: true })

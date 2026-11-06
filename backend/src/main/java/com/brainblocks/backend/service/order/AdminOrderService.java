@@ -17,9 +17,9 @@ import com.brainblocks.backend.service.notification.NotificationService;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import com.brainblocks.backend.service.skill.SkillScoreCalculator;
 import com.brainblocks.backend.service.voucher.VoucherService;
+import com.brainblocks.backend.util.Pages;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -57,7 +57,7 @@ public class AdminOrderService {
 
     @Transactional(readOnly = true)
     public PageResponse<OrderSummaryResponse> getOrders(OrderStatus status, int page, int size) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Order> orders = status == null
                 ? orderRepository.findAll(pageable)

@@ -16,7 +16,13 @@ function read(): LoginResponse | null {
 }
 
 export const tokenStorage = {
+  key: KEY,
   get(): LoginResponse | null {
+    return current
+  },
+  // tab khác đăng nhập / đăng xuất: đọc lại localStorage để tab này không dùng tiếp token cũ trong bộ nhớ
+  reload(): LoginResponse | null {
+    current = read()
     return current
   },
   set(value: LoginResponse) {

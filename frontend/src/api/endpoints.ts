@@ -66,6 +66,9 @@ export const authApi = {
   sendVerificationCode: (email: string) => request<unknown>(http.post('/auth/register/send-code', { email })),
   register: (body: { fullName: string; email: string; password: string; verificationCode: string }) =>
     request<unknown>(http.post('/auth/register', body)),
+  // gắn token trực tiếp: interceptor chạy bất đồng bộ, lúc đó phiên có thể đã bị xoá ở client
+  logout: (token: string) =>
+    request<unknown>(http.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` } })),
   forgotPassword: (email: string) => request<unknown>(http.post('/auth/forgot-password', { email })),
   resetPassword: (token: string, newPassword: string) =>
     request<unknown>(http.post('/auth/reset-password', { token, newPassword })),

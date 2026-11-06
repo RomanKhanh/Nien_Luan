@@ -11,6 +11,8 @@ import com.brainblocks.backend.service.product.AdminProductService;
 import com.brainblocks.backend.service.product.ProductService;
 import com.brainblocks.backend.service.skill.SkillProfileService;
 import com.brainblocks.backend.service.skill.SkillScoreCalculator;
+import com.brainblocks.backend.service.stock.LowStockNotifier;
+import com.brainblocks.backend.service.stock.LowStockPolicy;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +41,10 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({ProductEmbeddingService.class, AdminProductService.class, ProductService.class, SkillProfileService.class,
-        SkillScoreCalculator.class, ChildProfileAccessGuard.class, CurrentUserProvider.class})
+        SkillScoreCalculator.class, ChildProfileAccessGuard.class, CurrentUserProvider.class, LowStockPolicy.class})
 class ProductEmbeddingServiceTest {
     @MockitoBean GeminiService gemini;
+    @MockitoBean LowStockNotifier lowStockNotifier;
     @Autowired ProductEmbeddingService service;
     @Autowired AdminProductService adminProducts;
     @Autowired ProductEmbeddingRepository embeddings;

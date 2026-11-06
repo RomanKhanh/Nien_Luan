@@ -2,7 +2,7 @@ package com.brainblocks.backend.dto.request.child_profile;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -12,7 +12,7 @@ import java.util.Set;
 
 public record ChildProfileRequest(
         @NotBlank @Size(max = 100) String name,
-        @NotNull @Past LocalDate birthDate,
+        @NotNull @PastOrPresent LocalDate birthDate,
         @Pattern(regexp = "MALE|FEMALE|OTHER", message = "must be MALE, FEMALE or OTHER") String gender,
         @Size(max = 1000) String note,
         // id các nhóm kỹ năng quan tâm; bỏ trống = không chọn nhóm nào

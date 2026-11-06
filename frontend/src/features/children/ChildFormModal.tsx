@@ -13,15 +13,18 @@ import { useSkills } from '@/features/catalog/queries'
 import { GENDER } from '@/lib/labels'
 import { childKeys } from './keys'
 
-const today = () => new Date().toISOString().slice(0, 10)
+// tính ngày theo giờ địa phương để không lệch múi giờ trước 7h sáng
+const toLocalIsoDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const today = () => toLocalIsoDate(new Date())
 
-// khớp ChildProfileRequest: tên <= 100, ngày sinh trong quá khứ, ghi chú <= 1000
+// khớp ChildProfileRequest: tên <= 100, ngày sinh không được ở tương lai, ghi chú <= 1000
 const schema = z.object({
   name: z.string().trim().min(1, 'Vui lòng nhập tên gọi của bé').max(100, 'Tối đa 100 ký tự'),
   birthDate: z
     .string()
     .min(1, 'Vui lòng chọn ngày sinh')
-    .refine((v) => v < today(), 'Ngày sinh không hợp lệ'),
+    .refine((v) => v <= today(), 'Ngày sinh không hợp lệ'),
   note: z.string().max(1000, 'Tối đa 1000 ký tự'),
 })
 type FormValues = z.infer<typeof schema>

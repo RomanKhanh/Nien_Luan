@@ -16,8 +16,8 @@ import com.brainblocks.backend.repository.ProductRepository;
 import com.brainblocks.backend.repository.ReviewRepository;
 import com.brainblocks.backend.security.CurrentUserProvider;
 import com.brainblocks.backend.service.notification.NotificationService;
+import com.brainblocks.backend.util.Pages;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
@@ -42,7 +42,7 @@ public class ReviewService {
     @Transactional(readOnly = true)
     public PageResponse<ReviewResponse> getProductReviews(Long productId, int page, int size) {
         Product product = findActiveProduct(productId);
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         return PageResponse.of(reviewRepository.findByProductIdAndVisibleTrue(product.getId(), pageable),
                 review -> toResponse(review, product));
@@ -84,7 +84,7 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public PageResponse<ReviewResponse> getReviewsForAdmin(Boolean visible, int page, int size) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
+        Pageable pageable = Pages.of(page, size, MAX_PAGE_SIZE,
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
         return PageResponse.of(reviewRepository.findForAdmin(visible, pageable),
                 review -> toResponse(review, review.getProduct()));
