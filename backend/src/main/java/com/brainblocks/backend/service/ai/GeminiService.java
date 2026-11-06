@@ -159,7 +159,7 @@ public class GeminiService {
     // Model hay trả 503 "high demand" / 429 thoáng qua: thử lại 1 lần sau 1 giây. Mỗi lần tối đa 25 giây
     // để cả 2 lần vẫn dưới timeout 60 giây của frontend.
     private static HttpOptions answerHttpOptions() {
-        return HttpOptions.builder().timeout(25_000).retryOptions(HttpRetryOptions.builder()
+        return HttpOptions.builder().timeout(45_000).retryOptions(HttpRetryOptions.builder()
                 .attempts(2).initialDelay(1.0).maxDelay(2.0).httpStatusCodes(List.of(429, 503)).build()).build();
     }
 

@@ -7,7 +7,6 @@ import type {
   ChildProduct,
   ChildProfile,
   ChildProfileRequest,
-  AdminVoucher,
   Complaint,
   ComplaintStatus,
   ComplaintType,
@@ -41,8 +40,6 @@ import type {
   UpdateProfileRequest,
   UserProfile,
   Voucher,
-  VoucherStatus,
-  VoucherSummary,
   LowStockProduct,
   ChildWishlistItem
 } from './types'
@@ -299,10 +296,6 @@ export const adminApi = {
   order: (id: number) => request<Order>(http.get(`/admin/orders/${id}`)),
   updateOrderStatus: (id: number, status: OrderStatus) =>
     request<Order>(http.patch(`/admin/orders/${id}/status`, { status })),
-
-  vouchers: (params: { status?: VoucherStatus; page?: number; size?: number }) =>
-    request<Page<AdminVoucher>>(http.get('/admin/vouchers', { params })),
-  voucherSummary: () => request<VoucherSummary>(http.get('/admin/vouchers/summary')),
 
   users: (params: { keyword?: string; page?: number; size?: number }) =>
     request<Page<UserProfile>>(http.get('/admin/users', { params })),

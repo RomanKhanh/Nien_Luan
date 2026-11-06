@@ -1,9 +1,7 @@
 package com.brainblocks.backend.service.voucher;
 
-import com.brainblocks.backend.dto.response.PageResponse;
-import com.brainblocks.backend.dto.response.voucher.AdminVoucherResponse;
+
 import com.brainblocks.backend.dto.response.voucher.VoucherResponse;
-import com.brainblocks.backend.dto.response.voucher.VoucherSummaryResponse;
 import com.brainblocks.backend.entity.ChildProfile;
 import com.brainblocks.backend.entity.Customer;
 import com.brainblocks.backend.entity.Order;
@@ -22,10 +20,6 @@ import com.brainblocks.backend.service.order.OrderService;
 import com.brainblocks.backend.service.skill.SkillLevel;
 import com.brainblocks.backend.service.skill.SkillScoreCalculator;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -216,30 +210,6 @@ public class VoucherService {
         return discount.min(subtotal);
     }
 
-    // ===== admin =====
-
-    @Transactional(readOnly = true)
-    public PageResponse<AdminVoucherResponse> getVouchersForAdmin(String status, int page, int size) {
-        LocalDateTime now = LocalDateTime.now();
-        Pageable pageable = PageRequest.of(page, Math.min(size, MAX_PAGE_SIZE),
-                Sort.by(Sort.Direction.DESC, "issuedAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        Page<Voucher> vouchers = switch (status == null ? "" : status) {
-            case "AVAILABLE" -> voucherRepository.findAvailable(now, pageable);
-            case "USED" -> voucherRepository.findUsed(pageable);
-            case "EXPIRED" -> voucherRepository.findExpired(now, pageable);
-            case "" -> voucherRepository.findAllForAdmin(pageable);
-            default -> throw new IllegalArgumentException("Unknown voucher status: " + status);
-        };
-        return PageResponse.of(vouchers, v -> new AdminVoucherResponse(toResponse(v, now),
-                v.getCustomer().getId(), v.getCustomer().getFullName(), v.getCustomer().getEmail()));
-    }
-
-    @Transactional(readOnly = true)
-    public VoucherSummaryResponse getSummary() {
-        LocalDateTime now = LocalDateTime.now();
-        return new VoucherSummaryResponse(voucherRepository.count(), voucherRepository.countAvailable(now),
-                voucherRepository.countByOrderIsNotNull(), voucherRepository.countExpired(now));
-    }
 
     // ===== hiển thị =====
 

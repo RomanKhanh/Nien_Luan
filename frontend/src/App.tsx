@@ -37,7 +37,6 @@ const AdminReviewsPage = lazy(() => import('@/pages/admin/ReviewsPage'))
 const AdminComplaintsPage = lazy(() => import('@/pages/admin/ComplaintsPage'))
 const AdminChatbotPage = lazy(() => import('@/pages/admin/ChatbotPage'))
 const AdminKnowledgePage = lazy(() => import('@/pages/admin/KnowledgePage'))
-const AdminVouchersPage = lazy(() => import('@/pages/admin/VouchersPage'))
 
 export default function App() {
   return (
@@ -148,7 +147,6 @@ export default function App() {
           <Route path="complaints" element={<AdminComplaintsPage />} />
           <Route path="chatbot" element={<AdminChatbotPage />} />
           <Route path="knowledge" element={<AdminKnowledgePage />} />
-          <Route path="vouchers" element={<AdminVouchersPage />} />
         </Route>
       </Routes>
     </Suspense>

@@ -677,17 +677,3 @@ export interface Voucher {
   orderId: number | null
   orderCode: string | null
 }
-
-export interface AdminVoucher {
-  voucher: Voucher
-  customerId: number
-  customerName: string
-  customerEmail: string
-}
-
-export interface VoucherSummary {
-  issued: number
-  available: number
-  used: number
-  expired: number
-}
